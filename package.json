@@ -1,0 +1,26 @@
+{
+  "name": "selfwashstation-unified",
+  "private": true,
+  "version": "1.0.0",
+  "workspaces": [
+    "Backend",
+    "Frontend"
+  ],
+  "scripts": {
+    "stop": "powershell -NoProfile -Command \"$processes = Get-Process node,tsx -ErrorAction SilentlyContinue; if ($processes) { $processes | ForEach-Object { try { Stop-Process -Id $_.Id -Force -ErrorAction Stop } catch { Write-Output ('Skip PID ' + $_.Id + ': ' + $_.Exception.Message) } } }; Write-Output 'Stop phase completed'\"",
+    "kill-ports": "powershell -NoProfile -Command \"@(3000,5173,5174) | ForEach-Object { $port=$_; $pids=(netstat -ano | Select-String \":$port\\s\" | ForEach-Object { ($_ -split '\\s+')[-1] } | Sort-Object -Unique); $pids | Where-Object {$_ -match '^\\d+$'} | ForEach-Object { try { Stop-Process -Id ([int]$_) -Force -EA Stop; Write-Host \\\"Killed PID $_ (port $port)\\\" } catch {} } }; Write-Host 'Ports cleared'\"",
+    "dev": "npm run kill-ports ; npm run dev:selfwash",
+    "dev:selfwash": "concurrently --kill-others-on-fail -n backend,frontend -c cyan,green \"npm --workspace Backend run dev\" \"npm --workspace Frontend run dev -- --port 5173\"",
+    "dev:selfwash-backend": "npm --workspace Backend run dev",
+    "dev:selfwash-frontend": "npm --workspace Frontend run dev",
+    "build:selfwash-backend": "npm --workspace Backend run build",
+    "build:selfwash-frontend": "npm --workspace Frontend run build",
+    "lint:selfwash-backend": "npm --workspace Backend run lint"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.1"
+  }
+}

@@ -1,0 +1,556 @@
+/* 1. CONFIGURATION & VARIABLES */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+/* ── LIGHT THEME (default) ──────────────────────────────── */
+:root {
+  /* Accent */
+  --accent:            #6366f1;
+  --accent-glow:       rgba(99, 102, 241, 0.35);
+  --primary-color:     hsla(160, 100%, 37%, 1);
+  --primary-light:     hsla(160, 100%, 37%, 0.2);
+
+  /* Backgrounds */
+  --bg-body:           #f0f2f5;
+  --bg-card:           #ffffff;
+  --bg-sidebar:        #ffffff;
+  --bg-header:         #ffffff;
+  --bg-surface:        #f4f6f9;
+  --bg-hover:          #eaecf0;
+  --bg-active:         #dbeafe;
+  --bg-submenu:        transparent;
+
+  /* Text — improved contrast */
+  --text-main:         #111827;
+  --text-muted:        #4b5563;
+  --text-faint:        #6b7280;
+  --text-link:         #2563eb;
+  --text-active:       #1d4ed8;
+
+  /* Borders */
+  --border:            #d1d5db;
+  --border-subtle:     #e5e7eb;
+  --border-submenu:    #d1d5db;
+
+  /* Shadows */
+  --shadow-card:       0 1px 6px rgba(0, 0, 0, 0.08);
+  --shadow-header:     0 1px 0 rgba(0, 0, 0, 0.08);
+
+  /* Legacy */
+  --transition:        all 0.2s ease;
+
+  /* Font */
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ── DARK THEME ─────────────────────────────────────────── */
+[data-theme="dark"] {
+  --bg-body:           #0a1120;
+  --bg-card:           #13203a;
+  --bg-sidebar:        #0d1829;
+  --bg-header:         #0d1829;
+  --bg-surface:        #1a2d48;
+  --bg-hover:          #1e3354;
+  --bg-active:         rgba(99, 102, 241, 0.2);
+  --bg-submenu:        rgba(0, 0, 0, 0.2);
+
+  /* Text — improved contrast for dark */
+  --text-main:         #f1f5f9;
+  --text-muted:        #94a3b8;
+  --text-faint:        #64748b;
+  --text-link:         #818cf8;
+  --text-active:       #a5b4fc;
+
+  --border:            #1e3354;
+  --border-subtle:     #172a44;
+  --border-submenu:    #1e3354;
+
+  --shadow-card:       0 8px 32px rgba(0, 0, 0, 0.5);
+  --shadow-header:     0 1px 0 rgba(0, 0, 0, 0.4);
+
+}
+
+/* 2. GLOBAL RESET */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html, body, #app {
+  height: 100%;
+  width: 100%;
+  margin: 0;
+  overflow: hidden;
+}
+
+/* On mobile, allow content to scroll naturally */
+@media (max-width: 768px) {
+  html, body {
+    height: 100%;
+    overflow: hidden; /* keep fixed — inner content areas scroll */
+  }
+
+  /* Settings pages: reduce padding on mobile */
+  .settings-page {
+    padding: 14px !important;
+    gap: 14px !important;
+  }
+
+  .header-row {
+    flex-direction: column !important;
+    gap: 10px !important;
+    align-items: flex-start !important;
+  }
+
+  .header-row h2 {
+    font-size: 20px !important;
+  }
+
+  /* El-table wrapper: allow horizontal scroll */
+  .el-table-wrapper,
+  .el-table__inner-wrapper {
+    overflow-x: auto !important;
+  }
+}
+
+body {
+  background-color: var(--bg-body);
+  color: var(--text-main);
+  font-weight: 400;
+  line-height: 1.5;
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+a {
+  text-decoration: none;
+  color: var(--primary-color);
+  transition: var(--transition);
+  padding: 3px;
+}
+
+@media (hover: hover) {
+  a:hover {
+    background-color: var(--primary-light);
+    border-radius: 4px;
+  }
+}
+
+/* ── SETTINGS PAGES (shared by CaiDat, ApiManagement, CauHinh, SystemTest) ── */
+.settings-page {
+  padding: 24px;
+  display: grid;
+  gap: 20px;
+}
+
+.section-kicker {
+  margin: 0 0 8px;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.16em;
+  color: #2563eb;
+}
+
+.header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 24px;
+}
+
+.header-row h2 {
+  margin: 0;
+  font-size: 28px;
+}
+
+.header-row p {
+  margin: 8px 0 0;
+  color: var(--text-muted);
+}
+
+/* ── EL-TABLE dark mode header global fix ──────────── */
+[data-theme="dark"] :deep(.el-table__header-wrapper th),
+[data-theme="dark"] .el-table__header-wrapper th {
+  background-color: #1a2d48 !important;
+  color: #94a3b8 !important;
+}
+
+[data-theme="dark"] .el-table,
+[data-theme="dark"] .el-table th,
+[data-theme="dark"] .el-table tr,
+[data-theme="dark"] .el-table td {
+  background-color: #13203a !important;
+  color: #f1f5f9 !important;
+  border-color: #1e3354 !important;
+}
+
+[data-theme="dark"] .el-table--striped .el-table__body tr.el-table__row--striped td {
+  background-color: #16253f !important;
+}
+
+[data-theme="dark"] .el-table__body tr:hover > td {
+  background-color: #1e3354 !important;
+}
+
+[data-theme="dark"] .el-card {
+  background-color: #13203a !important;
+  border-color: #1e3354 !important;
+  color: #f1f5f9 !important;
+}
+
+[data-theme="dark"] .el-card .el-card__header {
+  border-color: #1e3354 !important;
+}
+
+[data-theme="dark"] .el-form-item__label {
+  color: #94a3b8 !important;
+}
+
+[data-theme="dark"] .el-input__wrapper {
+  background-color: #1a2d48 !important;
+  box-shadow: 0 0 0 1px #1e3354 inset !important;
+}
+
+[data-theme="dark"] .el-input__inner {
+  color: #f1f5f9 !important;
+  background-color: transparent !important;
+}
+
+[data-theme="dark"] .el-input__inner::placeholder {
+  color: #4b5563 !important;
+}
+
+[data-theme="dark"] .el-select__wrapper {
+  background-color: #1a2d48 !important;
+  box-shadow: 0 0 0 1px #1e3354 inset !important;
+}
+
+[data-theme="dark"] .el-textarea__inner {
+  background-color: #1a2d48 !important;
+  color: #f1f5f9 !important;
+  box-shadow: 0 0 0 1px #1e3354 inset !important;
+}
+
+[data-theme="dark"] .el-textarea__inner::placeholder {
+  color: #4b5563 !important;
+}
+
+[data-theme="dark"] .el-dialog {
+  background-color: #13203a !important;
+  border: 1px solid #1e3354 !important;
+  color: #f1f5f9 !important;
+}
+
+[data-theme="dark"] .el-dialog__title {
+  color: #f1f5f9 !important;
+}
+
+[data-theme="dark"] .el-dialog__headerbtn .el-dialog__close {
+  color: #94a3b8 !important;
+}
+
+[data-theme="dark"] .el-divider {
+  border-color: #1e3354 !important;
+}
+
+[data-theme="dark"] .el-dropdown-menu {
+  background-color: #13203a !important;
+  border-color: #1e3354 !important;
+}
+
+[data-theme="dark"] .el-dropdown-menu__item {
+  color: #94a3b8 !important;
+}
+
+[data-theme="dark"] .el-dropdown-menu__item:hover {
+  background-color: #1a2d48 !important;
+  color: #f1f5f9 !important;
+}
+
+[data-theme="dark"] .el-date-editor .el-input__wrapper {
+  background-color: #1a2d48 !important;
+}
+
+[data-theme="dark"] .el-radio-button__inner {
+  background-color: #1a2d48 !important;
+  border-color: #1e3354 !important;
+  color: #94a3b8 !important;
+}
+
+[data-theme="dark"] .el-radio-button__original-radio:checked + .el-radio-button__inner {
+  background-color: #6366f1 !important;
+  border-color: #6366f1 !important;
+  color: #fff !important;
+}
+
+[data-theme="dark"] .el-pagination {
+  color: #94a3b8 !important;
+}
+
+[data-theme="dark"] .el-pagination button,
+[data-theme="dark"] .el-pager li {
+  background-color: #1a2d48 !important;
+  color: #94a3b8 !important;
+  border-color: #1e3354 !important;
+}
+
+[data-theme="dark"] .el-pager li.is-active {
+  color: #818cf8 !important;
+}
+
+/* ─────────────────────────────────────────────────────────
+   DARK MODE VISUAL EFFECTS
+   ───────────────────────────────────────────────────────── */
+
+/* 1. Dot-grid texture on the page body */
+[data-theme="dark"] body {
+  background-image:
+    radial-gradient(circle, rgba(99, 102, 241, 0.07) 1px, transparent 1px);
+  background-size: 26px 26px;
+}
+
+/* 2. Ambient glow orbs (fixed, purely decorative) */
+[data-theme="dark"] body::before,
+[data-theme="dark"] body::after {
+  content: '';
+  position: fixed;
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 0;
+}
+
+[data-theme="dark"] body::before {
+  width: 700px;
+  height: 700px;
+  top: -220px;
+  right: -180px;
+  background: radial-gradient(circle, rgba(99, 102, 241, 0.09) 0%, transparent 65%);
+  animation: orb-drift 18s ease-in-out infinite alternate;
+}
+
+[data-theme="dark"] body::after {
+  width: 500px;
+  height: 500px;
+  bottom: -150px;
+  left: -120px;
+  background: radial-gradient(circle, rgba(16, 185, 129, 0.07) 0%, transparent 65%);
+  animation: orb-drift 24s ease-in-out infinite alternate-reverse;
+}
+
+@keyframes orb-drift {
+  0%   { transform: translate(0, 0) scale(1); }
+  50%  { transform: translate(30px, 20px) scale(1.06); }
+  100% { transform: translate(-20px, 40px) scale(0.96); }
+}
+
+/* 3. Text selection color */
+[data-theme="dark"] ::selection {
+  background: rgba(99, 102, 241, 0.35);
+  color: #f1f5f9;
+}
+
+/* 4. Scrollbar dark styling */
+[data-theme="dark"] ::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+[data-theme="dark"] ::-webkit-scrollbar-track {
+  background: rgba(255,255,255,0.03);
+}
+[data-theme="dark"] ::-webkit-scrollbar-thumb {
+  background: rgba(99, 102, 241, 0.3);
+  border-radius: 6px;
+}
+[data-theme="dark"] ::-webkit-scrollbar-thumb:hover {
+  background: rgba(99, 102, 241, 0.5);
+}
+
+/* 5. Global card lift & glow on hover in dark mode */
+[data-theme="dark"] .card {
+  border: 1px solid rgba(99, 102, 241, 0.08);
+  transition: transform 0.22s ease, box-shadow 0.22s ease, border-color 0.22s ease;
+}
+
+[data-theme="dark"] .card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(99, 102, 241, 0.18);
+  border-color: rgba(99, 102, 241, 0.22);
+}
+
+/* 6. Input focus glow in dark mode */
+[data-theme="dark"] .el-input__wrapper.is-focus {
+  box-shadow: 0 0 0 1px #6366f1 inset, 0 0 10px rgba(99, 102, 241, 0.25) !important;
+}
+
+/* 7. Active el-card top accent line */
+[data-theme="dark"] .el-card {
+  border-top: 1px solid rgba(99, 102, 241, 0.1) !important;
+}
+
+/* 8. Shimmer keyframe (used by components) */
+@keyframes shimmer {
+  0%   { background-position: -400px 0; }
+  100% { background-position: 400px 0; }
+}
+
+@keyframes pulse-glow {
+  0%, 100% { opacity: 0.5; }
+  50%       { opacity: 1; }
+}
+
+/* ─────────────────────────────────────────────────────────
+   MOBILE: GLOBAL ELEMENT-PLUS OVERRIDES
+   ───────────────────────────────────────────────────────── */
+
+@media (max-width: 768px) {
+  /* El-table: horizontal scroll container */
+  .el-table {
+    overflow-x: auto !important;
+  }
+
+  /* El-card: reduce padding */
+  .el-card__body {
+    padding: 12px !important;
+  }
+
+  /* El-form inline: wrap and stack items */
+  .el-form--inline .el-form-item {
+    margin-right: 8px !important;
+    margin-bottom: 8px !important;
+  }
+
+  /* El-form-item label: compact */
+  .el-form-item__label {
+    font-size: 12px !important;
+    padding-right: 4px !important;
+  }
+
+  /* El-pagination: compact layout */
+  .el-pagination {
+    flex-wrap: wrap !important;
+    gap: 4px !important;
+    justify-content: center !important;
+  }
+
+  .el-pagination .el-pagination__sizes,
+  .el-pagination .el-pagination__jump {
+    display: none !important;
+  }
+
+  /* El-divider: smaller margin */
+  .el-divider--horizontal {
+    margin: 10px 0 !important;
+  }
+
+  /* El-select: auto width */
+  .el-select {
+    width: 100% !important;
+  }
+  .el-select .el-input__wrapper {
+    min-width: 0;
+  }
+
+  /* El-date-editor: full width */
+  .el-date-editor.el-input__wrapper,
+  .el-date-editor--daterange {
+    width: 100% !important;
+  }
+
+  /* El-radio-group buttons: smaller */
+  .el-radio-button__inner {
+    padding: 5px 10px !important;
+    font-size: 11px !important;
+  }
+
+  /* El-dialog: full screen on mobile */
+  .el-dialog {
+    width: 95vw !important;
+    max-width: 95vw !important;
+    margin: 5vh auto !important;
+  }
+
+  /* Common page containers */
+  .page-container,
+  .revenue-report-container,
+  .wash-session-container,
+  .page {
+    padding: 8px !important;
+  }
+
+  /* Header card margin */
+  .header-card {
+    margin-bottom: 8px !important;
+  }
+
+  /* Table card margin */
+  .table-card {
+    margin-top: 8px !important;
+  }
+
+  /* Filter card margin */
+  .filter-card {
+    margin-bottom: 8px !important;
+  }
+}
+
+/* ─── LANDSCAPE PHONE: fit table to viewport height ──────── */
+@media (max-width: 900px) and (orientation: landscape) {
+  /* App layout: let content fill without scrolling off-screen */
+  .content {
+    padding-bottom: 8px !important; /* no big bottom padding in landscape */
+  }
+
+  /* Compact filter cards in landscape */
+  .filter-card .el-card__body,
+  .header-card .el-card__body {
+    padding: 8px !important;
+  }
+
+  .el-divider--horizontal {
+    margin: 6px 0 !important;
+  }
+
+  /* el-table in landscape: limit height so pagination is visible */
+  .el-table {
+    max-height: calc(100vh - 180px) !important;
+    overflow-y: auto !important;
+  }
+
+  /* KPI cards: 4 in a row in landscape */
+  .kpi-grid {
+    grid-template-columns: repeat(4, 1fr) !important;
+    gap: 6px !important;
+  }
+
+  .kpi-card {
+    min-height: 90px !important;
+    padding: 10px 12px 8px !important;
+  }
+
+  .kpi-card .value {
+    font-size: 18px !important;
+  }
+
+  /* Dashboard main grid: side by side in landscape */
+  .main-grid {
+    display: grid !important;
+    grid-template-columns: 1.4fr 1fr !important;
+    flex: 1 !important;
+    min-height: 0 !important;
+    gap: 8px !important;
+  }
+
+  .left-panel > * {
+    height: calc(100vh - 160px) !important;
+  }
+
+  .right-panel > * {
+    flex: none !important;
+  }
+
+  /* Sidebar bottom nav: hide in landscape to save vertical space */
+  .mobile-nav {
+    display: none !important;
+  }
+}
+

@@ -1,0 +1,63 @@
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: selfwash_mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+    ports:
+      - "${MYSQL_PORT:-3306}:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-p${MYSQL_ROOT_PASSWORD}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    restart: always
+
+  mqtt:
+    image: eclipse-mosquitto:2
+    container_name: selfwash_mqtt
+    ports:
+      - "${MQTT_PORT:-1883}:1883"
+    volumes:
+      - mqtt_data:/mosquitto/data
+      - mqtt_log:/mosquitto/log
+    restart: always
+
+  backend:
+    build: ./backend
+    container_name: selfwash_backend
+    env_file:
+      - .env
+    environment:
+      # Override để dùng Docker service names thay vì localhost
+      MYSQL_HOST: mysql
+      MYSQL_PORT: 3306
+      MQTT_BROKER: mqtt://mqtt:1883
+    depends_on:
+      mysql:
+        condition: service_healthy
+      mqtt:
+        condition: service_started
+    ports:
+      - "${PORT:-3000}:${PORT:-3000}"
+    restart: always
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        VITE_API_URL: ${VITE_API_URL}
+    container_name: selfwash_frontend
+    ports:
+      - "${FRONTEND_PORT:-5190}:80"
+    restart: always
+
+volumes:
+  mysql_data:
+  mqtt_data:
+  mqtt_log:
