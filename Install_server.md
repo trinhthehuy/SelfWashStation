@@ -163,3 +163,46 @@ Frontend Container
 Backend API
    ↓
 MySQL + MQTT
+
+
+5) Cài Certbot
+
+Ubuntu 24.04 dùng cách này là tốt nhất:
+
+sudo apt install certbot python3-certbot-nginx -y
+
+6) Cấp HTTPS certificate
+
+Chạy:
+
+sudo certbot --nginx -d serverninhbinh.gotdns.ch
+
+Nó sẽ hỏi:
+
+email
+agree terms
+redirect HTTP → HTTPS
+
+👉 chọn:
+
+Redirect
+
+để tự động ép HTTPS.
+
+Sau khi xong sẽ tự sửa file Nginx.
+
+7) Kiểm tra kết quả
+
+Mở:
+
+https://serverninhbinh.gotdns.ch
+
+Nếu hiện ổ khóa là OK.
+
+8) Kiểm tra tự gia hạn
+
+Let's Encrypt hết hạn sau 90 ngày.
+
+Test:
+
+sudo certbot renew --dry-run
