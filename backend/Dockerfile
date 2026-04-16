@@ -21,6 +21,6 @@ COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/ca.pem ./ca.pem
 COPY --from=builder /app/knexfile.cjs ./knexfile.cjs
 
-EXPOSE 3020
+EXPOSE 3000
 
 CMD ["node", "dist/server.js"]

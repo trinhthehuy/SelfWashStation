@@ -32,7 +32,7 @@ services:
     build: ./backend
     container_name: selfwash_backend
     env_file:
-      - .env
+      - .env.production
     environment:
       # Override để dùng Docker service names thay vì localhost
       MYSQL_HOST: mysql
