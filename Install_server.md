@@ -6,7 +6,7 @@ Ubuntu Server 24.04 – Docker – Domain – Nginx Reverse Proxy
 Thành phần	Giá trị
 Server IP	192.168.1.250
 SSH Port	22896
-User	thanhtam
+User	selfwash
 Project	selfwashstation
 Domain	serverninhbinh.gotdns.ch
 Thư mục deploy	/opt/selfwashstation
@@ -15,29 +15,36 @@ Backend	NodeJS Docker
 Database	MySQL Docker
 MQTT	Mosquitto Docker
 2. SSH vào server
-ssh thanhtam@192.168.1.250 -p 22896
+ssh selfwash@192.168.1.250 -p 22896
 3. Cài Docker (Official)
 3.1 Cài dependency
 sudo apt update
 sudo apt install ca-certificates curl gnupg -y
+
 3.2 Add Docker Repository
 sudo install -m 0755 -d /etc/apt/keyrings
+
 curl -fsSL https://download.docker.com/linux/ubuntu/gpg | \
 sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+
 sudo chmod a+r /etc/apt/keyrings/docker.gpg
+
 echo \
 "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] \
 https://download.docker.com/linux/ubuntu \
 $(. /etc/os-release && echo "$VERSION_CODENAME") stable" | \
 sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+
 3.3 Cài Docker Engine + Compose
 sudo apt update
 sudo apt install docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin -y
+
 3.4 Enable Docker
 sudo systemctl enable docker
 sudo systemctl start docker
+
 3.5 Cho user chạy docker
-sudo usermod -aG docker thanhtam
+sudo usermod -aG docker selfwash
 
 Logout SSH → login lại.
 
@@ -46,37 +53,20 @@ Test:
 docker ps
 4. Chuẩn bị thư mục deploy
 sudo mkdir -p /opt/SelfWashStation
-sudo chown -R thanhtam:thanhtam /opt/SelfWashStation
+sudo chown -R selfwash:selfwash /opt/SelfWashStation
 5. Clone project
 cd /opt
 git clone https://github.com/trinhthehuy/SelfWashStation.git
 cd SelfWashStation
-6. Tạo file môi trường .env
-nano .env
+6. Tạo file môi trường .env.production
+nano .env.production
 
-Nội dung:
+Nội dung: (điền đầy đủ các biến môi trường production)
 
-NODE_ENV=production
-PORT=3020
-CORS_ORIGIN=https://serverninhbinh.gotdns.ch
-JWT_SECRET=selfwash_prod_secret
+Sau khi tạo xong, tạo symlink .env trỏ vào .env.production để Docker Compose tự đọc:
 
-MYSQL_HOST=mysql
-MYSQL_PORT=3306
-MYSQL_USER=selfwash
-MYSQL_PASSWORD=selfwash123
-MYSQL_DATABASE=carwash_os
-MYSQL_ROOT_PASSWORD=root123
-MYSQL_SSL=false
+ln -sf .env.production .env
 
-CA_PEM_PATH=./ca.pem
-
-MQTT_BROKER=mqtt://mqtt:1883
-MQTT_USER=
-MQTT_PASS=
-
-VITE_API_URL=https://serverninhbinh.gotdns.ch/api
-FRONTEND_PORT=5190
 7. Chạy hệ thống Docker
 docker compose up -d --build
 
@@ -134,6 +124,11 @@ sudo systemctl restart nginx
 cd /opt/selfwashstation
 docker compose down
 docker compose up -d --build
+
+Lưu ý: Nếu chưa có symlink .env, chạy lại:
+
+ln -sf .env.production .env
+
 10. Truy cập hệ thống
 
 Frontend:
@@ -147,6 +142,8 @@ http://serverninhbinh.gotdns.ch/api
 cd /opt/selfwashstation
 git pull
 docker compose up -d --build
+
+Lưu ý: Symlink .env → .env.production chỉ cần tạo 1 lần. Nếu mất symlink thì chạy lại: ln -sf .env.production .env
 12. Lệnh quản trị hệ thống
 Xem log
 docker compose logs -f

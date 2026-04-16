@@ -83,13 +83,15 @@ export class SystemAuthService {
       });
     }
 
-    if (!(await db.schema.hasColumn('api_tokens', 'expires_at'))) {
+    const hasApiTokens = await db.schema.hasTable('api_tokens');
+    if (hasApiTokens && !(await db.schema.hasColumn('api_tokens', 'expires_at'))) {
       await db.schema.alterTable('api_tokens', (table) => {
         table.dateTime('expires_at').nullable();
       });
     }
 
-    if (!(await db.schema.hasColumn('transactions', 'bay_code'))) {
+    const hasTransactions = await db.schema.hasTable('transactions');
+    if (hasTransactions && !(await db.schema.hasColumn('transactions', 'bay_code'))) {
       await db.schema.alterTable('transactions', (table) => {
         table.string('bay_code', 16).nullable();
       });

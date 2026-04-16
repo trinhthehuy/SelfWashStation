@@ -1,6 +1,6 @@
 // src/server.ts
 import { createApp } from './app.js';
-import { initDb } from './db/index.js';
+import db, { initDb } from './db/index.js';
 import config from './config/index.js';
 import path from 'path';
 import express from 'express';
@@ -15,6 +15,9 @@ async function startServer() {
   try {
     // 1. Khởi tạo Database
     await initDb();
+    // Chạy migrations tự động để đảm bảo schema đồng bộ
+    await db.migrate.latest();
+    console.log('✅ Database migrations applied.');
     // Đảm bảo tạo bảng và seed tài khoản nếu chưa có
     await SystemAuthService.bootstrapDefaultAccounts();
     await mqttService.initialize();
