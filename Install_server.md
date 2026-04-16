@@ -58,7 +58,7 @@ Nội dung:
 
 NODE_ENV=production
 PORT=3020
-CORS_ORIGIN=http://serverninhbinh.gotdns.ch
+CORS_ORIGIN=https://serverninhbinh.gotdns.ch
 JWT_SECRET=selfwash_prod_secret
 
 MYSQL_HOST=mysql
@@ -75,7 +75,7 @@ MQTT_BROKER=mqtt://mqtt:1883
 MQTT_USER=
 MQTT_PASS=
 
-VITE_API_URL=http://serverninhbinh.gotdns.ch/api
+VITE_API_URL=https://serverninhbinh.gotdns.ch/api
 FRONTEND_PORT=5190
 7. Chạy hệ thống Docker
 docker compose up -d --build

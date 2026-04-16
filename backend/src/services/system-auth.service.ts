@@ -1,7 +1,55 @@
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import db from '../db/index.js';
+import type { Knex } from 'knex';
 import type { AuthUser, UserRole } from '../middleware/auth.js';
+
+// Seed accounts from environment variables, only runs if the table doesn't exist
+export async function ensureSystemUsersSeedIfNotExists(knexInstance: Knex) {
+  const hasTable = await knexInstance.schema.hasTable('system_users');
+  if (!hasTable) {
+    await knexInstance.schema.createTable('system_users', (table) => {
+      table.increments('id').primary();
+      table.string('username', 64).notNullable().unique();
+      table.string('password_hash', 255).notNullable();
+      table.string('full_name', 128).notNullable();
+      table.enu('role', ['sa', 'engineer', 'agency']).notNullable();
+      table.integer('agency_id').unsigned().nullable();
+      table.boolean('is_active').notNullable().defaultTo(true);
+      table.text('avatar').nullable();
+      table.timestamp('last_login_at').nullable();
+      table.timestamp('created_at').defaultTo(knexInstance.fn.now());
+      table.timestamp('updated_at').defaultTo(knexInstance.raw('CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP'));
+    });
+
+    // Seed accounts from environment variables if provided
+    const saUsername = process.env.SEED_SA_USERNAME;
+    const saPassword = process.env.SEED_SA_PASSWORD;
+    const engineerUsername = process.env.SEED_ENGINEER_USERNAME;
+    const engineerPassword = process.env.SEED_ENGINEER_PASSWORD;
+
+    if (saUsername && saPassword) {
+      await knexInstance('system_users').insert({
+        username: saUsername,
+        password_hash: await bcrypt.hash(saPassword, 10),
+        full_name: 'Super Admin',
+        role: 'sa',
+        agency_id: null,
+        is_active: true,
+      });
+    }
+    if (engineerUsername && engineerPassword) {
+      await knexInstance('system_users').insert({
+        username: engineerUsername,
+        password_hash: await bcrypt.hash(engineerPassword, 10),
+        full_name: 'Engineer',
+        role: 'engineer',
+        agency_id: null,
+        is_active: true,
+      });
+    }
+  }
+}
 
 const getJwtSecret = () => process.env.JWT_SECRET || 'fallback_secret';
 const getJwtExpiresIn = () => process.env.JWT_EXPIRES_IN || '7d';
@@ -176,7 +224,7 @@ export class SystemAuthService {
       agencyId: user.agency_id,
       isActive: Boolean(user.is_active),
       lastLoginAt: user.last_login_at || null,
-      createdAt: (user as any).created_at || null
+      createdAt: (user as any)!.created_at || null
     }));
   }
 

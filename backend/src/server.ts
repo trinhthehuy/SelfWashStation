@@ -5,7 +5,7 @@ import config from './config/index.js';
 import path from 'path';
 import express from 'express';
 import { fileURLToPath } from 'url';
-import { SystemAuthService } from './services/system-auth.service.js';
+import { SystemAuthService, ensureSystemUsersSeedIfNotExists } from './services/system-auth.service.js';
 import { mqttService } from './services/mqtt.service.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -15,6 +15,9 @@ async function startServer() {
   try {
     // 1. Khởi tạo Database
     await initDb();
+    // Đảm bảo tạo bảng và seed tài khoản nếu chưa có
+    const { default: db } = await import('./db/index.js');
+    await ensureSystemUsersSeedIfNotExists(db);
     await SystemAuthService.bootstrapDefaultAccounts();
     await mqttService.initialize();
 
