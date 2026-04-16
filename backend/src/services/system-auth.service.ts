@@ -101,34 +101,46 @@ export class SystemAuthService {
   static async bootstrapDefaultAccounts() {
     await this.ensureSchema();
 
-    const seedAccounts = getDefaultSystemAccounts();
+    let seedAccounts: SeedSystemAccount[];
+    try {
+      seedAccounts = getDefaultSystemAccounts();
+    } catch (err) {
+      console.error('❌ Cannot seed default accounts — missing env vars:', err);
+      return;
+    }
 
     for (const account of seedAccounts) {
-      const existing = await db<SystemUserRow>('system_users').where('username', account.username).first();
+      try {
+        const existing = await db<SystemUserRow>('system_users').where('username', account.username).first();
 
-      if (existing) {
-        if (account.role === 'agency' && account.agencyId && existing.agency_id !== account.agencyId) {
-          await db('system_users')
-            .where('id', existing.id)
-            .update({
-              agency_id: account.agencyId,
-              full_name: account.fullName,
-              updated_at: db.fn.now()
-            });
+        if (existing) {
+          if (account.role === 'agency' && account.agencyId && existing.agency_id !== account.agencyId) {
+            await db('system_users')
+              .where('id', existing.id)
+              .update({
+                agency_id: account.agencyId,
+                full_name: account.fullName,
+                updated_at: db.fn.now()
+              });
+          }
+          console.log(`ℹ️  Account already exists: ${account.username}`);
+          continue;
         }
-        continue;
+
+        const passwordHash = await bcrypt.hash(account.password, 10);
+
+        await db('system_users').insert({
+          username: account.username,
+          password_hash: passwordHash,
+          full_name: account.fullName,
+          role: account.role,
+          agency_id: account.agencyId,
+          is_active: 1
+        });
+        console.log(`✅ Default account created: ${account.username} (${account.role})`);
+      } catch (err) {
+        console.error(`❌ Failed to seed account "${account.username}":`, err);
       }
-
-      const passwordHash = await bcrypt.hash(account.password, 10);
-
-      await db('system_users').insert({
-        username: account.username,
-        password_hash: passwordHash,
-        full_name: account.fullName,
-        role: account.role,
-        agency_id: account.agencyId,
-        is_active: 1
-      });
     }
   }
 

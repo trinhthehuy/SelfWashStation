@@ -16,8 +16,12 @@ async function startServer() {
     // 1. Khởi tạo Database
     await initDb();
     // Chạy migrations tự động để đảm bảo schema đồng bộ
-    await db.migrate.latest();
-    console.log('✅ Database migrations applied.');
+    try {
+      await db.migrate.latest();
+      console.log('✅ Database migrations applied.');
+    } catch (migrateErr) {
+      console.warn('⚠️  Migration warning (non-fatal):', migrateErr);
+    }
     // Đảm bảo tạo bảng và seed tài khoản nếu chưa có
     await SystemAuthService.bootstrapDefaultAccounts();
     await mqttService.initialize();
