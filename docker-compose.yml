@@ -34,7 +34,7 @@ services:
     env_file:
       - .env.production
     environment:
-      # Override để dùng Docker service names thay vì localhost
+      # Override để dùng Docker service names
       MYSQL_HOST: mysql
       MYSQL_PORT: 3306
       MQTT_BROKER: mqtt://mqtt:1883

@@ -18,28 +18,39 @@ type SystemUserRow = {
   last_login_at?: string | null;
 };
 
-export const DEFAULT_SYSTEM_ACCOUNTS = {
-  sa: {
-    username: process.env.SEED_SA_USERNAME || 'sa',
-    password: process.env.SEED_SA_PASSWORD || 'Sa@123456',
-    fullName: 'Super Admin',
-    role: 'sa' as UserRole,
-    agencyId: null
-  },
-  engineer: {
-    username: process.env.SEED_ENGINEER_USERNAME || 'engineer',
-    password: process.env.SEED_ENGINEER_PASSWORD || 'Engineer@123456',
-    fullName: 'System Engineer',
-    role: 'engineer' as UserRole,
-    agencyId: null
-  },
-  agency: {
-    username: 'agency.manager',
-    password: 'Agency@123456',
-    fullName: 'Agency Manager',
-    role: 'agency' as UserRole,
-    agencyId: null as number | null
+type SeedSystemAccount = {
+  username: string;
+  password: string;
+  fullName: string;
+  role: UserRole;
+  agencyId: number | null;
+};
+
+const getRequiredEnv = (name: string) => {
+  const value = process.env[name];
+  if (!value || !value.trim()) {
+    throw new Error(`Missing required environment variable: ${name}`);
   }
+  return value.trim();
+};
+
+const getDefaultSystemAccounts = (): SeedSystemAccount[] => {
+  return [
+    {
+      username: getRequiredEnv('SEED_SA_USERNAME'),
+      password: getRequiredEnv('SEED_SA_PASSWORD'),
+      fullName: 'Super Admin',
+      role: 'sa',
+      agencyId: null
+    },
+    {
+      username: getRequiredEnv('SEED_ENGINEER_USERNAME'),
+      password: getRequiredEnv('SEED_ENGINEER_PASSWORD'),
+      fullName: 'System Engineer',
+      role: 'engineer',
+      agencyId: null
+    }
+  ];
 };
 
 function sanitizeUser(user: SystemUserRow): AuthUser {
@@ -88,10 +99,7 @@ export class SystemAuthService {
   static async bootstrapDefaultAccounts() {
     await this.ensureSchema();
 
-    const seedAccounts = [
-      DEFAULT_SYSTEM_ACCOUNTS.sa,
-      DEFAULT_SYSTEM_ACCOUNTS.engineer
-    ];
+    const seedAccounts = getDefaultSystemAccounts();
 
     for (const account of seedAccounts) {
       const existing = await db<SystemUserRow>('system_users').where('username', account.username).first();
