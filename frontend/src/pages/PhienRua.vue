@@ -1,7 +1,7 @@
 <template>
   <div class="wash-session-container">
     <el-card shadow="never" class="filter-card">
-      <el-form :inline="true" :model="filterForm" class="session-filter-form">
+      <el-form :inline="false" :model="filterForm" class="session-filter-form">
         <el-form-item class="fi-station" :label="isMobile ? '' : 'Trạm'">
           <el-select 
             v-model="filterForm.station" 
@@ -9,14 +9,34 @@
             class="filter-select station-select"
             filterable 
             clearable
-            @change="handleFilter"
-            @clear="handleFilter"
+            @change="handleStationChange"
+            @clear="handleStationChange"
           >
             <el-option 
               v-for="item in stationOptions" 
               :key="item.id" 
               :label="item.station_name" 
               :value="item.id" 
+            />
+          </el-select>
+        </el-form-item>
+
+        <el-form-item class="fi-bay" :label="isMobile ? '' : 'Trụ'">
+          <el-select
+            v-model="filterForm.bayCode"
+            placeholder="Chọn trụ"
+            class="filter-select bay-select"
+            filterable
+            clearable
+            :disabled="!filterForm.station"
+            @change="handleFilter"
+            @clear="handleFilter"
+          >
+            <el-option
+              v-for="item in bayOptions"
+              :key="item.id"
+              :label="item.bay_code"
+              :value="item.bay_code"
             />
           </el-select>
         </el-form-item>
@@ -171,6 +191,7 @@ onUnmounted(() => window.removeEventListener('resize', _onResize))
 import { ElMessage } from 'element-plus';
 import { transactionApi } from '@/api/transaction';
 import { stationApi } from '@/api/station';
+import { bayApi } from '@/api/bay';
 
 const loading = ref(false)
 const tableData = ref([]); // Biến chứa dữ liệu phiên rửa để hiển thị trong Table
@@ -178,8 +199,10 @@ const currentPage = ref(1)
 const pageSize = ref(20)
 const total = ref(100)
 const stationOptions = ref([]) // Biến chứa danh sách trạm để hiển thị trong Dropdown (Select)
+const bayOptions = ref([])
 const filterForm = reactive({
   station: '',
+  bayCode: '',
   timeRange: 30, // Mặc định 1 ngày
   dateRange: [], // Lưu [from, to]
   status: ''
@@ -196,6 +219,22 @@ const fetchStations = async () => {
   } catch (error) {
     console.error('Lỗi khi lấy danh sách trạm:', error)
     ElMessage.error('Không thể tải danh sách trạm')
+  }
+}
+
+const fetchBays = async (stationId) => {
+  if (!stationId) {
+    bayOptions.value = []
+    return
+  }
+
+  try {
+    const response = await bayApi.getBays(stationId)
+    bayOptions.value = Array.isArray(response?.data) ? response.data : []
+  } catch (error) {
+    console.error('Lỗi khi lấy danh sách trụ:', error)
+    bayOptions.value = []
+    ElMessage.error('Không thể tải danh sách trụ')
   }
 }
 
@@ -232,11 +271,18 @@ const handleDateRangeChange = (val) => {
   handleFilter();
 }
 
+const handleStationChange = async (stationId) => {
+  filterForm.bayCode = ''
+  await fetchBays(stationId)
+  handleFilter()
+}
+
 const handleFilter = () => {
   loading.value = true
   const params = {
     page: currentPage.value,
     station_id: filterForm.station,
+    bay_code: filterForm.bayCode,
     // Nếu có chọn ngày thì format về dạng YYYY-MM-DD
     start_date: filterForm.dateRange?.[0] ? dayjs(filterForm.dateRange[0]).format('YYYY-MM-DD') : null,
     end_date: filterForm.dateRange?.[1] ? dayjs(filterForm.dateRange[1]).format('YYYY-MM-DD') : null,
@@ -248,7 +294,9 @@ const handleFilter = () => {
 // Hàm Reset bộ lọc
 const resetFilter = () => {
   filterForm.station = ''
-  filterForm.timeRange = 1 // Reset về "Hôm nay"
+  filterForm.bayCode = ''
+  bayOptions.value = []
+  filterForm.timeRange = 30 // Reset về "30 ngày qua"
   filterForm.status = ''
   currentPage.value = 1
   fetchData()
@@ -285,6 +333,7 @@ const fetchData = async () => {
       limit: pageSize.value,
       // Nếu không có station_id, backend sẽ hiểu là lấy toàn bộ (khi timeRange = 1)
       station_id: filterForm.station || undefined,
+      bay_code: filterForm.bayCode || undefined,
       start_date: startDate || undefined,
       end_date: endDate,
       status: filterForm.status || undefined
@@ -339,6 +388,28 @@ watch([pageSize], () => {
   justify-content: flex-end;
 }
 
+/* Desktop/Tablet: avoid over-compressed filter fields */
+:deep(.session-filter-form) {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 12px;
+  align-items: flex-end;
+}
+
+:deep(.session-filter-form .el-form-item) {
+  margin: 0;
+}
+
+:deep(.session-filter-form .station-select),
+:deep(.session-filter-form .bay-select),
+:deep(.session-filter-form .timerange-select) {
+  width: 180px;
+}
+
+:deep(.session-filter-form .date-range-picker) {
+  width: 280px;
+}
+
 /* ── Mobile ─────────────────────────────────────── */
 @media (max-width: 768px) {
   .wash-session-container {
@@ -351,9 +422,9 @@ watch([pageSize], () => {
 
   :deep(.session-filter-form) {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-    gap: 8px;
-    align-items: end;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+    align-items: stretch;
   }
 
   :deep(.session-filter-form .el-form-item) {
@@ -361,21 +432,34 @@ watch([pageSize], () => {
     min-width: 0;
   }
 
+  :deep(.session-filter-form .fi-station),
+  :deep(.session-filter-form .fi-bay) {
+    grid-column: span 1;
+    order: 1;
+  }
+
   :deep(.session-filter-form .fi-date) {
     grid-column: 1 / -1;
+    order: 2;
+  }
+
+  :deep(.session-filter-form .fi-time) {
+    grid-column: 1 / -1;
+    order: 3;
   }
 
   :deep(.session-filter-form .fi-action) {
     grid-column: 1 / -1;
+    order: 4;
   }
 
   :deep(.session-filter-form .fi-action .el-form-item__content) {
-    justify-content: flex-start;
+    justify-content: stretch;
   }
 
   :deep(.session-filter-form .fi-action .el-button) {
-    min-width: 92px;
-    padding-inline: 14px;
+    width: 100%;
+    min-height: 36px;
   }
 
   :deep(.session-filter-form .filter-select) {
@@ -494,21 +578,9 @@ watch([pageSize], () => {
 }
 
 /* ── Landscape ──────────────────────────────────── */
-@media (max-width: 900px) and (orientation: landscape) {
+@media (min-width: 769px) and (max-width: 900px) and (orientation: landscape) {
   .filter-card {
     margin-bottom: 4px;
-  }
-
-  :deep(.session-filter-form) {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-  }
-
-  :deep(.session-filter-form .fi-date) {
-    grid-column: span 2;
-  }
-
-  :deep(.session-filter-form .fi-action) {
-    grid-column: span 1;
   }
 }
 </style>

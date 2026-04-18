@@ -96,9 +96,15 @@
             </button>
           </template>
           <el-select v-model="filterForm.agency_id" :disabled="['province','ward'].includes(filterForm.level) || isAgency" filterable clearable
+            :filter-method="handleAgencyFilter"
             :loading="selectLoading.agency" @change="handleAgencyChange" @clear="handleAgencyChange(null)"
             style="width:100%" placeholder="Chọn đại lý">
-            <el-option v-for="item in options.agencies" :key="item.id" :label="item.name" :value="item.id" />
+            <el-option v-for="item in filteredAgencyOptions" :key="item.id" :label="item.agency_name" :value="item.id">
+              <div class="agency-dual">
+                <div class="agency-dual-name">{{ item.agency_name }}</div>
+                <div class="agency-dual-id">ID: {{ item.identity_number || 'N/A' }}</div>
+              </div>
+            </el-option>
           </el-select>
         </el-popover>
 
@@ -331,6 +337,7 @@ const filterForm = reactive({
   agency_id: null,
   station_id: null
 })
+const agencySearchKeyword = ref('')
 
 const isMobile = ref(window.innerWidth < 768)
 const onResize = () => {
@@ -380,8 +387,18 @@ const selectedWardName = computed(() =>
 )
 
 const selectedAgencyName = computed(() =>
-  filterForm.agency_id ? (options.agencies.find((a) => a.id === filterForm.agency_id)?.name ?? null) : null
+  filterForm.agency_id ? (options.agencies.find((a) => a.id === filterForm.agency_id)?.agency_name ?? null) : null
 )
+
+const normalizeSearchValue = (value) => String(value || '').toLowerCase().trim()
+const filteredAgencyOptions = computed(() => {
+  if (!agencySearchKeyword.value) return options.agencies
+  return options.agencies.filter((agency) => String(agency.searchText || '').includes(agencySearchKeyword.value))
+})
+
+const handleAgencyFilter = (query) => {
+  agencySearchKeyword.value = normalizeSearchValue(query)
+}
 
 const selectedStationName = computed(() =>
   filterForm.station_id ? (options.stations.find((s) => s.id === filterForm.station_id)?.name ?? null) : null
@@ -608,7 +625,9 @@ const fetchAgencies = async () => {
     const data = res.data?.data || res.data || []
     options.agencies = data.map((i) => ({
       id: i.id,
-      name: i.agency_name
+      agency_name: i.agency_name,
+      identity_number: i.identity_number,
+      searchText: normalizeSearchValue(`${i.id || ''} ${i.agency_name || ''} ${i.identity_number || ''} ${i.phone || ''}`)
     }))
   } catch (error) {
     console.error('Lỗi tải đại lý:', error)
@@ -926,6 +945,21 @@ onMounted(async () => {
   text-overflow: ellipsis;
   font-size: 11px;
   opacity: 0.85;
+}
+
+.agency-dual {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.2;
+}
+
+.agency-dual-name {
+  font-weight: 600;
+}
+
+.agency-dual-id {
+  font-size: 12px;
+  color: var(--report-text-sub);
 }
 
 .insight-strip {

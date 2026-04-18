@@ -5,14 +5,14 @@ import type { RequestScope } from '../middleware/auth.js';
 
 export class TransService {
     async getTransactions(params: any) {
-        const { page = 1, limit = 20, station_id, start_date, end_date, status, agencyId, scope } = params;
+        const { page = 1, limit = 20, station_id, bay_id, bay_code, start_date, end_date, status, agencyId, scope } = params;
         const offset = (page - 1) * limit;
 
         const query = db('transactions as w')
             .leftJoin('stations as s', 'w.station_id', 's.id');
 
         // LOG ĐỂ BIỮ CHÍNH XÁC GIÁ TRỊ NHẬN VÀO
-        console.log(">>> [Check Filter]:", { station_id, start_date, end_date });
+        console.log(">>> [Check Filter]:", { station_id, bay_id, bay_code, start_date, end_date });
 
         // Áp dụng scope bảo mật theo role
         const reqScope: RequestScope = scope || (agencyId != null ? { agencyId } : {});
@@ -26,6 +26,12 @@ export class TransService {
 
         if (station_id && station_id !== 'undefined' && station_id !== '') {
             query.where('w.station_id', station_id);
+        }
+
+        if (bay_code && bay_code !== 'undefined' && bay_code !== '') {
+            query.where('w.bay_code', bay_code);
+        } else if (bay_id && bay_id !== 'undefined' && bay_id !== '') {
+            query.where('w.bay_id', bay_id);
         }
 
         if (status && status !== 'undefined' && status !== '') {

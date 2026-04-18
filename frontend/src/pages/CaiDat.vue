@@ -24,7 +24,7 @@
         </el-table-column>
         <el-table-column label="Liên kết" min-width="160">
           <template #default="{ row }">
-            <span v-if="row.role === 'agency'">{{ agencyName(row.agencyId) }}</span>
+            <span v-if="row.role === 'agency'">{{ agencyById(row.agencyId)?.agency_name || `Đại lý #${row.agencyId}` }}</span>
             <span v-else-if="row.role === 'regional_manager' && row._scope">{{ row._scope.provinceIds?.length || 0 }} tỉnh</span>
             <span v-else-if="row.role === 'station_supervisor' && row._scope">{{ row._scope.stationIds?.length || 0 }} trạm</span>
             <span v-else>-</span>
@@ -92,8 +92,19 @@
           </el-select>
         </el-form-item>
         <el-form-item v-if="form.role === 'agency'" label="Đại lý liên kết" prop="agencyId" :rules="[{ required: true, message: 'Vui lòng chọn đại lý', trigger: 'change' }]">
-          <el-select v-model="form.agencyId" filterable placeholder="Chọn đại lý" class="w-full">
-            <el-option v-for="a in agencies" :key="a.id" :label="a.agency_name" :value="a.id" />
+          <el-select
+            v-model="form.agencyId"
+            filterable
+            :filter-method="filterAgencyOptions"
+            placeholder="Tìm theo ID, tên đại lý, CCCD, số điện thoại"
+            class="w-full"
+          >
+            <el-option v-for="a in filteredAgencies" :key="a.id" :label="a.agency_name" :value="a.id">
+              <div class="agency-dual">
+                <div class="agency-dual-name">{{ a.agency_name }}</div>
+                <div class="agency-dual-id">ID: {{ a.identity_number || 'N/A' }}</div>
+              </div>
+            </el-option>
           </el-select>
         </el-form-item>
         <el-form-item v-if="form.role === 'regional_manager'" label="Tỉnh phụ trách">
@@ -139,14 +150,15 @@
 </template>
 
 <script setup>
-import { onMounted, ref, computed } from 'vue'
-import { ElMessage, ElMessageBox } from 'element-plus'
+import { onMounted, ref, computed, h } from 'vue'
+import { ElMessage } from 'element-plus'
 import { Plus, Edit, Delete, Key } from '@element-plus/icons-vue'
 import { authApi } from '@/api/auth'
 import { agencyApi } from '@/api/agency'
 import { wardApi } from '@/api/ward'
 import { stationApi } from '@/api/station'
 import { authStore } from '@/stores/auth'
+import { confirmPopup } from '@/utils/popup'
 
 const loading = ref(false)
 const saving = ref(false)
@@ -155,6 +167,7 @@ const provinceLoading = ref(false)
 const stationLoading = ref(false)
 const users = ref([])
 const agencies = ref([])
+const agencySearchKeyword = ref('')
 const provinces = ref([])
 const allStations = ref([])
 const showModal = ref(false)
@@ -201,7 +214,26 @@ const roleTag = (role) => ({
   station_supervisor: 'info',
   agency: 'success'
 }[role] || '')
-const agencyName = (id) => agencies.value.find(a => a.id === id)?.agency_name || (id ? String(id) : '-')
+
+const normalizeSearchValue = (value) => String(value || '').toLowerCase().trim()
+const agencyDisplayLabel = (agency) => `${agency?.agency_name || 'Không rõ'} - ID: ${agency?.identity_number || 'N/A'}`
+const agencySearchText = (agency) => normalizeSearchValue(`${agency?.id || ''} ${agency?.agency_name || ''} ${agency?.identity_number || ''} ${agency?.phone || ''}`)
+
+const filteredAgencies = computed(() => {
+  if (!agencySearchKeyword.value) return agencies.value
+  return agencies.value.filter((agency) => agencySearchText(agency).includes(agencySearchKeyword.value))
+})
+
+const filterAgencyOptions = (query) => {
+  agencySearchKeyword.value = normalizeSearchValue(query)
+}
+
+const agencyById = (id) => agencies.value.find((agency) => agency.id === id)
+
+const agencyName = (id) => {
+  const agency = agencies.value.find(a => a.id === id)
+  return agency ? agencyDisplayLabel(agency) : (id ? `Đại lý #${id}` : '-')
+}
 
 const formatDate = (dateStr) => {
   if (!dateStr) return ''
@@ -314,9 +346,20 @@ const handleSubmit = async () => {
 }
 
 const handleDelete = async (row) => {
-  try {
-    await ElMessageBox.confirm(`Xóa tài khoản "${row.username}"? Hành động này không thể hoàn tác.`, 'Xác nhận xóa', { type: 'warning', confirmButtonText: 'Xóa', cancelButtonText: 'Hủy' })
-  } catch {
+  const confirmed = await confirmPopup(
+    h('div', { class: 'delete-confirm-content' }, [
+      h('p', null, `Xóa tài khoản "${row.username}"?`),
+      h('p', { class: 'delete-confirm-warning' }, 'Hành động này không thể hoàn tác.')
+    ]),
+    'Xác nhận xóa',
+    {
+      type: 'warning',
+      confirmButtonText: 'Xóa',
+      cancelButtonText: 'Hủy',
+      customClass: 'delete-account-confirm'
+    }
+  )
+  if (!confirmed) {
     return
   }
   try {
@@ -406,5 +449,34 @@ onMounted(() => {
 .reset-hint {
   margin: 0 0 16px;
   color: var(--text-muted);
+}
+
+.agency-dual {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.2;
+}
+
+.agency-dual-name {
+  font-weight: 600;
+}
+
+.agency-dual-id {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+:global(.delete-account-confirm .el-message-box__message) {
+  line-height: 1.5;
+}
+
+:global(.delete-account-confirm .delete-confirm-content) {
+  display: grid;
+  gap: 4px;
+}
+
+:global(.delete-account-confirm .delete-confirm-warning) {
+  color: var(--el-color-danger);
+  font-weight: 500;
 }
 </style>

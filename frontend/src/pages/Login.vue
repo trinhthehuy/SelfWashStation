@@ -105,6 +105,48 @@
           Phiên đăng nhập được bảo vệ bằng JWT
         </p>
       </div>
+
+      <el-dialog
+        v-model="showForceChangeDialog"
+        title="Đổi mật khẩu lần đăng nhập đầu tiên"
+        width="460px"
+        :show-close="false"
+        :close-on-click-modal="false"
+        :close-on-press-escape="false"
+      >
+        <p class="force-change-desc">
+          Vì lý do bảo mật, bạn cần đổi mật khẩu mặc định trước khi tiếp tục sử dụng hệ thống.
+        </p>
+
+        <el-form label-position="top" @submit.prevent>
+          <el-form-item label="Mật khẩu mới">
+            <el-input
+              v-model="forceChangeForm.newPassword"
+              type="password"
+              show-password
+              placeholder="Tối thiểu 6 ký tự"
+              autocomplete="new-password"
+            />
+          </el-form-item>
+
+          <el-form-item label="Nhập lại mật khẩu mới">
+            <el-input
+              v-model="forceChangeForm.confirmPassword"
+              type="password"
+              show-password
+              placeholder="Nhập lại mật khẩu mới"
+              autocomplete="new-password"
+              @keyup.enter="handleForceChangePassword"
+            />
+          </el-form-item>
+        </el-form>
+
+        <template #footer>
+          <el-button type="primary" :loading="forceChangeSubmitting" @click="handleForceChangePassword">
+            Xác nhận đổi mật khẩu
+          </el-button>
+        </template>
+      </el-dialog>
     </div>
 
   </div>
@@ -114,6 +156,7 @@
 import { reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { Car, CheckCircle2, User, Lock, LogIn, ShieldCheck } from 'lucide-vue-next'
+import { ElMessage } from 'element-plus'
 import { authApi } from '@/api/auth'
 import { authStore } from '@/stores/auth'
 
@@ -123,20 +166,67 @@ const LockIcon = Lock
 const router = useRouter()
 const submitting = ref(false)
 const errorMessage = ref('')
+const showForceChangeDialog = ref(false)
+const forceChangeSubmitting = ref(false)
+const currentPasswordAfterLogin = ref('')
 
 const form = reactive({ username: '', password: '' })
+const forceChangeForm = reactive({ newPassword: '', confirmPassword: '' })
 
 const handleLogin = async () => {
   errorMessage.value = ''
   submitting.value = true
   try {
     const response = await authApi.login(form)
-    authStore.setSession(response.data)
+    const session = response.data
+    authStore.setSession(session)
+
+    if (session?.user?.mustChangePassword) {
+      currentPasswordAfterLogin.value = form.password
+      forceChangeForm.newPassword = ''
+      forceChangeForm.confirmPassword = ''
+      showForceChangeDialog.value = true
+      return
+    }
+
     router.replace(authStore.getDefaultRoute())
   } catch (error) {
     errorMessage.value = error?.response?.data?.message || 'Tên đăng nhập hoặc mật khẩu không đúng'
   } finally {
     submitting.value = false
+  }
+}
+
+const handleForceChangePassword = async () => {
+  const newPassword = String(forceChangeForm.newPassword || '')
+  const confirmPassword = String(forceChangeForm.confirmPassword || '')
+
+  if (newPassword.length < 6) {
+    ElMessage.warning('Mật khẩu mới phải có ít nhất 6 ký tự')
+    return
+  }
+
+  if (newPassword !== confirmPassword) {
+    ElMessage.warning('Mật khẩu nhập lại không khớp')
+    return
+  }
+
+  if (newPassword === currentPasswordAfterLogin.value) {
+    ElMessage.warning('Mật khẩu mới phải khác mật khẩu mặc định')
+    return
+  }
+
+  forceChangeSubmitting.value = true
+  try {
+    await authApi.changeOwnPassword(currentPasswordAfterLogin.value, newPassword)
+    authStore.updateUser({ mustChangePassword: false })
+    showForceChangeDialog.value = false
+    ElMessage.success('Đổi mật khẩu thành công')
+    router.replace(authStore.getDefaultRoute())
+  } catch (error) {
+    ElMessage.error(error?.response?.data?.message || 'Đổi mật khẩu thất bại, vui lòng thử lại')
+  } finally {
+    forceChangeSubmitting.value = false
   }
 }
 </script>
@@ -373,6 +463,12 @@ const handleLogin = async () => {
   font-size: 12px;
   color: #9ca3af;
   justify-content: center;
+}
+
+.force-change-desc {
+  margin: 0 0 10px;
+  color: #475569;
+  line-height: 1.5;
 }
 
 /* ─── Responsive ────────────────────────────────────────── */

@@ -77,6 +77,7 @@ export class AgencyService {
         role: 'agency',
         agency_id: newAgencyId,
         is_active: true,
+        must_change_password: true,
       });
 
       return { ...agency, createdAccount: { username: accountData.username } };

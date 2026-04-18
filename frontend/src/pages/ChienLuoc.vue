@@ -14,11 +14,60 @@
       <div class="filter-section">
         <el-input
           v-model="keyword"
-          placeholder="Tìm theo tên chiến lược hoặc cấu hình..."
+          placeholder="Tìm nhanh toàn bộ dữ liệu..."
           :prefix-icon="Search"
           clearable
           class="search-input"
         />
+
+        <div v-if="isSystemAdmin" class="advanced-filter-row">
+          <el-select
+            v-model="fieldFilters.agencyName"
+            placeholder="Lọc theo Đại lý"
+            clearable
+            filterable
+            class="filter-item"
+          >
+            <el-option
+              v-for="item in agencyFilterOptions"
+              :key="item"
+              :label="item"
+              :value="item"
+            />
+          </el-select>
+
+          <el-select
+            v-model="fieldFilters.strategyName"
+            placeholder="Lọc theo Tên chiến lược"
+            clearable
+            filterable
+            class="filter-item"
+          >
+            <el-option
+              v-for="item in strategyFilterOptions"
+              :key="item"
+              :label="item"
+              :value="item"
+            />
+          </el-select>
+
+          <el-select
+            v-model="fieldFilters.amountPerUnit"
+            placeholder="Lọc theo số tiền"
+            clearable
+            filterable
+            class="filter-item"
+          >
+            <el-option
+              v-for="item in amountFilterOptions"
+              :key="item"
+              :label="new Intl.NumberFormat('vi-VN', { maximumFractionDigits: 0 }).format(item) + ' VNĐ'"
+              :value="String(item)"
+            />
+          </el-select>
+
+          <el-button class="clear-filter-btn" @click="resetFilters">Xóa bộ lọc</el-button>
+        </div>
       </div>
     </el-card>
 
@@ -39,9 +88,6 @@
             <template #default="{ row }">
               <div class="agency-cell">
                 <div class="font-bold primary-text">{{ row.agency_name }}</div>
-                <div class="text-small text-secondary">
-                  <el-icon><Postcard /></el-icon> CCCD: {{ row.identity_number }}
-                </div>
               </div>
             </template>
           </el-table-column>
@@ -90,7 +136,6 @@
             <div class="mc-header">
               <div class="mc-title">
                 <span class="mc-name">{{ row.agency_name }}</span>
-                <span class="mc-sub">CCCD: {{ row.identity_number }}</span>
               </div>
               <el-tag type="success" effect="light" size="small">{{ row.strategy_name }}</el-tag>
             </div>
@@ -128,17 +173,24 @@
           <el-autocomplete
             v-model="formData.agency_name"
             :fetch-suggestions="querySearchName"
-            placeholder="Nhập tên để tìm kiếm..."
+            placeholder="Tìm theo ID, tên đại lý, CCCD, số điện thoại"
             @select="handleSelectName"
             clearable
             style="width: 100%"
-          />
+          >
+            <template #default="{ item }">
+              <div class="agency-dual">
+                <div class="agency-dual-name">{{ item.agency_name }}</div>
+                <div class="agency-dual-id">ID: {{ item.identity_number || 'N/A' }}</div>
+              </div>
+            </template>
+          </el-autocomplete>
         </el-form-item>
 
-        <el-form-item label="Số căn cước" prop="identity_number">
+        <el-form-item label="ID (CCCD)" prop="identity_number">
           <el-select 
             v-model="formData.identity_number" 
-            placeholder="Chọn số CCCD" 
+            placeholder="Chọn ID (CCCD)" 
             :disabled="!availableIdentities.length"
             @change="handleSelectIdentity"
             style="width: 100%"
@@ -227,11 +279,19 @@ const _onResize = () => { isMobile.value = window.innerWidth < 768 }
 onMounted(() => window.addEventListener('resize', _onResize))
 onUnmounted(() => window.removeEventListener('resize', _onResize))
 import { Plus, Edit, Search, Delete, Postcard } from "@element-plus/icons-vue";
-import { ElMessage, ElMessageBox } from "element-plus";
+import { ElMessage } from "element-plus";
 import { strategyApi } from "@/api/strategy"; 
 import { agencyApi } from "@/api/agency";
+import { authStore } from '@/stores/auth';
+import { confirmPopup } from '@/utils/popup'
 // State
 const keyword = ref("");
+const isSystemAdmin = computed(() => authStore.hasAnyRole(['sa']));
+const fieldFilters = reactive({
+  agencyName: '',
+  strategyName: '',
+  amountPerUnit: ''
+});
 const list = ref([]);
 const loading = ref(false);
 const showModal = ref(false);
@@ -256,20 +316,50 @@ const formData = ref({
 const rules = reactive({
   strategy_name: [{ required: true, message: 'Vui lòng nhập tên chiến lược', trigger: 'blur' }],
   agency_name: [{ required: true, message: 'Vui lòng chọn đại lý', trigger: 'change' }],
-  identity_number: [{ required: true, message: 'Vui lòng chọn CCCD', trigger: 'change' }],
+  identity_number: [{ required: true, message: 'Vui lòng chọn ID (CCCD)', trigger: 'change' }],
   amount_per_unit: [{ required: true, message: 'Vui lòng nhập số tiền mỗi đơn vị', trigger: 'blur' }],
   op_per_unit: [{ required: true, message: 'Vui lòng nhập thời gian vận hành', trigger: 'blur' }],
   foam_per_unit: [{ required: true, message: 'Vui lòng nhập định lượng hóa chất', trigger: 'blur' }]
 });
 
 // Computed
+const normalizeFilterValue = (value) => String(value || '').toLowerCase().trim();
+const uniqueSortedBy = (selector) => {
+  return Array.from(
+    new Set(
+      list.value
+        .map(selector)
+        .filter((value) => String(value || '').trim())
+    )
+  ).sort((a, b) => String(a).localeCompare(String(b), 'vi'));
+};
+
+const agencyFilterOptions = computed(() => uniqueSortedBy((item) => item.agency_name));
+const strategyFilterOptions = computed(() => uniqueSortedBy((item) => item.strategy_name));
+const amountFilterOptions = computed(() => uniqueSortedBy((item) => Number(item.amount_per_unit) || 0));
+
 const filteredList = computed(() => {
-  const search = keyword.value.toLowerCase().trim();
-  if (!search) return list.value;
-  return list.value.filter(item =>
-    Object.values(item).some(val => String(val).toLowerCase().includes(search))
-  );
+  const search = normalizeFilterValue(keyword.value);
+  const agencyNameFilter = isSystemAdmin.value ? normalizeFilterValue(fieldFilters.agencyName) : '';
+  const strategyNameFilter = isSystemAdmin.value ? normalizeFilterValue(fieldFilters.strategyName) : '';
+  const amountPerUnitFilter = isSystemAdmin.value ? normalizeFilterValue(fieldFilters.amountPerUnit) : '';
+
+  return list.value.filter((item) => {
+    const matchesQuickSearch = !search || Object.values(item).some((val) => String(val).toLowerCase().includes(search));
+    const matchesAgencyName = !agencyNameFilter || normalizeFilterValue(item.agency_name) === agencyNameFilter;
+    const matchesStrategyName = !strategyNameFilter || normalizeFilterValue(item.strategy_name) === strategyNameFilter;
+    const matchesAmount = !amountPerUnitFilter || String(Number(item.amount_per_unit) || 0) === amountPerUnitFilter;
+
+    return matchesQuickSearch && matchesAgencyName && matchesStrategyName && matchesAmount;
+  });
 });
+
+const resetFilters = () => {
+  keyword.value = '';
+  fieldFilters.agencyName = '';
+  fieldFilters.strategyName = '';
+  fieldFilters.amountPerUnit = '';
+};
 
 // Methods
 const fetchData = async () => {
@@ -293,29 +383,43 @@ const fetchAgencies = async () => {
   }
 };
 
+const normalizeSearchValue = (value) => String(value || '').toLowerCase().trim();
+const agencySearchText = (agency) => normalizeSearchValue(`${agency?.id || ''} ${agency?.agency_name || ''} ${agency?.identity_number || ''} ${agency?.phone || ''}`);
+
 const querySearchName = (queryString, cb) => {
-  const results = queryString
-    ? agencyList.value.filter(a => a.agency_name.toLowerCase().includes(queryString.toLowerCase()))
+  const query = normalizeSearchValue(queryString);
+  const results = query
+    ? agencyList.value.filter((agency) => agencySearchText(agency).includes(query))
     : agencyList.value;
-  const suggestions = [...new Set(results.map(item => item.agency_name))].map(name => ({ value: name }));
+  const suggestions = results.map((agency) => ({
+    value: agency.agency_name,
+    agencyId: agency.id,
+    agency_name: agency.agency_name,
+    identity_number: agency.identity_number
+  }));
   cb(suggestions);
 };
 
 const handleSelectName = (item) => {
-  const matches = agencyList.value.filter(a => a.agency_name === item.value);
-  availableIdentities.value = matches;
-  if (matches.length === 1) {
-    formData.value.identity_number = matches[0].identity_number;
-    formData.value.agency_id = matches[0].id;
-  } else {
+  const agency = agencyList.value.find((a) => a.id === item.agencyId);
+  availableIdentities.value = agency ? [agency] : [];
+  if (!agency) {
     formData.value.identity_number = "";
     formData.value.agency_id = "";
+    return;
   }
+
+  formData.value.agency_name = agency.agency_name;
+  formData.value.identity_number = agency.identity_number;
+  formData.value.agency_id = agency.id;
 };
 
 const handleSelectIdentity = (val) => {
   const agency = availableIdentities.value.find(a => a.identity_number === val);
-  if (agency) formData.value.agency_id = agency.id;
+  if (agency) {
+    formData.value.agency_id = agency.id;
+    formData.value.agency_name = agency.agency_name;
+  }
 };
 
 const handleAddNew = async () => {
@@ -388,22 +492,23 @@ const handleSubmit = async (formEl) => {
 };
 
 const handleDelete = async () => {
-  ElMessageBox.confirm(
+  const confirmed = await confirmPopup(
     `Bạn có chắc chắn muốn xóa chiến lược ${formData.value.strategy_name}?`,
     'Xác nhận xóa',
     { confirmButtonText: 'Xóa ngay', cancelButtonText: 'Hủy', type: 'warning' }
-  ).then(async () => {
-    try {
-      const res = await strategyApi.deleteStrategies(formData.value.id);
-      if (res) {
-        ElMessage.success("Đã xóa chiến lược");
-        showModal.value = false;
-        fetchData();
-      }
-    } catch (error) {
-      ElMessage.error("Lỗi khi xóa chiến lược");
+  )
+  if (!confirmed) return
+
+  try {
+    const res = await strategyApi.deleteStrategies(formData.value.id);
+    if (res) {
+      ElMessage.success("Đã xóa chiến lược");
+      showModal.value = false;
+      fetchData();
     }
-  }).catch(() => {});
+  } catch (error) {
+    ElMessage.error("Lỗi khi xóa chiến lược");
+  }
 };
 
 onMounted(async () => {
@@ -449,6 +554,42 @@ onMounted(async () => {
 .search-input {
   width: 100%;
   max-width: 450px;
+}
+
+.filter-section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.advanced-filter-row {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  align-items: center;
+}
+
+.filter-item {
+  width: 100%;
+}
+
+.clear-filter-btn {
+  width: 100%;
+}
+
+.agency-dual {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.2;
+}
+
+.agency-dual-name {
+  font-weight: 600;
+}
+
+.agency-dual-id {
+  font-size: 12px;
+  color: var(--text-faint);
 }
 
 .agency-cell .primary-text {
@@ -534,5 +675,11 @@ onMounted(async () => {
   color: #909399;
   padding: 32px 0;
   font-size: 14px;
+}
+
+@media (max-width: 900px) {
+  .advanced-filter-row {
+    grid-template-columns: 1fr;
+  }
 }
 </style>

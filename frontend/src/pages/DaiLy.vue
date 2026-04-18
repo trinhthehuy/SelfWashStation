@@ -191,15 +191,18 @@
             <el-row :gutter="20">
               <el-col :span="12">
                 <el-form-item label="Tên đăng nhập" required>
-                  <el-input v-model="accountUsername" placeholder="VD: daily.ninh.binh" />
+                  <el-input v-model="accountUsername" placeholder="Tự động theo tên đại lý" @input="handleAccountUsernameInput" />
                 </el-form-item>
               </el-col>
               <el-col :span="12">
                 <el-form-item label="Mật khẩu ban đầu" required>
-                  <el-input v-model="accountPassword" type="password" show-password placeholder="Tối thiểu 6 ký tự" />
+                  <el-input v-model="accountPassword" type="password" show-password placeholder="Mặc định: 123456aA@" />
                 </el-form-item>
               </el-col>
             </el-row>
+            <div class="account-default-note">
+              Hệ thống tự sinh tên đăng nhập không dấu từ tên đại lý. Nếu trùng, sẽ tự thêm hậu tố số.
+            </div>
           </template>
         </template>
       </el-form>
@@ -229,13 +232,18 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { wardApi } from "@/api/ward"; 
 import { agencyApi } from "@/api/agency"; 
 import { strategyApi } from "@/api/strategy"; 
 import { Shop, CreditCard, Plus,   Search,   Edit,   Delete,   
          Location,   Phone,   Message,   House } from '@element-plus/icons-vue';
 import { authStore } from '@/stores/auth';
+import { useRouter } from 'vue-router';
+import { ElMessage } from 'element-plus';
+import { confirmPopup } from '@/utils/popup';
+
+const router = useRouter();
 
 const isSaOnly = computed(() => authStore.hasAnyRole(['sa']));
 
@@ -295,6 +303,8 @@ const isEdit = ref(false)
 const createAccount = ref(false)
 const accountUsername = ref('')
 const accountPassword = ref('')
+const isUsernameManuallyEdited = ref(false)
+const DEFAULT_AGENCY_PASSWORD = '123456aA@'
 const formData = ref({
   id: null,
   province_id: '',
@@ -372,6 +382,7 @@ const handleAdd = () => {
   createAccount.value = false
   accountUsername.value = ''
   accountPassword.value = ''
+  isUsernameManuallyEdited.value = false
   // Reset form về mặc định
   formData.value = {
     id: null,
@@ -392,6 +403,10 @@ const handleAdd = () => {
 // Mở form chỉnh sửa
 const handleEdit = (item) => {
   isEdit.value = true
+  createAccount.value = false
+  accountUsername.value = ''
+  accountPassword.value = ''
+  isUsernameManuallyEdited.value = false
   formData.value = {
     id: item.id,
     province_id: item.province_id,
@@ -408,45 +423,133 @@ const handleEdit = (item) => {
   showModal.value = true
 }
 
+const normalizeVietnameseToUsername = (value) => {
+  const normalized = String(value || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/đ/g, 'd')
+    .replace(/Đ/g, 'D')
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, '')
+
+  return normalized || 'daily'
+}
+
+const buildUsernameCandidate = (baseUsername, attempt) => {
+  if (attempt === 0) return baseUsername
+  return `${baseUsername}${String(attempt).padStart(2, '0')}`
+}
+
+const setAutoAccountDefaults = () => {
+  if (!createAccount.value) return
+
+  if (!isUsernameManuallyEdited.value) {
+    accountUsername.value = normalizeVietnameseToUsername(formData.value.agency_name)
+  }
+
+  if (!accountPassword.value) {
+    accountPassword.value = DEFAULT_AGENCY_PASSWORD
+  }
+}
+
+const handleAccountUsernameInput = () => {
+  isUsernameManuallyEdited.value = true
+}
+
+watch(createAccount, (enabled) => {
+  if (enabled) {
+    setAutoAccountDefaults()
+  }
+})
+
+watch(() => formData.value.agency_name, () => {
+  if (createAccount.value && !isUsernameManuallyEdited.value) {
+    accountUsername.value = normalizeVietnameseToUsername(formData.value.agency_name)
+  }
+})
+
 const createAgency = async (agencyData) => {
   try {
-    const payload = { ...agencyData }
+    const basePayload = { ...agencyData }
+    const shouldCreateAccount = createAccount.value
+    const maxUsernameRetry = 30
+    let usernameBase = ''
+    let passwordValue = ''
 
     // Gửi accountData nếu người dùng bật switch tạo tài khoản
-    if (createAccount.value) {
-      if (!accountUsername.value) throw new Error('Vui lòng nhập tên đăng nhập')
-      if (!accountPassword.value || accountPassword.value.length < 6) throw new Error('Mật khẩu tối thiểu 6 ký tự')
-      payload.accountData = { username: accountUsername.value, password: accountPassword.value }
+    if (shouldCreateAccount) {
+      usernameBase = normalizeVietnameseToUsername(accountUsername.value || agencyData.agency_name)
+      passwordValue = accountPassword.value || DEFAULT_AGENCY_PASSWORD
+      if (!passwordValue || passwordValue.length < 6) throw new Error('Mật khẩu tối thiểu 6 ký tự')
     }
 
-    // 1. Gọi API tạo đại lý mới
-    const response = await agencyApi.createAgency(payload);
+    for (let attempt = 0; attempt < maxUsernameRetry; attempt++) {
+      const payload = { ...basePayload }
+      const usernameCandidate = shouldCreateAccount
+        ? buildUsernameCandidate(usernameBase, attempt)
+        : null
 
-    // Kiểm tra nếu tạo đại lý thành công và có ID trả về
-    if (response && response.data.data && response.data.data.id) {
-      const newAgencyId = response.data.data.id;
-
-      // 2. Định nghĩa object chiến lược mặc định
-      const defaultStrategy = {
-        strategy_name: "Mặc định",
-        agency_id: newAgencyId,
-        amount_per_unit: 1000,
-        op_per_unit: 60,
-        foam_per_unit: 6,
-        enabled: 1
-      };
-
-      // 3. Gọi API tạo chiến lược
-      await strategyApi.createStrategies(defaultStrategy);
-
-      const createdAccount = response.data.data.createdAccount
-      if (createdAccount) {
-        return { agencyName: agencyData.agency_name, username: createdAccount.username }
+      if (shouldCreateAccount && usernameCandidate) {
+        payload.accountData = { username: usernameCandidate, password: passwordValue }
       }
-    } else {
-      console.error("Không nhận được ID:", response);
+
+      try {
+        // 1. Gọi API tạo đại lý mới
+        const response = await agencyApi.createAgency(payload)
+
+        // Kiểm tra nếu tạo đại lý thành công và có ID trả về
+        if (response && response.data.data && response.data.data.id) {
+          const newAgencyId = response.data.data.id;
+
+          // 2. Định nghĩa object chiến lược mặc định
+          const defaultStrategy = {
+            strategy_name: "Mặc định",
+            agency_id: newAgencyId,
+            amount_per_unit: 1000,
+            op_per_unit: 60,
+            foam_per_unit: 6,
+            enabled: 1
+          };
+
+          // 3. Gọi API tạo chiến lược
+          await strategyApi.createStrategies(defaultStrategy);
+
+          const createdAccount = response.data.data.createdAccount
+          const finalUsername = createdAccount?.username || usernameCandidate || null
+          if (finalUsername) {
+            accountUsername.value = finalUsername
+          }
+          return {
+            agencyId: newAgencyId,
+            agencyName: agencyData.agency_name,
+            identityNumber: agencyData.identity_number || '',
+            username: finalUsername,
+            usernameAutoAdjusted: Boolean(shouldCreateAccount && attempt > 0)
+          }
+        }
+
+        console.error("Không nhận được ID:", response);
+        return {
+          agencyId: null,
+          agencyName: agencyData.agency_name,
+          identityNumber: agencyData.identity_number || '',
+          username: null,
+          usernameAutoAdjusted: false
+        }
+      } catch (error) {
+        const status = error?.response?.status
+        const errorMessage = String(error?.response?.data?.message || error?.message || '')
+        const isDuplicateUsername = shouldCreateAccount && status === 409 && errorMessage.includes('Tên đăng nhập đã tồn tại')
+
+        if (isDuplicateUsername) {
+          continue
+        }
+
+        throw error
+      }
     }
-    return { agencyName: agencyData.agency_name, username: null }
+
+    throw new Error('Tên đăng nhập bị trùng quá nhiều lần, vui lòng nhập tên đăng nhập khác.')
   } catch (error) {
     console.error("Lỗi khi tạo đại lý hoặc chiến lược:", error);
     throw error;
@@ -455,22 +558,52 @@ const createAgency = async (agencyData) => {
 
 // Xử lý nút Lưu (Submit)
 const handleSubmit = async () => {
-  if (!formData.value.agency_name) return alert('Vui lòng nhập tên đại lý')
+  if (!formData.value.agency_name) {
+    ElMessage.warning('Vui lòng nhập tên đại lý')
+    return
+  }
   try {
     if (isEdit.value) {
       if(await agencyApi.updateAgency(formData.value.id, formData.value)) {
-        alert(`Đã cập nhật đại lý thành công: ${formData.value.agency_name}`)
+        ElMessage.success(`Đã cập nhật đại lý thành công: ${formData.value.agency_name}`)
       }
       else {
-        alert(`Cập nhật đại lý thất bại: ${formData.value.agency_name}`)
+        ElMessage.error(`Cập nhật đại lý thất bại: ${formData.value.agency_name}`)
       }
 
     } else {
       const result = await createAgency(formData.value);
       if (result?.username) {
-        alert(`Đã tạo đại lý: ${result.agencyName}\nTài khoản đăng nhập: ${result.username}`)
+        const autoAdjustedNote = result.usernameAutoAdjusted ? ' (đã tự điều chỉnh do trùng tên)' : ''
+        ElMessage.success(`Đã tạo đại lý: ${result.agencyName}. Tài khoản đăng nhập: ${result.username}${autoAdjustedNote}`)
       } else {
-        alert(`Đã tạo đại lý thành công: ${formData.value.agency_name}`)
+        ElMessage.success(`Đã tạo đại lý thành công: ${formData.value.agency_name}`)
+      }
+
+      if (result?.agencyId) {
+        const shouldCreateBankAccount = await confirmPopup(
+          `Đại lý "${result.agencyName}" đã được tạo thành công. Bạn có muốn tạo tài khoản ngân hàng ngay bây giờ không?`,
+          'Tạo tài khoản ngân hàng',
+          {
+            confirmButtonText: 'Tạo ngay',
+            cancelButtonText: 'Để sau',
+            type: 'info'
+          }
+        )
+
+        if (shouldCreateBankAccount) {
+          showModal.value = false
+          await router.push({
+            name: 'tai-khoan-ngan-hang',
+            query: {
+              autoCreate: '1',
+              agencyId: String(result.agencyId),
+              agencyName: result.agencyName || '',
+              identityNumber: result.identityNumber || ''
+            }
+          })
+          return
+        }
       }
     }
     
@@ -478,6 +611,7 @@ const handleSubmit = async () => {
     fetchAgencies() // Tải lại danh sách sau khi lưu
   } catch (error) {
     console.error('Lỗi khi lưu dữ liệu:', error)
+    ElMessage.error('Lưu dữ liệu thất bại. Vui lòng thử lại.')
   }
 }
 
@@ -487,7 +621,12 @@ const handleDelete = async () => {
   const name = formData.value.agency_name;
 
   // 1. Xác nhận với người dùng
-  if (!confirm(`Bạn có chắc chắn muốn xóa đại lý "${name}" không? Hành động này không thể hoàn tác.`)) {
+  const confirmed = await confirmPopup(
+    `Bạn có chắc chắn muốn xóa đại lý "${name}" không? Hành động này không thể hoàn tác.`,
+    'Xác nhận xóa',
+    { confirmButtonText: 'Xóa ngay', cancelButtonText: 'Hủy', type: 'warning' }
+  )
+  if (!confirmed) {
     return;
   }
 
@@ -498,15 +637,15 @@ const handleDelete = async () => {
     const success = await agencyApi.deleteAgency(id);
     
     if (success) {
-      alert(`Đã xóa đại lý ${name} thành công`);
+      ElMessage.success(`Đã xóa đại lý ${name} thành công`);
       showModal.value = false; // Đóng modal
       fetchAgencies();         // Tải lại danh sách để cập nhật giao diện
     } else {
-      alert("Xóa đại lý thất bại. Vui lòng thử lại.");
+      ElMessage.error('Xóa đại lý thất bại. Vui lòng thử lại.');
     }
   } catch (error) {
     console.error("Lỗi khi xóa đại lý:", error);
-    alert("Có lỗi xảy ra trong quá trình xóa.");
+    ElMessage.error('Có lỗi xảy ra trong quá trình xóa.');
   } finally {
     loading.value = false;
   }
@@ -524,6 +663,12 @@ const handleDelete = async () => {
 .account-toggle-label {
   font-size: 14px;
   color: var(--el-text-color-regular, var(--text-main));
+}
+
+.account-default-note {
+  margin-top: 4px;
+  color: var(--text-faint);
+  font-size: 12px;
 }
 
 .page {

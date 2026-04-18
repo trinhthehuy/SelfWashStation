@@ -14,11 +14,75 @@
       <div class="filter-section">
         <el-input
           v-model="keyword"
-          placeholder="Tìm theo tên đại lý, STK, tên chủ tài khoản..."
+          placeholder="Tìm nhanh toàn bộ dữ liệu..."
           :prefix-icon="Search"
           clearable
           class="search-input"
         />
+
+        <div v-if="isSystemAdmin" class="advanced-filter-row">
+          <el-select
+            v-model="fieldFilters.agencyName"
+            placeholder="Lọc theo Đại lý"
+            clearable
+            filterable
+            class="filter-item"
+          >
+            <el-option
+              v-for="item in agencyFilterOptions"
+              :key="item"
+              :label="item"
+              :value="item"
+            />
+          </el-select>
+
+          <el-select
+            v-model="fieldFilters.accountNumber"
+            placeholder="Lọc theo Số tài khoản"
+            clearable
+            filterable
+            class="filter-item"
+          >
+            <el-option
+              v-for="item in accountNumberFilterOptions"
+              :key="item"
+              :label="item"
+              :value="item"
+            />
+          </el-select>
+
+          <el-select
+            v-model="fieldFilters.accountName"
+            placeholder="Lọc theo Tên tài khoản"
+            clearable
+            filterable
+            class="filter-item"
+          >
+            <el-option
+              v-for="item in accountNameFilterOptions"
+              :key="item"
+              :label="item"
+              :value="item"
+            />
+          </el-select>
+
+          <el-select
+            v-model="fieldFilters.bankName"
+            placeholder="Lọc theo Ngân hàng"
+            clearable
+            filterable
+            class="filter-item"
+          >
+            <el-option
+              v-for="item in bankFilterOptions"
+              :key="item"
+              :label="item"
+              :value="item"
+            />
+          </el-select>
+
+          <el-button class="clear-filter-btn" @click="resetFilters">Xóa bộ lọc</el-button>
+        </div>
       </div>
     </el-card>
 
@@ -37,9 +101,6 @@
           <template #default="{ row }">
             <div class="agency-cell">
               <div class="font-bold primary-text">{{ row.agency_name }}</div>
-              <div class="text-small text-secondary">
-                <el-icon><Postcard /></el-icon> CCCD: {{ row.identity_number }}
-              </div>
             </div>
           </template>
         </el-table-column>
@@ -103,17 +164,24 @@
           <el-autocomplete
             v-model="formData.agency_name"
             :fetch-suggestions="querySearchName"
-            placeholder="Nhập tên để tìm kiếm..."
+            placeholder="Tìm theo ID, tên đại lý, CCCD, số điện thoại"
             @select="handleSelectName"
             clearable
             style="width: 100%"
-          />
+          >
+            <template #default="{ item }">
+              <div class="agency-dual">
+                <div class="agency-dual-name">{{ item.agency_name }}</div>
+                <div class="agency-dual-id">ID: {{ item.identity_number || 'N/A' }}</div>
+              </div>
+            </template>
+          </el-autocomplete>
         </el-form-item>
 
-        <el-form-item label="Số căn cước" prop="identity_number">
+        <el-form-item label="ID (CCCD)" prop="identity_number">
           <el-select
             v-model="formData.identity_number"
-            placeholder="Chọn số CCCD"
+            placeholder="Chọn ID (CCCD)"
             :disabled="!availableIdentities.length"
             @change="handleSelectIdentity"
             style="width: 100%"
@@ -258,11 +326,24 @@
 <script setup>
 import { ref, computed, onMounted, reactive, watch } from "vue";
 import { Plus, Edit, Search, Delete, Postcard, Grid } from "@element-plus/icons-vue";
-import { ElMessage, ElMessageBox } from "element-plus";
+import { ElMessage } from "element-plus";
 import { bankaccountApi } from "@/api/bankaccount";
 import { agencyApi } from "@/api/agency";
+import { useRoute, useRouter } from "vue-router";
+import { authStore } from '@/stores/auth';
+import { confirmPopup } from '@/utils/popup'
+
+const route = useRoute();
+const router = useRouter();
+const isSystemAdmin = computed(() => authStore.hasAnyRole(['sa']));
 
 const keyword = ref("");
+const fieldFilters = reactive({
+  agencyName: '',
+  accountNumber: '',
+  accountName: '',
+  bankName: ''
+});
 const list = ref([]);
 const loading = ref(false);
 const showModal = ref(false);
@@ -299,19 +380,53 @@ const qrForm = reactive({
 
 const rules = reactive({
   agency_name: [{ required: true, message: 'Vui lòng chọn đại lý', trigger: 'change' }],
-  identity_number: [{ required: true, message: 'Vui lòng chọn CCCD', trigger: 'change' }],
+  identity_number: [{ required: true, message: 'Vui lòng chọn ID (CCCD)', trigger: 'change' }],
   bank_name: [{ required: true, message: 'Vui lòng chọn ngân hàng', trigger: 'change' }],
   account_number: [{ required: true, message: 'Vui lòng nhập số tài khoản', trigger: 'blur' }],
   account_name: [{ required: true, message: 'Vui lòng nhập tên chủ tài khoản', trigger: 'blur' }]
 });
 
+const normalizeFilterValue = (value) => String(value || '').toLowerCase().trim();
+const uniqueSortedBy = (selector) => {
+  return Array.from(
+    new Set(
+      list.value
+        .map(selector)
+        .filter((value) => String(value || '').trim())
+    )
+  ).sort((a, b) => String(a).localeCompare(String(b), 'vi'));
+};
+
+const agencyFilterOptions = computed(() => uniqueSortedBy((item) => item.agency_name));
+const accountNumberFilterOptions = computed(() => uniqueSortedBy((item) => item.account_number));
+const accountNameFilterOptions = computed(() => uniqueSortedBy((item) => item.account_name));
+const bankFilterOptions = computed(() => uniqueSortedBy((item) => item.bank_name));
+
 const filteredList = computed(() => {
-  const search = keyword.value.toLowerCase().trim();
-  if (!search) return list.value;
-  return list.value.filter(item =>
-    Object.values(item).some(val => String(val).toLowerCase().includes(search))
-  );
+  const search = normalizeFilterValue(keyword.value);
+  const agencyNameFilter = isSystemAdmin.value ? normalizeFilterValue(fieldFilters.agencyName) : '';
+  const accountNumberFilter = isSystemAdmin.value ? normalizeFilterValue(fieldFilters.accountNumber) : '';
+  const accountNameFilter = isSystemAdmin.value ? normalizeFilterValue(fieldFilters.accountName) : '';
+  const bankNameFilter = isSystemAdmin.value ? normalizeFilterValue(fieldFilters.bankName) : '';
+
+  return list.value.filter((item) => {
+    const matchesQuickSearch = !search || Object.values(item).some((val) => String(val).toLowerCase().includes(search));
+    const matchesAgencyName = !agencyNameFilter || normalizeFilterValue(item.agency_name) === agencyNameFilter;
+    const matchesAccountNumber = !accountNumberFilter || normalizeFilterValue(item.account_number) === accountNumberFilter;
+    const matchesAccountName = !accountNameFilter || normalizeFilterValue(item.account_name) === accountNameFilter;
+    const matchesBankName = !bankNameFilter || normalizeFilterValue(item.bank_name) === bankNameFilter;
+
+    return matchesQuickSearch && matchesAgencyName && matchesAccountNumber && matchesAccountName && matchesBankName;
+  });
 });
+
+const resetFilters = () => {
+  keyword.value = '';
+  fieldFilters.agencyName = '';
+  fieldFilters.accountNumber = '';
+  fieldFilters.accountName = '';
+  fieldFilters.bankName = '';
+};
 
 const fetchData = async () => {
   loading.value = true;
@@ -334,29 +449,43 @@ const fetchAgencies = async () => {
   }
 };
 
+const normalizeSearchValue = (value) => String(value || '').toLowerCase().trim();
+const agencySearchText = (agency) => normalizeSearchValue(`${agency?.id || ''} ${agency?.agency_name || ''} ${agency?.identity_number || ''} ${agency?.phone || ''}`);
+
 const querySearchName = (queryString, cb) => {
-  const results = queryString
-    ? agencyList.value.filter(a => a.agency_name.toLowerCase().includes(queryString.toLowerCase()))
+  const query = normalizeSearchValue(queryString);
+  const results = query
+    ? agencyList.value.filter((agency) => agencySearchText(agency).includes(query))
     : agencyList.value;
-  const suggestions = [...new Set(results.map(item => item.agency_name))].map(name => ({ value: name }));
+  const suggestions = results.map((agency) => ({
+    value: agency.agency_name,
+    agencyId: agency.id,
+    agency_name: agency.agency_name,
+    identity_number: agency.identity_number
+  }));
   cb(suggestions);
 };
 
 const handleSelectName = (item) => {
-  const matches = agencyList.value.filter(a => a.agency_name === item.value);
-  availableIdentities.value = matches;
-  if (matches.length === 1) {
-    formData.value.identity_number = matches[0].identity_number;
-    formData.value.agency_id = matches[0].id;
-  } else {
+  const agency = agencyList.value.find((a) => a.id === item.agencyId);
+  availableIdentities.value = agency ? [agency] : [];
+  if (!agency) {
     formData.value.identity_number = "";
     formData.value.agency_id = "";
+    return;
   }
+
+  formData.value.agency_name = agency.agency_name;
+  formData.value.identity_number = agency.identity_number;
+  formData.value.agency_id = agency.id;
 };
 
 const handleSelectIdentity = (val) => {
   const agency = availableIdentities.value.find(a => a.identity_number === val);
-  if (agency) formData.value.agency_id = agency.id;
+  if (agency) {
+    formData.value.agency_id = agency.id;
+    formData.value.agency_name = agency.agency_name;
+  }
 };
 
 const handleAddNew = async () => {
@@ -367,11 +496,57 @@ const handleAddNew = async () => {
   showModal.value = true;
 };
 
+const openCreateModalFromQuery = async () => {
+  if (route.query.autoCreate !== '1') {
+    return;
+  }
+
+  await fetchAgencies();
+
+  const queryAgencyId = Number(route.query.agencyId);
+  const queryAgencyName = String(route.query.agencyName || '');
+  const queryIdentityNumber = String(route.query.identityNumber || '');
+  const matchedAgency = agencyList.value.find((item) => item.id === queryAgencyId);
+
+  isEdit.value = false;
+  formData.value = {
+    id: null,
+    agency_id: "",
+    agency_name: "",
+    identity_number: "",
+    bank_name: "",
+    account_number: "",
+    account_name: ""
+  };
+
+  if (matchedAgency) {
+    availableIdentities.value = [matchedAgency];
+    formData.value.agency_id = matchedAgency.id;
+    formData.value.agency_name = matchedAgency.agency_name;
+    formData.value.identity_number = matchedAgency.identity_number;
+  } else {
+    availableIdentities.value = [];
+    formData.value.agency_name = queryAgencyName;
+    formData.value.identity_number = queryIdentityNumber;
+    ElMessage.warning('Không tìm thấy đại lý từ dữ liệu chuyển trang, vui lòng chọn lại đại lý trước khi lưu.');
+  }
+
+  showModal.value = true;
+
+  const nextQuery = { ...route.query };
+  delete nextQuery.autoCreate;
+  delete nextQuery.agencyId;
+  delete nextQuery.agencyName;
+  delete nextQuery.identityNumber;
+
+  await router.replace({ query: nextQuery });
+};
+
 const handleEdit = async (item) => {
   isEdit.value = true;
-  formData.value = { ...item };
+  formData.value = { ...item, agency_name: item.agency_name };
   await fetchAgencies();
-  availableIdentities.value = agencyList.value.filter(a => a.agency_name === item.agency_name);
+  availableIdentities.value = agencyList.value.filter(a => a.id === item.agency_id);
   showModal.value = true;
 };
 
@@ -407,20 +582,21 @@ const handleSubmit = async (formEl) => {
 };
 
 const handleDelete = async () => {
-  ElMessageBox.confirm(
+  const confirmed = await confirmPopup(
     `Bạn có chắc chắn muốn xóa vĩnh viễn tài khoản của ${formData.value.account_name}?`,
     'Xác nhận xóa',
     { confirmButtonText: 'Xóa ngay', cancelButtonText: 'Hủy', type: 'warning' }
-  ).then(async () => {
-    try {
-      await bankaccountApi.deleteBankAccounts(formData.value.id);
-      ElMessage.success("Đã xóa tài khoản");
-      showModal.value = false;
-      fetchData();
-    } catch {
-      ElMessage.error("Lỗi khi xóa dữ liệu");
-    }
-  }).catch(() => {});
+  )
+  if (!confirmed) return
+
+  try {
+    await bankaccountApi.deleteBankAccounts(formData.value.id);
+    ElMessage.success("Đã xóa tài khoản");
+    showModal.value = false;
+    fetchData();
+  } catch {
+    ElMessage.error("Lỗi khi xóa dữ liệu");
+  }
 };
 
 const normalizeBankText = (value) => String(value || '').toLowerCase().replace(/[^a-z0-9]/g, '');
@@ -570,7 +746,10 @@ const openQrInNewTab = () => {
   window.open(generatedQrUrl.value, '_blank', 'noopener,noreferrer');
 };
 
-onMounted(fetchData);
+onMounted(async () => {
+  await fetchData();
+  await openCreateModalFromQuery();
+});
 </script>
 
 <style scoped>
@@ -617,6 +796,42 @@ onMounted(fetchData);
 .search-input {
   width: 100%;
   max-width: 450px;
+}
+
+.filter-section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.advanced-filter-row {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 12px;
+  align-items: center;
+}
+
+.filter-item {
+  width: 100%;
+}
+
+.clear-filter-btn {
+  width: 100%;
+}
+
+.agency-dual {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.2;
+}
+
+.agency-dual-name {
+  font-weight: 600;
+}
+
+.agency-dual-id {
+  font-size: 12px;
+  color: var(--text-faint);
 }
 
 .agency-cell .primary-text {
@@ -728,6 +943,10 @@ onMounted(fetchData);
 }
 
 @media (max-width: 900px) {
+  .advanced-filter-row {
+    grid-template-columns: 1fr;
+  }
+
   .qr-layout {
     grid-template-columns: 1fr;
     min-height: auto;

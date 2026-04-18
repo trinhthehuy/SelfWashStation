@@ -13,6 +13,7 @@ exports.up = async function (knex) {
     table.enu('role', ['sa', 'engineer', 'agency']).notNullable();
     table.integer('agency_id').unsigned().nullable();
     table.boolean('is_active').notNullable().defaultTo(true);
+    table.boolean('must_change_password').notNullable().defaultTo(false);
     table.text('avatar').nullable();
     table.timestamp('last_login_at').nullable();
     table.timestamp('created_at').defaultTo(knex.fn.now());

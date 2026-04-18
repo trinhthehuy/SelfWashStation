@@ -12,6 +12,8 @@ export class TransController {
                 page, 
                 limit, 
                 station_id, 
+                bay_id,
+                bay_code,
                 start_date, 
                 end_date, 
                 status 
@@ -22,6 +24,8 @@ export class TransController {
                 page: page ? Number(page) : 1, 
                 limit: limit ? Number(limit) : 20,
                 station_id: station_id ? String(station_id) : undefined,
+                bay_id: bay_id ? String(bay_id) : undefined,
+                bay_code: bay_code ? String(bay_code) : undefined,
                 start_date: start_date ? String(start_date) : undefined,
                 end_date: end_date ? String(end_date) : undefined,
                 status: status ? String(status) : undefined,

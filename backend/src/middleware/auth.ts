@@ -12,6 +12,7 @@ export interface AuthUser {
   role: UserRole;
   agencyId: number | null;
   avatar?: string | null;
+  mustChangePassword?: boolean;
 }
 
 /**

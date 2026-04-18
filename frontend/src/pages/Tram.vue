@@ -44,12 +44,18 @@
             <el-select
               v-model="filterForm.agency_id"
               filterable clearable
+              :filter-method="handleAgencyFilter"
               :loading="selectLoading.agency"
               @change="handleAgencyChange"
               @clear="handleAgencyClear"
               style="width: 180px"
             >
-              <el-option v-for="item in options.agencies" :key="item.id" :label="item.agency_name" :value="item.id" />
+              <el-option v-for="item in filteredAgencyOptions" :key="item.id" :label="item.agency_name" :value="item.id">
+                <div class="agency-dual">
+                  <div class="agency-dual-name">{{ item.agency_name }}</div>
+                  <div class="agency-dual-id">ID: {{ item.identity_number || 'N/A' }}</div>
+                </div>
+              </el-option>
             </el-select>
           </el-form-item>
 
@@ -300,7 +306,7 @@
       v-if="showModal" 
       :editData="editingItem"
       @close="showModal = false" 
-      @refresh="fetchData" 
+      @refresh="handleStationSaved" 
     />
 
     <!-- Dialog áp dụng chiến lược hàng loạt -->
@@ -361,7 +367,7 @@ const _onResize = () => { isMobile.value = window.innerWidth < 768 }
 onMounted(() => window.addEventListener('resize', _onResize))
 onUnmounted(() => window.removeEventListener('resize', _onResize))
 import { Plus, Edit, Search, View, Delete, MagicStick } from "@element-plus/icons-vue";
-import { ElMessage, ElMessageBox } from 'element-plus';
+import { ElMessage } from 'element-plus';
 import { stationApi } from "@/api/station"; 
 import { strategyApi } from "@/api/strategy";
 import ThemSuaXoa from "./ThemSuaXoaTram.vue";
@@ -370,6 +376,7 @@ import provinceData from '../../provinces.json';
 import { wardApi } from "@/api/ward";
 import { agencyApi } from "@/api/agency";
 import { authStore } from '@/stores/auth';
+import { confirmPopup } from '@/utils/popup'
 
 const canManageStation = computed(() => authStore.hasAnyRole(['sa', 'engineer']));
 
@@ -401,6 +408,7 @@ const options = reactive({
   agencies: [],
   stations: []
 });
+const agencySearchKeyword = ref('');
 const selectLoading = reactive({
   province: false,
   ward: false,
@@ -416,6 +424,17 @@ const filterForm = reactive({
 });
 
 const amountFormatter = new Intl.NumberFormat('vi-VN', { maximumFractionDigits: 0 });
+const normalizeSearchValue = (value) => String(value || '').toLowerCase().trim();
+const filteredAgencyOptions = computed(() => {
+  if (!agencySearchKeyword.value) return options.agencies;
+  return options.agencies.filter((agency) =>
+    String(agency.search_text || '').includes(agencySearchKeyword.value)
+  );
+});
+
+const handleAgencyFilter = (query) => {
+  agencySearchKeyword.value = normalizeSearchValue(query);
+};
 
 const handleAddNew = () => {
   editingItem.value = null;
@@ -425,6 +444,11 @@ const handleAddNew = () => {
 const handleEdit = (item) => {
   editingItem.value = { ...item };
   showModal.value = true;
+};
+
+const handleStationSaved = async () => {
+  await fetchData();
+  await refreshStationOptionsIfLoaded();
 };
 
 const fetchData = async ({ resetPage = false } = {}) => {
@@ -563,7 +587,11 @@ const fetchAgencies = async () => {
   selectLoading.agency = true;
   try {
     const response = await agencyApi.getAgencies();
-    options.agencies = response.data.data;
+    const data = response.data?.data || [];
+    options.agencies = data.map((agency) => ({
+      ...agency,
+      search_text: normalizeSearchValue(`${agency.id || ''} ${agency.agency_name || ''} ${agency.identity_number || ''} ${agency.phone || ''}`)
+    }));
   } catch (error) {
     console.error("Lỗi khi lấy danh sách đại lý:", error);
   } finally {
@@ -754,30 +782,29 @@ const handleViewBays = (station) => {
   bayModalVisible.value = true;
 };
 
-const handleAddBay = () => {
-  ElMessageBox.confirm(
-    `Bạn có chắc chắn muốn thêm một trụ mới cho trạm "${currentStation.value.station_name}" không?`,  '',
+const handleAddBay = async () => {
+  const confirmed = await confirmPopup(
+    `Bạn có chắc chắn muốn thêm một trụ mới cho trạm "${currentStation.value.station_name}" không?`,
+    'Xác nhận thêm trụ',
     {
       confirmButtonText: 'Đồng ý',
       cancelButtonText: 'Hủy',
-      type: 'warning',
+      type: 'warning'
     }
   )
-    .then(async () => {
-      try {
-        const response = await bayApi.createBays(currentStation.value.id); 
-        
-        if(response) {
-          ElMessage.success('Đã thêm trụ mới thành công!');
-          fetchBays(currentStation.value.id); 
-        }
-      } catch (error) {
-        ElMessage.error('Thêm trụ thất bại');
-        console.error(error);
-      }
-    })
-    .catch(() => {
-    });
+  if (!confirmed) return
+
+  try {
+    const response = await bayApi.createBays(currentStation.value.id); 
+    
+    if(response) {
+      ElMessage.success('Đã thêm trụ mới thành công!');
+      fetchBays(currentStation.value.id); 
+    }
+  } catch (error) {
+    ElMessage.error('Thêm trụ thất bại');
+    console.error(error);
+  }
 };
 
 const handleBayStatusChange = async (bay, newValue) => {
@@ -792,25 +819,29 @@ const handleBayStatusChange = async (bay, newValue) => {
   }
 };
 
-const handleDeleteBay = (bay) => {
-  ElMessageBox.confirm(`Bạn có chắc chắn muốn xóa trụ ${bay.bay_code}?`, 'Cảnh báo', {
-    confirmButtonText: 'Xóa',
-    cancelButtonText: 'Hủy',
-    type: 'warning',
-  }).then(async () => {
-    ElMessage.error(`Đã xóa trụ ${bay.bay_code}`);
-    try {
-        const response = await bayApi.deleteBays(bay.id); // Gọi API xóa trụ với ID cụ thể
-        
-        if(response) {
-          ElMessage.success('Đã xóa trụ thành công!');
-          fetchBays(currentStation.value.id); 
-        }
-      } catch (error) {
-        ElMessage.error('Xóa trụ thất bại');
-        console.error(error);
-      }
-  });
+const handleDeleteBay = async (bay) => {
+  const confirmed = await confirmPopup(
+    `Bạn có chắc chắn muốn xóa trụ ${bay.bay_code}?`,
+    'Xác nhận xóa',
+    {
+      confirmButtonText: 'Xóa',
+      cancelButtonText: 'Hủy',
+      type: 'warning'
+    }
+  )
+  if (!confirmed) return
+
+  try {
+    const response = await bayApi.deleteBays(bay.id); // Gọi API xóa trụ với ID cụ thể
+    
+    if(response) {
+      ElMessage.success('Đã xóa trụ thành công!');
+      fetchBays(currentStation.value.id); 
+    }
+  } catch (error) {
+    ElMessage.error('Xóa trụ thất bại');
+    console.error(error);
+  }
 };
 </script>
 
@@ -868,6 +899,21 @@ const handleDeleteBay = (bay) => {
   font-size: var(--el-font-size-extra-small);
   color: var(--el-text-color-secondary);
   line-height: 1.5;
+}
+
+.agency-dual {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.2;
+}
+
+.agency-dual-name {
+  font-weight: 600;
+}
+
+.agency-dual-id {
+  font-size: 12px;
+  color: var(--el-text-color-secondary);
 }
 
 /* 4. Table Customization */

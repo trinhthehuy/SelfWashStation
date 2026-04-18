@@ -45,8 +45,13 @@ const router = createRouter({
 })
 
 router.beforeEach((to) => {
+  const mustChangePassword = Boolean(authStore.state.user?.mustChangePassword)
+
   if (to.meta.public) {
     if (authStore.isAuthenticated && to.path === '/login') {
+      if (mustChangePassword) {
+        return true
+      }
       return authStore.getDefaultRoute()
     }
 
@@ -54,6 +59,10 @@ router.beforeEach((to) => {
   }
 
   if (!authStore.isAuthenticated) {
+    return '/login'
+  }
+
+  if (mustChangePassword) {
     return '/login'
   }
 

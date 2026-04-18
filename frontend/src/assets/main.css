@@ -258,6 +258,36 @@ a {
   border-color: #1e3354 !important;
 }
 
+/* Shared message-box style */
+.app-confirm-dialog {
+  border-radius: 14px !important;
+  padding: 8px 10px !important;
+}
+
+.app-confirm-dialog .el-message-box__title {
+  font-weight: 700;
+  color: var(--text-main);
+}
+
+.app-confirm-dialog .el-message-box__message {
+  color: var(--text-muted);
+  line-height: 1.55;
+}
+
+.app-confirm-dialog .el-message-box__btns {
+  gap: 8px;
+}
+
+.app-confirm-dialog .el-message-box__btns .el-button {
+  border-radius: 10px;
+  min-width: 96px;
+}
+
+[data-theme="dark"] .app-confirm-dialog {
+  border: 1px solid #1e3354 !important;
+  box-shadow: 0 14px 36px rgba(0, 0, 0, 0.45) !important;
+}
+
 [data-theme="dark"] .el-dropdown-menu__item {
   color: #94a3b8 !important;
 }

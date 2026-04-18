@@ -56,11 +56,17 @@
             <el-select 
               v-model="form.agency_id" 
               filterable 
+              :filter-method="handleAgencyFilter"
               placeholder="Chọn đại lý..."
               @change="handleAgencyChange"
               class="w-full"
             >
-              <el-option v-for="a in agencies" :key="a.id" :label="a.name" :value="a.id" />
+              <el-option v-for="a in filteredAgencyOptions" :key="a.id" :label="a.agency_name" :value="a.id">
+                <div class="agency-dual">
+                  <div class="agency-dual-name">{{ a.agency_name }}</div>
+                  <div class="agency-dual-id">ID: {{ a.identity_number || 'N/A' }}</div>
+                </div>
+              </el-option>
             </el-select>
           </el-form-item>
         </el-col>
@@ -105,13 +111,32 @@
               placeholder="Chọn chiến lược..."
               class="w-full"
             >
-              <el-option v-for="s in strategies" :key="s.id" :label="s.name" :value="s.id" />
+              <el-option v-for="s in strategies" :key="s.id" :label="s.name" :value="s.id">
+                <div class="strategy-dual">
+                  <div class="strategy-dual-name">{{ s.strategy_name }}</div>
+                  <div class="strategy-dual-meta">Giá: {{ s.amount_per_unit_text }} - TG: {{ s.op_per_unit }}s - Bọt: {{ s.foam_per_unit }}ml</div>
+                </div>
+              </el-option>
             </el-select>
           </el-form-item>
         </el-col>
       </el-row>
 
       <el-row :gutter="20">
+        <el-col :span="12" v-if="!props.editData">
+          <el-form-item label="Số trụ" required>
+            <el-input-number
+              v-model="form.initial_bay_count"
+              :min="1"
+              :max="5"
+              :step="1"
+              step-strictly
+              controls-position="right"
+              class="w-full"
+            />
+          </el-form-item>
+        </el-col>
+
         <el-col :span="12">
           <el-form-item label="Trạng thái hoạt động">
             <el-segmented 
@@ -154,8 +179,8 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted } from 'vue';
-import { ElMessage, ElMessageBox } from 'element-plus';
+import { ref, reactive, onMounted, computed } from 'vue';
+import { ElMessage } from 'element-plus';
 import { Location, Delete } from '@element-plus/icons-vue';
 import { stationApi } from "@/api/station";
 import { wardApi } from "@/api/ward";
@@ -163,6 +188,7 @@ import { strategyApi } from "@/api/strategy";
 import { bankaccountApi } from "@/api/bankaccount";
 import { agencyApi } from "@/api/agency";
 import provinceData from '../../provinces.json';
+import { confirmPopup } from '@/utils/popup'
 
 const emit = defineEmits(['close', 'refresh']);
 const props = defineProps({ editData: { type: Object, default: null } });
@@ -178,8 +204,22 @@ const statusOptions = [
 
 const wards = ref([]);
 const agencies = ref([]);
+const agencySearchKeyword = ref('');
 const bankaccounts = ref([]);
 const strategies = ref([]);
+
+const normalizeSearchValue = (value) => String(value || '').toLowerCase().trim();
+const formatVnNumber = (value) => Number(value || 0).toLocaleString('vi-VN');
+const filteredAgencyOptions = computed(() => {
+  if (!agencySearchKeyword.value) return agencies.value;
+  return agencies.value.filter((agency) =>
+    String(agency.search_text || '').includes(agencySearchKeyword.value)
+  );
+});
+
+const handleAgencyFilter = (query) => {
+  agencySearchKeyword.value = normalizeSearchValue(query);
+};
 
 const form = reactive({
   station_name: '',
@@ -193,7 +233,14 @@ const form = reactive({
   prefix: '',
   bank_account_id: null,
   strategy_id: null,
+  initial_bay_count: 1,
 });
+
+const normalizeInitialBayCount = (value) => {
+  const num = Number(value);
+  if (!Number.isFinite(num)) return 1;
+  return Math.min(5, Math.max(1, Math.round(num)));
+};
 
 // Logic giữ nguyên nhưng thay Alert bằng ElMessage
 const handleProvinceChange = async (val) => {
@@ -213,7 +260,12 @@ const handleProvinceChange = async (val) => {
     ]);
     
     wards.value = (wardRes.data.data || []).map(i => ({ id: i.id, name: i.ward_name }));
-    agencies.value = (agencyRes.data.data || []).map(i => ({ id: i.id, name: `${i.agency_name} - ${i.identity_number}` }));
+    agencies.value = (agencyRes.data.data || []).map(i => ({
+      id: i.id,
+      agency_name: i.agency_name,
+      identity_number: i.identity_number,
+      search_text: normalizeSearchValue(`${i.id || ''} ${i.agency_name || ''} ${i.identity_number || ''} ${i.phone || ''}`)
+    }));
   } catch (error) {
     ElMessage.error("Lỗi tải thông tin khu vực");
   } finally {
@@ -233,7 +285,13 @@ const handleAgencyChange = async (val) => {
       id: i.id, name: `${i.bank_name} - ${i.account_number}`
     }));
     strategies.value = stratRes.data.data.map(i => ({
-      id: i.id, name: `Giá: ${i.amount_per_unit} - TG: ${i.op_per_unit}s`
+      id: i.id,
+      strategy_name: i.strategy_name || i.name || `Chiến lược #${i.id}`,
+      amount_per_unit: i.amount_per_unit,
+      amount_per_unit_text: formatVnNumber(i.amount_per_unit),
+      op_per_unit: i.op_per_unit,
+      foam_per_unit: i.foam_per_unit,
+      name: `${i.strategy_name || i.name || `Chiến lược #${i.id}`} - Giá: ${formatVnNumber(i.amount_per_unit)} - TG: ${i.op_per_unit}s - Bọt: ${i.foam_per_unit}ml`
     }));
   } catch (error) {
     ElMessage.error("Lỗi tải dữ liệu đại lý");
@@ -261,7 +319,10 @@ const handleSubmit = async () => {
       await stationApi.updateStation(props.editData.id, payload);
       ElMessage.success('Cập nhật trạm thành công');
     } else {
-      await stationApi.createStation(payload);
+      await stationApi.createStation({
+        ...payload,
+        initial_bay_count: normalizeInitialBayCount(form.initial_bay_count)
+      });
       ElMessage.success('Thêm trạm mới thành công');
     }
     emit('refresh');
@@ -274,20 +335,21 @@ const handleSubmit = async () => {
 };
 
 const handleDelete = async () => {
+  const confirmed = await confirmPopup(
+    `Bạn có chắc muốn xóa trạm ${props.editData.station_name}?`,
+    'Xác nhận xóa',
+    { confirmButtonText: 'Xác nhận xóa', cancelButtonText: 'Hủy', type: 'warning' }
+  )
+  if (!confirmed) return
+
   try {
-    await ElMessageBox.confirm(
-      `Bạn có chắc muốn xóa trạm ${props.editData.station_name}?`,
-      'Cảnh báo',
-      { confirmButtonText: 'Xác nhận xóa', cancelButtonText: 'Hủy', type: 'warning' }
-    );
-    
     submitting.value = true;
     await stationApi.deleteStation(props.editData.id);
     ElMessage.success('Đã xóa trạm');
     emit('refresh');
     visible.value = false;
   } catch (error) {
-    if (error !== 'cancel') ElMessage.error('Lỗi khi xóa trạm');
+    ElMessage.error('Lỗi khi xóa trạm');
   } finally {
     submitting.value = false;
   }
@@ -322,6 +384,36 @@ onMounted(async () => {
   display:flex; 
   gap:12px;
   width:100%;
+}
+
+.agency-dual {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.2;
+}
+
+.agency-dual-name {
+  font-weight: 600;
+}
+
+.agency-dual-id {
+  font-size: 12px;
+  color: var(--el-text-color-secondary);
+}
+
+.strategy-dual {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.2;
+}
+
+.strategy-dual-name {
+  font-weight: 600;
+}
+
+.strategy-dual-meta {
+  font-size: 12px;
+  color: var(--el-text-color-secondary);
 }
 
 .dialog-footer {

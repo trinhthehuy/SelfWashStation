@@ -91,8 +91,9 @@
 
 <script setup>
 import { onMounted, reactive, ref } from 'vue'
-import { ElMessage, ElMessageBox } from 'element-plus'
+import { ElMessage } from 'element-plus'
 import { systemApi } from '@/api/system'
+import { confirmPopup } from '@/utils/popup'
 
 const loading = ref(false)
 const submitting = ref(false)
@@ -150,18 +151,19 @@ const createToken = async () => {
 }
 
 const removeToken = async (tokenId) => {
-  try {
-    await ElMessageBox.confirm('Xóa token này khỏi hệ thống?', 'Xác nhận', {
-      type: 'warning',
-      confirmButtonText: 'Xóa token',
-      cancelButtonText: 'Hủy'
-    })
+  const confirmed = await confirmPopup('Xóa token này khỏi hệ thống?', 'Xác nhận', {
+    type: 'warning',
+    confirmButtonText: 'Xóa token',
+    cancelButtonText: 'Hủy'
+  })
+  if (!confirmed) return
 
+  try {
     await systemApi.deleteApiToken(tokenId)
     ElMessage.success('Đã xóa token')
     await fetchTokens()
   } catch {
-    // ignore cancel
+    ElMessage.error('Xóa token thất bại')
   }
 }
 

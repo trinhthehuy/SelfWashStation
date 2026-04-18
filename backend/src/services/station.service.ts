@@ -10,6 +10,12 @@ type StationListFilters = {
 };
 
 export class StationService {
+  private normalizeInitialBayCount(value: unknown): number {
+    const parsed = Number(value);
+    if (!Number.isFinite(parsed)) return 1;
+    return Math.min(5, Math.max(1, Math.round(parsed)));
+  }
+
   private buildStationListQuery(scope?: RequestScope | null, filters: StationListFilters = {}) {
     const query = db('stations as s')
       .select(
@@ -154,14 +160,37 @@ export class StationService {
    * Tạo trạm mới
    */
   async createStation(data: any, scope?: RequestScope | null) {
+    const {
+      initial_bay_count,
+      ...stationData
+    } = data || {};
+
     const payload = {
-      ...data,
-      agency_id: scope?.agencyId || data.agency_id
+      ...stationData,
+      agency_id: scope?.agencyId || stationData.agency_id
     };
 
-    const [newId] = await db('stations').insert(payload);
-  // Trả về toàn bộ thông tin để Frontend có ID và ngày tạo để dùng ngay
-    return await db('stations').where('id', newId).first();
+    const bayCount = this.normalizeInitialBayCount(initial_bay_count);
+
+    const createdStation = await db.transaction(async (trx) => {
+      const [newId] = await trx('stations').insert(payload);
+
+      const now = new Date();
+      const bays = Array.from({ length: bayCount }, (_, index) => ({
+        station_id: newId,
+        bay_code: `BY${String(index + 1).padStart(2, '0')}`,
+        bay_status: 1,
+        created_at: now,
+        updated_at: now
+      }));
+
+      await trx('wash_bays').insert(bays);
+
+      return await trx('stations').where('id', newId).first();
+    });
+
+    // Trả về toàn bộ thông tin để Frontend có ID và ngày tạo để dùng ngay
+    return createdStation;
   }
 
   /**

@@ -5,6 +5,7 @@ import type { AuthUser, UserRole } from '../middleware/auth.js';
 
 const getJwtSecret = () => process.env.JWT_SECRET || 'fallback_secret';
 const getJwtExpiresIn = () => process.env.JWT_EXPIRES_IN || '7d';
+const getDefaultInitialPassword = () => process.env.DEFAULT_INITIAL_PASSWORD || '123456aA@';
 
 type SystemUserRow = {
   id: number;
@@ -16,6 +17,7 @@ type SystemUserRow = {
   is_active: number;
   avatar?: string | null;
   last_login_at?: string | null;
+  must_change_password?: number | boolean;
 };
 
 type SeedSystemAccount = {
@@ -60,7 +62,8 @@ function sanitizeUser(user: SystemUserRow): AuthUser {
     fullName: user.full_name,
     role: user.role,
     agencyId: user.agency_id,
-    avatar: user.avatar ?? null
+    avatar: user.avatar ?? null,
+    mustChangePassword: Boolean(user.must_change_password)
   };
 }
 
@@ -77,9 +80,16 @@ export class SystemAuthService {
         table.enu('role', ['sa', 'engineer', 'agency']).notNullable();
         table.integer('agency_id').unsigned().nullable();
         table.boolean('is_active').notNullable().defaultTo(true);
+        table.boolean('must_change_password').notNullable().defaultTo(false);
         table.timestamp('last_login_at').nullable();
         table.timestamp('created_at').defaultTo(db.fn.now());
         table.timestamp('updated_at').defaultTo(db.raw('CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP'));
+      });
+    }
+
+    if (hasSystemUsers && !(await db.schema.hasColumn('system_users', 'must_change_password'))) {
+      await db.schema.alterTable('system_users', (table) => {
+        table.boolean('must_change_password').notNullable().defaultTo(false);
       });
     }
 
@@ -135,7 +145,8 @@ export class SystemAuthService {
           full_name: account.fullName,
           role: account.role,
           agency_id: account.agencyId,
-          is_active: 1
+          is_active: 1,
+          must_change_password: 0
         });
         console.log(`✅ Default account created: ${account.username} (${account.role})`);
       } catch (err) {
@@ -159,12 +170,21 @@ export class SystemAuthService {
       throw new Error('Sai mật khẩu');
     }
 
+    // Enforce password change when user is explicitly flagged
+    // or is still using the system default initial password.
+    const isUsingDefaultPassword = await bcrypt.compare(getDefaultInitialPassword(), user.password_hash);
+    const mustChangePassword = Boolean(user.must_change_password) || isUsingDefaultPassword;
+
     await db('system_users').where('id', user.id).update({
       last_login_at: db.fn.now(),
+      ...(mustChangePassword ? { must_change_password: true } : {}),
       updated_at: db.fn.now()
     });
 
-    const authUser = sanitizeUser(user);
+    const authUser = {
+      ...sanitizeUser(user),
+      mustChangePassword
+    };
     const token = jwt.sign(authUser, getJwtSecret() as jwt.Secret, {
       expiresIn: getJwtExpiresIn() as jwt.SignOptions['expiresIn']
     });
@@ -213,7 +233,8 @@ export class SystemAuthService {
       full_name: data.fullName,
       role: data.role,
       agency_id: data.agencyId || null,
-      is_active: true
+      is_active: true,
+      must_change_password: true
     });
 
     const user = await db<SystemUserRow>('system_users')
@@ -228,6 +249,7 @@ export class SystemAuthService {
       role: user!.role,
       agencyId: user!.agency_id,
       isActive: Boolean(user!.is_active),
+      mustChangePassword: Boolean((user as any)!.must_change_password),
       lastLoginAt: null,
       createdAt: (user as any)!.created_at || null
     };
@@ -270,6 +292,7 @@ export class SystemAuthService {
     const passwordHash = await bcrypt.hash(newPassword, 10);
     await db('system_users').where('id', id).update({
       password_hash: passwordHash,
+      must_change_password: true,
       updated_at: db.fn.now()
     });
   }
@@ -284,6 +307,7 @@ export class SystemAuthService {
     const passwordHash = await bcrypt.hash(newPassword, 10);
     await db('system_users').where('id', userId).update({
       password_hash: passwordHash,
+      must_change_password: false,
       updated_at: db.fn.now()
     });
   }
