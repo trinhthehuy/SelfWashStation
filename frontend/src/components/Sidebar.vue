@@ -120,8 +120,7 @@
       </router-link>
     </div>
 
-    <!-- Góp ý – not for engineer -->
-    <div class="sidebar-bottom" v-if="!isEngineer">
+    <div class="sidebar-bottom">
       <router-link to="/gop-y" class="menu-item" @click="layoutStore.close()">
         <MessageSquare class="icon"/>
         <span class="nav-label">Góp ý & Phản hồi</span>

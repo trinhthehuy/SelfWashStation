@@ -20,7 +20,9 @@ export type AuditAction =
   | 'BAY_CREATE'
   | 'BAY_UPDATE'
   | 'BAY_DELETE'
-  | 'USER_SCOPE_UPDATE';
+  | 'USER_SCOPE_UPDATE'
+  | 'FEEDBACK_CREATE'
+  | 'FEEDBACK_REPLY';
 
 export interface AuditLogParams {
   userId?: number | null;

@@ -11,6 +11,7 @@ import transactionRoutes from './transaction.routes.js';
 import revenueRoutes from './revenue.routes.js';
 import feedbackRoutes from './feedback.routes.js';
 import auditRoutes from './audit.routes.js';
+import notificationRoutes from './notification.routes.js';
 import { authenticateToken, attachScope } from '../middleware/auth.js';
 const router = Router();
 
@@ -29,6 +30,7 @@ router.use('/bays', bayRoutes);
 router.use('/transactions', transactionRoutes);
 router.use('/revenue', revenueRoutes);
 router.use('/feedbacks', feedbackRoutes);
+router.use('/notifications', notificationRoutes);
 router.use('/audit-logs', auditRoutes);
 
 export default router;

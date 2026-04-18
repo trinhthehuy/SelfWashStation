@@ -5,11 +5,11 @@
         <div class="title-group">
           <h2 class="page-title">Góp ý & Phản hồi</h2>
           <p class="sub-title">
-            <template v-if="isAgency">Gửi góp ý, kiến nghị đến ban quản trị hệ thống</template>
-            <template v-else>Quản lý và phản hồi góp ý từ các đại lý</template>
+            <template v-if="isSA">Quản lý và phản hồi góp ý từ người dùng hệ thống</template>
+            <template v-else>Gửi góp ý, kiến nghị đến tài khoản quản trị</template>
           </p>
         </div>
-        <el-button v-if="isAgency" type="primary" :icon="Plus" @click="openCreateDialog">
+        <el-button type="primary" :icon="Plus" @click="openCreateDialog">
           Gửi góp ý mới
         </el-button>
       </div>
@@ -17,7 +17,7 @@
 
     <el-card shadow="never" class="table-card">
       <!-- Admin badge summary -->
-      <div v-if="isAdmin" class="admin-summary">
+      <div v-if="isSA" class="admin-summary">
         <el-tag type="warning" effect="light" v-if="pendingCount > 0" style="font-size: 13px;">
           {{ pendingCount }} góp ý đang chờ phản hồi
         </el-tag>
@@ -36,7 +36,7 @@
         style="width: 100%"
         :row-class-name="getRowClass"
       >
-        <el-table-column v-if="isAdmin" prop="agency_name" label="Đại lý" min-width="140" />
+        <el-table-column v-if="isSA" prop="creator_name" label="Người gửi" min-width="140" />
         <el-table-column prop="title" label="Tiêu đề" min-width="200" />
         <el-table-column label="Nội dung" min-width="250">
           <template #default="{ row }">
@@ -49,7 +49,7 @@
               {{ row.status === 'replied' ? 'Đã phản hồi' : 'Chờ phản hồi' }}
             </el-tag>
             <el-badge
-              v-if="isAgency && row.status === 'replied' && !row.is_read_by_agency"
+              v-if="!isSA && row.status === 'replied' && !row.is_read_by_creator"
               is-dot
               type="danger"
               style="margin-left: 6px;"
@@ -62,7 +62,7 @@
         <el-table-column label="Thao tác" width="160" align="center" fixed="right">
           <template #default="{ row }">
             <el-button type="primary" link @click="viewDetail(row)">
-              {{ isAdmin ? 'Xem / Phản hồi' : 'Xem chi tiết' }}
+              {{ isSA ? 'Xem / Phản hồi' : 'Xem chi tiết' }}
             </el-button>
           </template>
         </el-table-column>
@@ -74,25 +74,25 @@
           v-for="row in feedbacks"
           :key="row.id"
           class="mobile-card"
-          :class="{ unread: isAgency && row.status === 'replied' && !row.is_read_by_agency }"
+          :class="{ unread: !isSA && row.status === 'replied' && !row.is_read_by_creator }"
           @click="viewDetail(row)"
         >
           <div class="mc-header">
             <div class="mc-title">
               <span class="mc-name">{{ row.title }}</span>
-              <span v-if="isAdmin" class="mc-sub">Đại lý: {{ row.agency_name }}</span>
+              <span v-if="isSA" class="mc-sub">Người gửi: {{ row.creator_name }}</span>
             </div>
             <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px">
               <el-tag :type="row.status === 'replied' ? 'success' : 'warning'" size="small" effect="light">
                 {{ row.status === 'replied' ? 'Đã phản hồi' : 'Chờ phản hồi' }}
               </el-tag>
-              <el-badge v-if="isAgency && row.status === 'replied' && !row.is_read_by_agency" is-dot type="danger" />
+              <el-badge v-if="!isSA && row.status === 'replied' && !row.is_read_by_creator" is-dot type="danger" />
             </div>
           </div>
           <div class="mc-content">{{ row.content }}</div>
           <div class="mc-footer">
             <span class="mc-date">{{ formatDate(row.created_at) }}</span>
-            <el-button type="primary" link size="small">{{ isAdmin ? 'Xem / Phản hồi' : 'Xem chi tiết' }}</el-button>
+            <el-button type="primary" link size="small">{{ isSA ? 'Xem / Phản hồi' : 'Xem chi tiết' }}</el-button>
           </div>
         </div>
         <div v-if="!loading && feedbacks.length === 0" class="mc-empty">Không có dữ liệu</div>
@@ -130,13 +130,13 @@
     <!-- ─── Dialog xem chi tiết & phản hồi ─── -->
     <el-dialog
       v-model="detailDialogVisible"
-      :title="isAdmin ? 'Chi tiết góp ý' : 'Góp ý của bạn'"
+      :title="isSA ? 'Chi tiết góp ý' : 'Góp ý của bạn'"
       width="580px"
       :close-on-click-modal="false"
     >
       <div v-if="selectedFeedback" class="detail-content">
         <el-descriptions :column="1" border>
-          <el-descriptions-item v-if="isAdmin" label="Đại lý">{{ selectedFeedback.agency_name }}</el-descriptions-item>
+          <el-descriptions-item v-if="isSA" label="Người gửi">{{ selectedFeedback.creator_name || '-' }}</el-descriptions-item>
           <el-descriptions-item label="Tiêu đề">{{ selectedFeedback.title }}</el-descriptions-item>
           <el-descriptions-item label="Nội dung">
             <div class="multiline-text">{{ selectedFeedback.content }}</div>
@@ -159,7 +159,7 @@
         </div>
 
         <!-- Form phản hồi (chỉ admin + pending) -->
-        <div v-if="isAdmin && selectedFeedback.status === 'pending'" class="reply-form">
+        <div v-if="isSA && selectedFeedback.status === 'pending'" class="reply-form">
           <el-divider content-position="left">Phản hồi</el-divider>
           <el-input
             v-model="replyContent"
@@ -174,7 +174,7 @@
       <template #footer>
         <el-button @click="closeDetailDialog">Đóng</el-button>
         <el-button
-          v-if="isAdmin && selectedFeedback?.status === 'pending'"
+          v-if="isSA && selectedFeedback?.status === 'pending'"
           type="primary"
           :loading="replying"
           @click="submitReply"
@@ -187,7 +187,8 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted } from 'vue';
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
+import { useRoute } from 'vue-router';
 
 const isMobile = ref(window.innerWidth < 768)
 const _onResize = () => { isMobile.value = window.innerWidth < 768 }
@@ -196,10 +197,12 @@ onUnmounted(() => window.removeEventListener('resize', _onResize))
 import { Plus } from '@element-plus/icons-vue';
 import { ElMessage } from 'element-plus';
 import { feedbackApi } from '@/api/feedback';
+import { notificationApi } from '@/api/notification';
 import { authStore } from '@/stores/auth';
 
-const isAdmin  = computed(() => authStore.hasAnyRole(['sa', 'engineer']));
-const isAgency = computed(() => authStore.hasAnyRole(['agency']));
+const route = useRoute();
+
+const isSA = computed(() => authStore.hasAnyRole(['sa']));
 
 const feedbacks    = ref([]);
 const loading      = ref(false);
@@ -227,7 +230,7 @@ const fetchFeedbacks = async () => {
   try {
     const res = await feedbackApi.getFeedbacks();
     feedbacks.value = Array.isArray(res.data.data) ? res.data.data : [];
-    if (isAdmin.value) {
+    if (isSA.value) {
       pendingCount.value = feedbacks.value.filter(f => f.status === 'pending').length;
     }
   } catch {
@@ -237,7 +240,37 @@ const fetchFeedbacks = async () => {
   }
 };
 
-onMounted(fetchFeedbacks);
+const openFromQuery = async () => {
+  const feedbackId = Number(route.query.feedbackId);
+  const notifId = Number(route.query.notifId);
+
+  if (!Number.isFinite(feedbackId) || feedbackId <= 0) {
+    return;
+  }
+
+  try {
+    const res = await feedbackApi.getFeedbackById(feedbackId);
+    const item = res.data?.data;
+    if (item) {
+      await viewDetail(item);
+      if (Number.isFinite(notifId) && notifId > 0) {
+        await notificationApi.markRead(notifId);
+      }
+      window.dispatchEvent(new Event('notifications:refresh'));
+    }
+  } catch {
+    ElMessage.error('Không thể mở góp ý từ thông báo');
+  }
+};
+
+onMounted(async () => {
+  await fetchFeedbacks();
+  await openFromQuery();
+});
+
+watch(() => route.query.feedbackId, async () => {
+  await openFromQuery();
+});
 
 // ─── Helpers ─────────────────────────────────────────────────────
 const formatDate = (date) => {
@@ -246,7 +279,7 @@ const formatDate = (date) => {
 };
 
 const getRowClass = ({ row }) => {
-  if (isAgency.value && row.status === 'replied' && !row.is_read_by_agency) return 'row-unread';
+  if (!isSA.value && row.status === 'replied' && !row.is_read_by_creator) return 'row-unread';
   return '';
 };
 
@@ -265,6 +298,7 @@ const submitFeedback = async () => {
       ElMessage.success('Đã gửi góp ý thành công');
       createDialogVisible.value = false;
       await fetchFeedbacks();
+      window.dispatchEvent(new Event('notifications:refresh'));
     } catch {
       ElMessage.error('Không thể gửi góp ý, vui lòng thử lại');
     } finally {
@@ -274,15 +308,16 @@ const submitFeedback = async () => {
 };
 
 // ─── View detail ─────────────────────────────────────────────────
-const viewDetail = async (row) => {
+const viewDetail = async (row, options = { skipMarkRead: false }) => {
   selectedFeedback.value    = { ...row };
   replyContent.value        = '';
   detailDialogVisible.value = true;
 
-  if (isAgency.value && row.status === 'replied' && !row.is_read_by_agency) {
+  if (!isSA.value && !options.skipMarkRead && row.status === 'replied' && !row.is_read_by_creator) {
     try {
       await feedbackApi.markRead(row.id);
-      row.is_read_by_agency = 1;
+      row.is_read_by_creator = 1;
+      window.dispatchEvent(new Event('notifications:refresh'));
     } catch { /* silent */ }
   }
 };
@@ -304,6 +339,7 @@ const submitReply = async () => {
     ElMessage.success('Đã gửi phản hồi thành công');
     detailDialogVisible.value = false;
     await fetchFeedbacks();
+    window.dispatchEvent(new Event('notifications:refresh'));
   } catch {
     ElMessage.error('Không thể gửi phản hồi, vui lòng thử lại');
   } finally {

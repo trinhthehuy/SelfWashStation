@@ -48,16 +48,17 @@
               v-for="item in recentItems"
               :key="item.id"
               class="notif-item"
-              :class="{ 'notif-unread': !item.is_read_by_agency && userRole === 'agency' }"
+              :class="{ 'notif-unread': !item.is_read }"
+              @click="openNotification(item)"
             >
               <div class="notif-item-title">{{ item.title }}</div>
               <div class="notif-item-meta">
                 <el-tag
                   size="small"
-                  :type="item.status === 'replied' ? 'success' : 'warning'"
+                  :type="item.type === 'FEEDBACK_REPLIED' ? 'success' : 'warning'"
                   effect="light"
                 >
-                  {{ item.status === 'replied' ? 'Đã phản hồi' : 'Chờ phản hồi' }}
+                  {{ item.type === 'FEEDBACK_REPLIED' ? 'Đã phản hồi' : 'Thông báo mới' }}
                 </el-tag>
                 <span class="notif-item-date">{{ formatNotifDate(item.created_at) }}</span>
               </div>
@@ -113,7 +114,7 @@ import { authStore } from '@/stores/auth'
 import { themeStore } from '@/stores/theme'
 import { layoutStore } from '@/stores/layout'
 import { Sun, Moon, Bell, ChevronRight, ChevronDown, Menu } from 'lucide-vue-next'
-import { feedbackApi } from '@/api/feedback'
+import { notificationApi } from '@/api/notification'
 
 const router = useRouter()
 const route  = useRoute()
@@ -141,11 +142,10 @@ const pageLabel = computed(() => PAGE_LABELS[route.name] ?? String(route.name ??
 const unreadCount  = ref(0)
 const recentItems  = ref([])
 const recentLoading = ref(false)
-const userRole = computed(() => authStore.state.user?.role)
 
 const fetchUnreadCount = async () => {
   try {
-    const res = await feedbackApi.getUnreadCount()
+    const res = await notificationApi.getUnreadCount()
     unreadCount.value = res.data.count ?? 0
   } catch { /* silent */ }
 }
@@ -153,17 +153,30 @@ const fetchUnreadCount = async () => {
 const fetchRecentNotifications = async () => {
   recentLoading.value = true
   try {
-    const res = await feedbackApi.getFeedbacks()
-    const all = Array.isArray(res.data.data) ? res.data.data : []
-    recentItems.value = all.slice(0, 5)
-    unreadCount.value = res.data.data
-      ? (userRole.value === 'agency'
-          ? all.filter(f => f.status === 'replied' && !f.is_read_by_agency).length
-          : all.filter(f => f.status === 'pending').length)
-      : 0
+    const res = await notificationApi.getNotifications({ page: 1, limit: 5 })
+    const items = Array.isArray(res.data.data) ? res.data.data : []
+    recentItems.value = items
+    await fetchUnreadCount()
   } catch { /* silent */ } finally {
     recentLoading.value = false
   }
+}
+
+const openNotification = async (item) => {
+  try {
+    if (!item.is_read) {
+      await notificationApi.markRead(item.id)
+      item.is_read = 1
+      window.dispatchEvent(new Event('notifications:refresh'))
+    }
+  } catch { /* silent */ }
+
+  if (item.action_url) {
+    router.push(item.action_url)
+    return
+  }
+
+  router.push('/canh-bao')
 }
 
 const formatNotifDate = (date) => {
@@ -181,12 +194,18 @@ const goToNotifications = () => {
 }
 
 let pollInterval = null
+const onNotificationRefresh = async () => {
+  await fetchUnreadCount()
+}
+
 onMounted(async () => {
   await fetchUnreadCount()
   pollInterval = setInterval(fetchUnreadCount, 60_000)
+  window.addEventListener('notifications:refresh', onNotificationRefresh)
 })
 onUnmounted(() => {
   clearInterval(pollInterval)
+  window.removeEventListener('notifications:refresh', onNotificationRefresh)
 })
 
 const roleLabel = computed(() => {
