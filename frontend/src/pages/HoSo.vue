@@ -7,7 +7,7 @@
         <div class="avatar-wrap">
           <div class="avatar-ring" :class="avatarRingClass">
             <img v-if="avatarPreview" :src="avatarPreview" class="avatar-img" alt="avatar" />
-            <span v-else class="avatar-initials">{{ userInitials }}</span>
+            <img v-else :src="defaultAvatar" class="avatar-img" alt="avatar" />
           </div>
           <label class="avatar-upload-btn" title="Đổi ảnh đại diện">
             <Camera :size="16" />
@@ -29,7 +29,7 @@
         <el-row :gutter="24">
           <el-col :span="12">
             <el-form-item
-              label="Họ và tên"
+              label="Tên hiển thị"
               prop="fullName"
               :rules="[{ required: true, min: 2, message: 'Tối thiểu 2 ký tự', trigger: 'blur' }]"
             >
@@ -108,23 +108,61 @@ import { authStore } from '@/stores/auth'
 import { authApi } from '@/api/auth'
 
 // ── Avatar preview ────────────────────────────────────────
+const defaultAvatar = 'https://i.pravatar.cc/100?img=3'
 const avatarPreview = ref(authStore.state.user?.avatar || null)
 const avatarChanged = ref(false)
 
-const handleAvatarFile = (e) => {
+
+// Hàm resize ảnh về 200x200px, trả về base64
+function resizeImage(file, maxSize = 200) {
+  return new Promise((resolve, reject) => {
+    const img = new window.Image();
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        let w = img.width;
+        let h = img.height;
+        if (w > h) {
+          if (w > maxSize) {
+            h *= maxSize / w;
+            w = maxSize;
+          }
+        } else {
+          if (h > maxSize) {
+            w *= maxSize / h;
+            h = maxSize;
+          }
+        }
+        canvas.width = w;
+        canvas.height = h;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, w, h);
+        resolve(canvas.toDataURL('image/jpeg', 0.92));
+      };
+      img.onerror = reject;
+      img.src = ev.target.result;
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+const handleAvatarFile = async (e) => {
   const file = e.target.files?.[0]
   if (!file) return
-  if (file.size > 2 * 1024 * 1024) {
-    ElMessage.error('Ảnh đại diện không được vượt quá 2MB')
+  if (file.size > 5 * 1024 * 1024) {
+    ElMessage.error('Ảnh đại diện không được vượt quá 5MB')
     e.target.value = ''
     return
   }
-  const reader = new FileReader()
-  reader.onload = (ev) => {
-    avatarPreview.value = ev.target.result
+  try {
+    const resizedBase64 = await resizeImage(file, 200)
+    avatarPreview.value = resizedBase64
     avatarChanged.value = true
+  } catch (err) {
+    ElMessage.error('Không đọc được ảnh')
   }
-  reader.readAsDataURL(file)
   e.target.value = ''
 }
 

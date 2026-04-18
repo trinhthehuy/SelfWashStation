@@ -1,6 +1,9 @@
 import bcrypt from 'bcryptjs';
+import crypto from 'crypto';
 import jwt from 'jsonwebtoken';
 import db from '../db/index.js';
+import config from '../config/index.js';
+import { emailService } from './email.service.js';
 import type { AuthUser, UserRole } from '../middleware/auth.js';
 
 const getJwtSecret = () => process.env.JWT_SECRET || 'fallback_secret';
@@ -12,6 +15,7 @@ type SystemUserRow = {
   username: string;
   password_hash: string;
   full_name: string;
+  email?: string | null;
   role: UserRole;
   agency_id: number | null;
   is_active: number;
@@ -27,6 +31,80 @@ type SeedSystemAccount = {
   role: UserRole;
   agencyId: number | null;
 };
+
+type PasswordResetTokenRow = {
+  id: number;
+  user_id: number;
+  token_hash: string;
+  expires_at: Date | string;
+  used_at: Date | string | null;
+};
+
+type AgencyEmailRow = {
+  email?: string | null;
+};
+
+async function resolveAgencyEmail(agencyId: number | null | undefined): Promise<string | null> {
+  if (!agencyId) {
+    return null;
+  }
+
+  const agency = await db<AgencyEmailRow>('agency').where('id', agencyId).first();
+  const agencyEmail = String(agency?.email || '').trim().toLowerCase();
+  return isValidEmail(agencyEmail) ? agencyEmail : null;
+}
+
+function isValidEmail(value: string): boolean {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(value || '').trim());
+}
+
+function normalizeOptionalEmail(value: unknown): string | null {
+  const email = String(value || '').trim().toLowerCase();
+  if (!email) {
+    return null;
+  }
+  return isValidEmail(email) ? email : null;
+}
+
+function buildFallbackEmailFromUsername(username: string): string {
+  const localPart = String(username || '')
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '.')
+    .replace(/^\.+|\.+$/g, '')
+    .slice(0, 48);
+
+  return `${localPart || 'user'}@no-email.local`;
+}
+
+async function resolveResetRecipientEmail(user: SystemUserRow): Promise<string> {
+  const directEmail = String(user.email || '').trim().toLowerCase();
+  if (isValidEmail(directEmail)) {
+    return directEmail;
+  }
+
+  const usernameAsEmail = String(user.username || '').trim().toLowerCase();
+  if (isValidEmail(usernameAsEmail)) {
+    return usernameAsEmail;
+  }
+
+  if (user.agency_id) {
+    const agencyEmail = await resolveAgencyEmail(user.agency_id);
+    if (agencyEmail) {
+      return agencyEmail;
+    }
+  }
+
+  return '';
+}
+
+async function resolveRequiredAgencyEmail(agencyId: number | null | undefined): Promise<string> {
+  const email = await resolveAgencyEmail(agencyId);
+  if (!email) {
+    throw new Error('Đại lý liên kết chưa có email hợp lệ');
+  }
+  return email;
+}
 
 const getRequiredEnv = (name: string) => {
   const value = process.env[name];
@@ -77,6 +155,7 @@ export class SystemAuthService {
         table.string('username', 64).notNullable().unique();
         table.string('password_hash', 255).notNullable();
         table.string('full_name', 128).notNullable();
+        table.string('email', 191).notNullable();
         table.enu('role', ['sa', 'engineer', 'agency']).notNullable();
         table.integer('agency_id').unsigned().nullable();
         table.boolean('is_active').notNullable().defaultTo(true);
@@ -90,6 +169,12 @@ export class SystemAuthService {
     if (hasSystemUsers && !(await db.schema.hasColumn('system_users', 'must_change_password'))) {
       await db.schema.alterTable('system_users', (table) => {
         table.boolean('must_change_password').notNullable().defaultTo(false);
+      });
+    }
+
+    if (hasSystemUsers && !(await db.schema.hasColumn('system_users', 'email'))) {
+      await db.schema.alterTable('system_users', (table) => {
+        table.string('email', 191).notNullable().defaultTo('');
       });
     }
 
@@ -124,6 +209,21 @@ export class SystemAuthService {
         const existing = await db<SystemUserRow>('system_users').where('username', account.username).first();
 
         if (existing) {
+          if (!existing.email || !String(existing.email).trim()) {
+            const nextEmail = account.role === 'agency'
+              ? await resolveAgencyEmail(account.agencyId)
+              : (isValidEmail(account.username) ? account.username.toLowerCase() : buildFallbackEmailFromUsername(account.username));
+
+            if (nextEmail) {
+              await db('system_users')
+                .where('id', existing.id)
+                .update({
+                  email: nextEmail,
+                  updated_at: db.fn.now(),
+                });
+            }
+          }
+
           if (account.role === 'agency' && account.agencyId && existing.agency_id !== account.agencyId) {
             await db('system_users')
               .where('id', existing.id)
@@ -143,6 +243,7 @@ export class SystemAuthService {
           username: account.username,
           password_hash: passwordHash,
           full_name: account.fullName,
+          email: isValidEmail(account.username) ? account.username.toLowerCase() : buildFallbackEmailFromUsername(account.username),
           role: account.role,
           agency_id: account.agencyId,
           is_active: 1,
@@ -200,7 +301,7 @@ export class SystemAuthService {
 
   static async listUsers() {
     const users = await db<SystemUserRow>('system_users')
-      .select('id', 'username', 'full_name', 'role', 'agency_id', 'is_active', 'last_login_at', 'created_at')
+      .select('id', 'username', 'full_name', 'email', 'role', 'agency_id', 'is_active', 'last_login_at', 'created_at')
       .orderByRaw("FIELD(role, 'sa', 'engineer', 'agency')")
       .orderBy('id', 'asc');
 
@@ -208,6 +309,7 @@ export class SystemAuthService {
       id: user.id,
       username: user.username,
       fullName: user.full_name,
+      email: user.email || null,
       role: user.role,
       agencyId: user.agency_id,
       isActive: Boolean(user.is_active),
@@ -222,15 +324,24 @@ export class SystemAuthService {
     fullName: string;
     role: UserRole;
     agencyId?: number | null;
+    email?: string | null;
   }) {
     const existing = await db('system_users').where('username', data.username).first();
     if (existing) throw new Error('Tên đăng nhập đã tồn tại');
 
     const passwordHash = await bcrypt.hash(data.password, 10);
+    const nextEmail = data.role === 'agency'
+      ? await resolveRequiredAgencyEmail(data.agencyId)
+      : normalizeOptionalEmail(data.email);
+
+    if (!nextEmail) {
+      throw new Error('Email account là bắt buộc và phải đúng định dạng');
+    }
     const [id] = await db('system_users').insert({
       username: data.username,
       password_hash: passwordHash,
       full_name: data.fullName,
+      email: nextEmail,
       role: data.role,
       agency_id: data.agencyId || null,
       is_active: true,
@@ -239,13 +350,14 @@ export class SystemAuthService {
 
     const user = await db<SystemUserRow>('system_users')
       .where('id', id)
-      .select('id', 'username', 'full_name', 'role', 'agency_id', 'is_active', 'last_login_at', 'created_at')
+      .select('id', 'username', 'full_name', 'email', 'role', 'agency_id', 'is_active', 'last_login_at', 'created_at')
       .first();
 
     return {
       id: user!.id,
       username: user!.username,
       fullName: user!.full_name,
+      email: user!.email || null,
       role: user!.role,
       agencyId: user!.agency_id,
       isActive: Boolean(user!.is_active),
@@ -259,6 +371,7 @@ export class SystemAuthService {
     fullName?: string;
     role?: UserRole;
     agencyId?: number | null;
+    email?: string | null;
     isActive?: boolean;
   }) {
     const user = await db('system_users').where('id', id).first();
@@ -269,6 +382,17 @@ export class SystemAuthService {
     if (data.role !== undefined) updates.role = data.role;
     if ('agencyId' in data) updates.agency_id = data.agencyId ?? null;
     if (data.isActive !== undefined) updates.is_active = data.isActive;
+    if ('email' in data) updates.email = normalizeOptionalEmail(data.email);
+
+    const nextRole = (data.role ?? user.role) as UserRole;
+    const nextAgencyId = ('agencyId' in data) ? (data.agencyId ?? null) : user.agency_id;
+    if (nextRole === 'agency') {
+      updates.email = await resolveRequiredAgencyEmail(nextAgencyId);
+    } else if ('email' in data) {
+      if (!updates.email) {
+        throw new Error('Email account là bắt buộc và phải đúng định dạng');
+      }
+    }
 
     if (Object.keys(updates).length === 0) throw new Error('Không có dữ liệu cần cập nhật');
     updates.updated_at = db.fn.now();
@@ -324,5 +448,119 @@ export class SystemAuthService {
 
     const updated = await db<SystemUserRow>('system_users').where('id', userId).first();
     return sanitizeUser(updated!);
+  }
+
+  static async requestPasswordReset(username: string) {
+    const normalizedUsername = String(username || '').trim();
+    if (!normalizedUsername) {
+      return { resetToken: null };
+    }
+
+    const user = await db<SystemUserRow>('system_users')
+      .where('username', normalizedUsername)
+      .andWhere('is_active', 1)
+      .first();
+
+    if (!user) {
+      return { resetToken: null };
+    }
+
+    const rawToken = crypto.randomBytes(32).toString('hex');
+    const tokenHash = crypto.createHash('sha256').update(rawToken).digest('hex');
+    const expiresAt = new Date(Date.now() + config.auth.passwordResetTokenTtlMinutes * 60 * 1000);
+    const recipientEmail = await resolveResetRecipientEmail(user);
+
+    await db.transaction(async (trx) => {
+      await trx('password_reset_tokens')
+        .where('user_id', user.id)
+        .whereNull('used_at')
+        .update({ used_at: trx.fn.now() });
+
+      await trx('password_reset_tokens').insert({
+        user_id: user.id,
+        token_hash: tokenHash,
+        expires_at: expiresAt,
+        used_at: null,
+        created_at: trx.fn.now(),
+      });
+    });
+
+    let emailSent = false;
+    if (recipientEmail) {
+      const resetBase = String(config.auth.passwordResetUrlBase || '').replace(/\/$/, '');
+      const resetUrl = `${resetBase}/${encodeURIComponent(rawToken)}`;
+      emailSent = await emailService.sendPasswordResetEmail({
+        to: recipientEmail,
+        fullName: user.full_name,
+        resetUrl,
+        expiresInMinutes: config.auth.passwordResetTokenTtlMinutes,
+      });
+    }
+
+    if (config.nodeEnv !== 'production') {
+      return { resetToken: rawToken, emailSent };
+    }
+
+    return { resetToken: null, emailSent };
+  }
+
+  static async isPasswordResetTokenValid(token: string): Promise<boolean> {
+    const normalizedToken = String(token || '').trim();
+    if (!normalizedToken) {
+      return false;
+    }
+
+    const tokenHash = crypto.createHash('sha256').update(normalizedToken).digest('hex');
+    const row = await db<PasswordResetTokenRow>('password_reset_tokens')
+      .where('token_hash', tokenHash)
+      .whereNull('used_at')
+      .andWhere('expires_at', '>', db.fn.now())
+      .first();
+
+    return Boolean(row);
+  }
+
+  static async resetPasswordByToken(token: string, newPassword: string) {
+    const normalizedToken = String(token || '').trim();
+    const normalizedPassword = String(newPassword || '');
+
+    if (!normalizedToken || normalizedPassword.length < 6) {
+      throw new Error('Thông tin đặt lại mật khẩu không hợp lệ');
+    }
+
+    const tokenHash = crypto.createHash('sha256').update(normalizedToken).digest('hex');
+
+    await db.transaction(async (trx) => {
+      const tokenRow = await trx<PasswordResetTokenRow>('password_reset_tokens')
+        .where('token_hash', tokenHash)
+        .whereNull('used_at')
+        .andWhere('expires_at', '>', trx.fn.now())
+        .first();
+
+      if (!tokenRow) {
+        throw new Error('Token đặt lại mật khẩu không hợp lệ hoặc đã hết hạn');
+      }
+
+      const user = await trx<SystemUserRow>('system_users')
+        .where('id', tokenRow.user_id)
+        .andWhere('is_active', 1)
+        .first();
+
+      if (!user) {
+        throw new Error('Token đặt lại mật khẩu không hợp lệ hoặc đã hết hạn');
+      }
+
+      const passwordHash = await bcrypt.hash(normalizedPassword, 10);
+
+      await trx('system_users').where('id', user.id).update({
+        password_hash: passwordHash,
+        must_change_password: false,
+        updated_at: trx.fn.now(),
+      });
+
+      await trx('password_reset_tokens').where('id', tokenRow.id).update({
+        used_at: trx.fn.now(),
+      });
+    });
   }
 }

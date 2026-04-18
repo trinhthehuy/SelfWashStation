@@ -25,6 +25,12 @@ export const systemApi = {
   updateMqtt(payload) {
     return apiClient.post('/settings/mqtt', payload)
   },
+  getSmtpSettings() {
+    return apiClient.get('/settings/smtp')
+  },
+  updateSmtpSettings(payload) {
+    return apiClient.post('/settings/smtp', payload)
+  },
   sendTestWebhook(payload, customUrl) {
     const targetPath = customUrl ? customUrl.replace(/^https?:\/\/[^/]+/, '') : '/webhook/bank-transfer'
     return apiClient.post(targetPath, payload, {

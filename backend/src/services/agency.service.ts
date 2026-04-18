@@ -3,6 +3,20 @@ import db from '../db/index.js';
 import bcrypt from 'bcryptjs';
 import type { RequestScope } from '../middleware/auth.js';
 
+function normalizeAgencyEmail(value: unknown): string | null {
+  const email = String(value || '').trim().toLowerCase();
+  if (!email) {
+    throw new Error('Email đại lý là bắt buộc');
+  }
+
+  const valid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+  if (!valid) {
+    throw new Error('Email đại lý không hợp lệ');
+  }
+
+  return email;
+}
+
 export class AgencyService {
   /**
    * Lấy danh sách đại lý (Tổng hợp từ các hàm cũ)
@@ -16,13 +30,17 @@ export class AgencyService {
 
     // 1. Khởi tạo query với các Join cần thiết để lấy đầy đủ thông tin
     const query = db('agency as a')
-      .select(        
+      .select(
         'p.province_name',
         'w.ward_name',
-         'a.*'
+        'a.*',
+        db.raw(`su.avatar as user_avatar`)
       )
       .leftJoin('provinces as p', 'a.province_id', 'p.id')
-      .leftJoin('wards as w', 'a.ward_id', 'w.id');
+      .leftJoin('wards as w', 'a.ward_id', 'w.id')
+      .leftJoin('system_users as su', function() {
+        this.on('su.agency_id', '=', 'a.id').andOn('su.role', '=', db.raw('?', ['agency']))
+      });
 
     // 2. Áp dụng scope theo role trước, sau đó mới xét filter UI
     if (scope?.agencyId) {
@@ -42,7 +60,11 @@ export class AgencyService {
 
     try {
       const agencies = await query;
-      return agencies;
+      // Trả về avatar là user_avatar (từ system_users), không dùng agency.avatar nữa
+      return agencies.map(a => ({
+        ...a,
+        avatar: a.user_avatar || null
+      }));
     } catch (error) {
       console.error(`[AGENCY SERVICE] ❌ Lỗi DB:`, error);
       throw error;
@@ -74,6 +96,7 @@ export class AgencyService {
         username: accountData.username,
         password_hash: passwordHash,
         full_name: data.agency_name,
+        email: normalizeAgencyEmail(data.email),
         role: 'agency',
         agency_id: newAgencyId,
         is_active: true,
@@ -88,21 +111,32 @@ export class AgencyService {
      * Cập nhật thông tin đại lý
      */
     async updateAgency(id: number, data: any, scope?: RequestScope | null) {
-      const query = db('agency').where('id', id);
+      await db.transaction(async (trx) => {
+        const query = trx('agency').where('id', id);
 
-      if (scope?.agencyId) {
-        query.andWhere('id', scope.agencyId);
-      } else if (scope?.provinceIds?.length) {
-        query.whereIn('province_id', scope.provinceIds);
-      }
+        if (scope?.agencyId) {
+          query.andWhere('id', scope.agencyId);
+        } else if (scope?.provinceIds?.length) {
+          query.whereIn('province_id', scope.provinceIds);
+        }
 
-      // Thực hiện update dựa trên ID
-      await query
-        .update({
+        await query.update({
           ...data,
-          updated_at: db.fn.now() // Cập nhật thời gian chỉnh sửa
+          updated_at: trx.fn.now(),
         });
-  
+
+        if (Object.prototype.hasOwnProperty.call(data, 'email')) {
+          const syncedEmail = normalizeAgencyEmail(data.email);
+          await trx('system_users')
+            .where('agency_id', id)
+            .andWhere('role', 'agency')
+            .update({
+              email: syncedEmail,
+              updated_at: trx.fn.now(),
+            });
+        }
+      });
+
       // Trả về dữ liệu mới nhất sau khi sửa để Frontend đồng bộ
       return await db('agency').where('id', id).first();
     }

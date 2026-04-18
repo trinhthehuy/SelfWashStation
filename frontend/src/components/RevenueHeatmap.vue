@@ -2,8 +2,21 @@
   <div class="card">
 
     <!-- HEADER -->
+
     <div class="header">
-      <span class="title">HEATMAP PHÂN BỐ DOANH THU</span>
+      <span style="display: flex; align-items: center; gap: 4px;">
+        <span class="title">HEATMAP PHÂN BỐ DOANH THU</span>
+        <span class="subtitle heatmap-tooltip-trigger" tabindex="0" style="margin:0;">
+          <svg width="16" height="16" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg" style="vertical-align: middle;">
+            <circle cx="10" cy="10" r="9" stroke="currentColor" stroke-width="2" fill="none"/>
+            <rect x="9" y="8" width="2" height="5" rx="1" fill="currentColor"/>
+            <rect x="9" y="5" width="2" height="2" rx="1" fill="currentColor"/>
+          </svg>
+          <span class="heatmap-tooltip-content">
+            Thống kê dữ liệu 90 ngày gần nhất
+          </span>
+        </span>
+      </span>
     </div>
 
     <!-- CHART -->
@@ -290,4 +303,36 @@ color: var(--text-faint);
   }
 }
 
+/* Tooltip styles for info icon */
+.heatmap-tooltip-trigger {
+  position: relative;
+  display: inline-block;
+  outline: none;
+}
+.heatmap-tooltip-content {
+  visibility: hidden;
+  opacity: 0;
+  width: max-content;
+  max-width: 220px;
+  background: var(--bg-card, #fff);
+  color: var(--text-muted, #475569);
+  text-align: left;
+  border-radius: 6px;
+  padding: 8px 14px;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.12);
+  position: absolute;
+  z-index: 10;
+  top: 120%;
+  left: 50%;
+  transform: translateX(-50%);
+  transition: opacity 0.18s;
+  font-size: 12px;
+  pointer-events: none;
+}
+.heatmap-tooltip-trigger:hover .heatmap-tooltip-content,
+.heatmap-tooltip-trigger:focus .heatmap-tooltip-content {
+  visibility: visible;
+  opacity: 1;
+  pointer-events: auto;
+}
 </style>

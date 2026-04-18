@@ -9,6 +9,6 @@ const agencyController = new AgencyController();
 //router.get('/', authenticateToken, stationController.getAllStations);
 router.get('/', agencyController.getAgencies);
 router.post('/', authorizeRoles(['sa']), agencyController.createAgency);
-router.put('/:id', authorizeRoles(['sa']), agencyController.updateAgency);
+router.put('/:id', authorizeRoles(['sa', 'agency']), agencyController.updateAgency);
 router.delete('/:id', authorizeRoles(['sa']), agencyController.deleteAgency);
 export default router;

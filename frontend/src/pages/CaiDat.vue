@@ -16,6 +16,9 @@
       </template>
       <el-table :data="users" stripe v-loading="loading">
         <el-table-column prop="username" label="Tài khoản" min-width="160" />
+        <el-table-column prop="email" label="Email account" min-width="220">
+          <template #default="{ row }">{{ row.email || '-' }}</template>
+        </el-table-column>
         <el-table-column prop="fullName" label="Họ tên" min-width="180" />
         <el-table-column label="Vai trò" width="140">
           <template #default="{ row }">
@@ -82,6 +85,17 @@
         <el-form-item label="Họ tên" prop="fullName" :rules="[{ required: true, message: 'Bắt buộc', trigger: 'blur' }]">
           <el-input v-model="form.fullName" placeholder="Tên hiển thị" />
         </el-form-item>
+        <el-form-item
+          label="Email account"
+          prop="email"
+          :rules="[{ validator: validateEmailField, trigger: 'blur' }]"
+        >
+          <el-input
+            v-model="form.email"
+            :disabled="form.role === 'agency'"
+            :placeholder="form.role === 'agency' ? 'Tự đồng bộ theo email đại lý' : 'vd: user@company.com'"
+          />
+        </el-form-item>
         <el-form-item label="Vai trò" prop="role" :rules="[{ required: true, message: 'Bắt buộc', trigger: 'change' }]">
           <el-select v-model="form.role" class="w-full" @change="onRoleChange">
             <el-option value="sa" label="Quản trị hệ thống" />
@@ -96,13 +110,14 @@
             v-model="form.agencyId"
             filterable
             :filter-method="filterAgencyOptions"
+            @change="onAgencyChange"
             placeholder="Tìm theo ID, tên đại lý, CCCD, số điện thoại"
             class="w-full"
           >
             <el-option v-for="a in filteredAgencies" :key="a.id" :label="a.agency_name" :value="a.id">
               <div class="agency-dual">
                 <div class="agency-dual-name">{{ a.agency_name }}</div>
-                <div class="agency-dual-id">ID: {{ a.identity_number || 'N/A' }}</div>
+                <div class="agency-dual-id">ID: {{ a.identity_number || 'N/A' }} · Email: {{ a.email || 'N/A' }}</div>
               </div>
             </el-option>
           </el-select>
@@ -182,13 +197,32 @@ const pwdFormRef = ref()
 const isSa = computed(() => authStore.hasAnyRole(['sa']))
 const currentUserId = computed(() => authStore.state.user?.id)
 
-const form = ref({ username: '', fullName: '', role: 'agency', agencyId: null, provinceIds: [], stationIds: [], password: '', isActive: true })
+const form = ref({ username: '', fullName: '', email: '', role: 'agency', agencyId: null, provinceIds: [], stationIds: [], password: '', isActive: true })
 const resetForm = ref({ newPassword: '', confirm: '' })
 const pwdForm = ref({ current: '', newPwd: '', confirm: '' })
 
 const validateConfirmPwd = (_rule, value, cb) => {
   if (value !== pwdForm.value.newPwd) cb(new Error('Mật khẩu nhập lại không khớp'))
   else cb()
+}
+const validateEmailField = (_rule, value, cb) => {
+  const email = String(value || '').trim().toLowerCase()
+
+  if (!email) {
+    if (form.value.role === 'agency') {
+      cb(new Error('Đại lý liên kết chưa có email'))
+      return
+    }
+    cb(new Error('Email account là bắt buộc'))
+    return
+  }
+
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    cb(new Error('Email không hợp lệ'))
+    return
+  }
+
+  cb()
 }
 const validateResetConfirm = (_rule, value, cb) => {
   if (value !== resetForm.value.newPassword) cb(new Error('Mật khẩu nhập lại không khớp'))
@@ -283,17 +317,30 @@ const onRoleChange = () => {
   form.value.agencyId = null
   form.value.provinceIds = []
   form.value.stationIds = []
+  if (form.value.role === 'agency') {
+    form.value.email = ''
+  }
+  formRef.value?.clearValidate(['email'])
+}
+
+const onAgencyChange = (agencyId) => {
+  if (form.value.role !== 'agency') {
+    return
+  }
+  const agency = agencies.value.find((item) => item.id === agencyId)
+  form.value.email = agency?.email || ''
+  formRef.value?.validateField('email')
 }
 
 const handleAdd = () => {
   isEdit.value = false
-  form.value = { username: '', fullName: '', role: 'agency', agencyId: null, provinceIds: [], stationIds: [], password: '', isActive: true }
+  form.value = { username: '', fullName: '', email: '', role: 'agency', agencyId: null, provinceIds: [], stationIds: [], password: '', isActive: true }
   showModal.value = true
 }
 
 const handleEdit = async (row) => {
   isEdit.value = true
-  form.value = { username: row.username, fullName: row.fullName, role: row.role, agencyId: row.agencyId, provinceIds: [], stationIds: [], password: '', isActive: row.isActive, _id: row.id }
+  form.value = { username: row.username, fullName: row.fullName, email: row.email || '', role: row.role, agencyId: row.agencyId, provinceIds: [], stationIds: [], password: '', isActive: row.isActive, _id: row.id }
   if (row.role === 'regional_manager' || row.role === 'station_supervisor') {
     try {
       const res = await authApi.getUserScope(row.id)
@@ -314,6 +361,7 @@ const handleSubmit = async () => {
     if (isEdit.value) {
       await authApi.updateUser(form.value._id, {
         fullName: form.value.fullName,
+        email: String(form.value.email || '').trim().toLowerCase(),
         role: form.value.role,
         agencyId: form.value.role === 'agency' ? form.value.agencyId : null,
         isActive: form.value.isActive
@@ -325,6 +373,7 @@ const handleSubmit = async () => {
         username: form.value.username,
         password: form.value.password,
         fullName: form.value.fullName,
+        email: String(form.value.email || '').trim().toLowerCase(),
         role: form.value.role,
         agencyId: form.value.role === 'agency' ? form.value.agencyId : null
       })

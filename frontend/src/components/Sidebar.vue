@@ -59,18 +59,30 @@
         </div>
       </div>
 
-      <!-- Agency: standalone bank account & strategy -->
-      <template v-if="isAgency">
-        <router-link to="/tai-khoan-ngan-hang" class="menu-item">
-          <Wallet class="icon"/>
-          <span class="nav-label">Tài khoản ngân hàng</span>
-        </router-link>
+      <!-- Agency: grouped Dai Ly menu (same pattern as SA) -->
+      <div class="menu-group" v-if="isAgency">
+        <div class="menu-item-wrapper" :class="{ 'active': $route.path.startsWith('/dai-ly') }">
+          <router-link to="/dai-ly" class="menu-item main-link">
+            <Users class="icon"/>
+            <span class="nav-label">Đại lý</span>
+          </router-link>
+          <div class="toggle-icon" v-if="!isCollapsed" @click="isDaiLyOpen = !isDaiLyOpen">
+            <ChevronDown :class="{ 'rotate': isDaiLyOpen }"/>
+          </div>
+        </div>
 
-        <router-link to="/chien-luoc" class="menu-item">
-          <Target class="icon"/>
-          <span class="nav-label">Chiến lược</span>
-        </router-link>
-      </template>
+        <div v-show="isDaiLyOpen && !isCollapsed" class="sub-menu-container">
+          <router-link to="/tai-khoan-ngan-hang" class="sub-item">
+            <Wallet class="sub-icon"/>
+            <span>Tài khoản ngân hàng</span>
+          </router-link>
+
+          <router-link to="/chien-luoc" class="sub-item">
+            <Target class="sub-icon"/>
+            <span>Chiến lược</span>
+          </router-link>
+        </div>
+      </div>
     </div>
 
     <!-- Settings section – SA and Engineer -->

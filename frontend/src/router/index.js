@@ -2,6 +2,8 @@ import { createRouter, createWebHistory } from 'vue-router'
 import { authStore } from '@/stores/auth'
 
 const Login = () => import('@/pages/Login.vue')
+const ForgotPassword = () => import('@/pages/ForgotPassword.vue')
+const ResetPassword = () => import('@/pages/ResetPassword.vue')
 const Dashboard = () => import('@/pages/Dashboard.vue')
 const DaiLy = () => import('@/pages/DaiLy.vue')
 const Tram = () => import('@/pages/Tram.vue')
@@ -21,8 +23,10 @@ const NhatKy = () => import('@/pages/NhatKy.vue')
 
 const routes = [
   { path: '/login', name: 'login', component: Login, meta: { public: true, noShell: true } },
+  { path: '/forgot-password', name: 'forgot-password', component: ForgotPassword, meta: { public: true, noShell: true } },
+  { path: '/reset-password/:token', name: 'reset-password', component: ResetPassword, meta: { public: true, noShell: true } },
   { path: '/', name: 'dashboard', component: Dashboard, meta: { roles: ['sa', 'agency'] } },
-  { path: '/dai-ly', name: 'dai-ly', component: DaiLy, meta: { roles: ['sa'] } },
+  { path: '/dai-ly', name: 'dai-ly', component: DaiLy, meta: { roles: ['sa', 'agency'] } },
   { path: '/tram', name: 'tram', component: Tram, meta: { roles: ['sa', 'engineer', 'agency'] } },
   { path: '/Them_Sua_Xoa_Tram', name: 'Them_Sua_Xoa_Tram', component: ThemSuaXoaTram, meta: { roles: ['sa'] } },
   { path: '/tai-khoan-ngan-hang', name: 'tai-khoan-ngan-hang', component: TaiKhoanNganHang, meta: { roles: ['sa', 'agency'] } },
@@ -46,9 +50,16 @@ const router = createRouter({
 
 router.beforeEach((to) => {
   const mustChangePassword = Boolean(authStore.state.user?.mustChangePassword)
+  const publicAuthPaths = ['/login', '/forgot-password']
+  const isResetPasswordRoute = String(to.path || '').startsWith('/reset-password/')
 
   if (to.meta.public) {
-    if (authStore.isAuthenticated && to.path === '/login') {
+    // Always allow password-reset links so users can reset even with stale sessions.
+    if (isResetPasswordRoute) {
+      return true
+    }
+
+    if (authStore.isAuthenticated && publicAuthPaths.includes(to.path)) {
       if (mustChangePassword) {
         return true
       }

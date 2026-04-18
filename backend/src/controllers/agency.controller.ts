@@ -6,6 +6,43 @@ import { auditService } from '../services/audit.service.js';
 
 const agencyService = new AgencyService();
 
+function isValidEmail(value: string): boolean {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(value || '').trim());
+}
+
+function normalizeRequiredText(value: unknown): string {
+  return String(value || '').trim();
+}
+
+function validateRequiredAgencyFields(data: Record<string, any>): string | null {
+  const requiredTextFields: Array<{ key: string; label: string }> = [
+    { key: 'agency_name', label: 'Tên đại lý' },
+    { key: 'address', label: 'Địa chỉ đại lý' },
+    { key: 'phone', label: 'Số điện thoại đại lý' },
+    { key: 'email', label: 'Email đại lý' },
+  ];
+
+  for (const field of requiredTextFields) {
+    if (!normalizeRequiredText(data?.[field.key])) {
+      return `${field.label} là bắt buộc`;
+    }
+  }
+
+  if (!data?.province_id) {
+    return 'Tỉnh/Thành phố là bắt buộc';
+  }
+
+  if (!data?.ward_id) {
+    return 'Quận/Huyện là bắt buộc';
+  }
+
+  if (!isValidEmail(String(data?.email || ''))) {
+    return 'Email đại lý không hợp lệ';
+  }
+
+  return null;
+}
+
 export class AgencyController {
   async getAgencies(req: AuthRequest, res: Response, next: NextFunction) {
     try {
@@ -38,6 +75,11 @@ export class AgencyController {
           return;
         }
         const { accountData, ...agencyData } = req.body;
+        const validationError = validateRequiredAgencyFields(agencyData);
+        if (validationError) {
+          res.status(400).json({ message: validationError });
+          return;
+        }
         const newAgency = await agencyService.createAgency(agencyData, accountData);
         auditService.log({
           userId: req.user?.id,
@@ -67,6 +109,11 @@ export class AgencyController {
     try {
       const { id } = req.params;
       const data = req.body;
+
+      const validationError = validateRequiredAgencyFields(data || {});
+      if (validationError) {
+        return res.status(400).json({ message: validationError });
+      }
   
       const updatedAgency = await agencyService.updateAgency(Number(id), data, getRequestScope(req));
   
@@ -82,11 +129,17 @@ export class AgencyController {
         entityType: 'agency',
         entityId: Number(id),
         entityName: updatedAgency.agency_name,
+        details: {
+          changedFields: Object.keys(data || {})
+        },
         ip: req.ip,
       });
   
       return res.status(200).json(updatedAgency);
     } catch (error: any) {
+      if (error.message === 'Email đại lý là bắt buộc' || error.message === 'Email đại lý không hợp lệ') {
+        return res.status(400).json({ message: error.message });
+      }
       console.error("Lỗi Controller Update:", error);
       return res.status(500).json({ message: 'Lỗi hệ thống khi cập nhật đại lý' });
     }

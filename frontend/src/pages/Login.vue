@@ -55,18 +55,22 @@
         <h2 class="form-title">Đăng nhập</h2>
         <p class="form-subtitle">Nhập thông tin xác thực để tiếp tục</p>
 
-        <el-form label-position="top" @submit.prevent>
-          <el-form-item label="Tên đăng nhập">
+        <el-form label-position="top" @submit.prevent="handleLogin">
+          <el-form-item label="Tên đăng nhập" :error="formErrors.username">
             <el-input
               v-model="form.username"
               placeholder="Nhập tên đăng nhập"
               size="large"
               :prefix-icon="UserIcon"
               autocomplete="username"
+              :aria-invalid="Boolean(formErrors.username)"
+              aria-label="Tên đăng nhập"
+              @keyup.enter="handleLogin"
+              @input="clearFieldError('username')"
             />
           </el-form-item>
 
-          <el-form-item label="Mật khẩu">
+          <el-form-item label="Mật khẩu" :error="formErrors.password">
             <el-input
               v-model="form.password"
               type="password"
@@ -75,9 +79,17 @@
               size="large"
               :prefix-icon="LockIcon"
               autocomplete="current-password"
+              :aria-invalid="Boolean(formErrors.password)"
+              aria-label="Mật khẩu"
               @keyup.enter="handleLogin"
+              @input="clearFieldError('password')"
             />
           </el-form-item>
+
+          <div class="login-options">
+            <el-checkbox v-model="rememberMe" class="remember-checkbox">Nhớ đăng nhập</el-checkbox>
+            <router-link to="/forgot-password" class="forgot-link">Quên mật khẩu?</router-link>
+          </div>
 
           <el-alert
             v-if="errorMessage"
@@ -92,7 +104,10 @@
             type="primary"
             size="large"
             class="login-button"
+            native-type="submit"
             :loading="submitting"
+            :disabled="submitting"
+            :aria-busy="submitting"
             @click="handleLogin"
           >
             <LogIn v-if="!submitting" :size="16" style="margin-right: 6px;" />
@@ -110,13 +125,23 @@
         v-model="showForceChangeDialog"
         title="Đổi mật khẩu lần đăng nhập đầu tiên"
         width="460px"
-        :show-close="false"
+        :show-close="true"
         :close-on-click-modal="false"
-        :close-on-press-escape="false"
+        :close-on-press-escape="true"
+        @close="handleForceChangeExit"
       >
         <p class="force-change-desc">
           Vì lý do bảo mật, bạn cần đổi mật khẩu mặc định trước khi tiếp tục sử dụng hệ thống.
         </p>
+
+        <div class="force-change-note">
+          <p>
+            Nếu bạn đang dùng mật khẩu tạm một lần, hãy đổi mật khẩu ngay sau khi đăng nhập để tránh bị khóa phiên ở lần truy cập tiếp theo.
+          </p>
+          <p>
+            Nếu quên mật khẩu, chọn "Quên mật khẩu" ở màn hình đăng nhập để nhận liên kết đặt lại qua email đã đăng ký.
+          </p>
+        </div>
 
         <el-form label-position="top" @submit.prevent>
           <el-form-item label="Mật khẩu mới">
@@ -142,6 +167,9 @@
         </el-form>
 
         <template #footer>
+          <el-button :disabled="forceChangeSubmitting" @click="handleForceChangeExit">
+            Hủy
+          </el-button>
           <el-button type="primary" :loading="forceChangeSubmitting" @click="handleForceChangePassword">
             Xác nhận đổi mật khẩu
           </el-button>
@@ -169,17 +197,121 @@ const errorMessage = ref('')
 const showForceChangeDialog = ref(false)
 const forceChangeSubmitting = ref(false)
 const currentPasswordAfterLogin = ref('')
+const rememberMe = ref(authStore.state.rememberMe)
 
 const form = reactive({ username: '', password: '' })
 const forceChangeForm = reactive({ newPassword: '', confirmPassword: '' })
+const formErrors = reactive({ username: '', password: '' })
+
+const clearFieldError = (field) => {
+  formErrors[field] = ''
+  if (errorMessage.value) {
+    errorMessage.value = ''
+  }
+}
+
+const resetFieldErrors = () => {
+  formErrors.username = ''
+  formErrors.password = ''
+}
+
+const validateLoginForm = () => {
+  resetFieldErrors()
+
+  form.username = String(form.username || '').trim()
+  form.password = String(form.password || '')
+
+  if (!form.username) {
+    formErrors.username = 'Vui lòng nhập tên đăng nhập'
+  }
+
+  if (!form.password) {
+    formErrors.password = 'Vui lòng nhập mật khẩu'
+  }
+
+  return !formErrors.username && !formErrors.password
+}
+
+const formatRetryAfter = (retryAfterSeconds) => {
+  const totalSeconds = Math.max(0, Number(retryAfterSeconds || 0))
+  if (!totalSeconds) {
+    return ''
+  }
+
+  const minutes = Math.floor(totalSeconds / 60)
+  const seconds = totalSeconds % 60
+
+  if (!minutes) {
+    return `${seconds} giây`
+  }
+
+  if (!seconds) {
+    return `${minutes} phút`
+  }
+
+  return `${minutes} phút ${seconds} giây`
+}
+
+const resolveLoginErrorMessage = (error) => {
+  const status = Number(error?.response?.status || 0)
+  const errorCode = String(error?.response?.data?.code || '').trim().toUpperCase()
+  const serverMessage = String(error?.response?.data?.message || '').trim()
+  const retryAfterSeconds = Number(
+    error?.response?.data?.retryAfterSeconds || error?.response?.headers?.['retry-after'] || 0,
+  )
+  const retryAfterText = formatRetryAfter(retryAfterSeconds)
+  const normalized = serverMessage.toLowerCase()
+
+  if (!error?.response) {
+    return 'Không thể kết nối máy chủ. Vui lòng kiểm tra mạng và thử lại.'
+  }
+
+  if (status === 429) {
+    if (errorCode === 'ACCOUNT_TEMP_LOCKED') {
+      if (retryAfterText) {
+        return `Tài khoản đang bị khóa tạm thời trong ${retryAfterText}. Vui lòng thử lại sau hoặc dùng "Quên mật khẩu" để đặt lại mật khẩu.`
+      }
+      return serverMessage || 'Tài khoản đang bị khóa tạm thời. Vui lòng thử lại sau hoặc liên hệ quản trị viên.'
+    }
+
+    if (retryAfterText) {
+      return `Bạn đã đăng nhập sai quá nhiều lần. Vui lòng thử lại sau ${retryAfterText}. Nếu quên mật khẩu, hãy dùng "Quên mật khẩu".`
+    }
+
+    return serverMessage || 'Bạn đã đăng nhập sai quá nhiều lần. Vui lòng thử lại sau ít phút.'
+  }
+
+  if (normalized.includes('sai mật khẩu')) {
+    formErrors.password = 'Mật khẩu chưa chính xác'
+    return 'Mật khẩu chưa chính xác'
+  }
+
+  if (normalized.includes('không tồn tại') || normalized.includes('bị khóa')) {
+    formErrors.username = 'Tài khoản không tồn tại hoặc đã bị khóa'
+    return 'Tài khoản không tồn tại hoặc đã bị khóa'
+  }
+
+  return serverMessage || 'Đăng nhập thất bại, vui lòng thử lại'
+}
 
 const handleLogin = async () => {
+  if (submitting.value) {
+    return
+  }
+
   errorMessage.value = ''
+  resetFieldErrors()
+
+  if (!validateLoginForm()) {
+    errorMessage.value = 'Vui lòng nhập đầy đủ thông tin đăng nhập'
+    return
+  }
+
   submitting.value = true
   try {
-    const response = await authApi.login(form)
+    const response = await authApi.login({ username: form.username, password: form.password })
     const session = response.data
-    authStore.setSession(session)
+    authStore.setSession(session, { rememberMe: rememberMe.value })
 
     if (session?.user?.mustChangePassword) {
       currentPasswordAfterLogin.value = form.password
@@ -191,7 +323,7 @@ const handleLogin = async () => {
 
     router.replace(authStore.getDefaultRoute())
   } catch (error) {
-    errorMessage.value = error?.response?.data?.message || 'Tên đăng nhập hoặc mật khẩu không đúng'
+    errorMessage.value = resolveLoginErrorMessage(error)
   } finally {
     submitting.value = false
   }
@@ -228,6 +360,20 @@ const handleForceChangePassword = async () => {
   } finally {
     forceChangeSubmitting.value = false
   }
+}
+
+const handleForceChangeExit = () => {
+  if (forceChangeSubmitting.value) {
+    return
+  }
+
+  showForceChangeDialog.value = false
+  forceChangeForm.newPassword = ''
+  forceChangeForm.confirmPassword = ''
+  currentPasswordAfterLogin.value = ''
+  authStore.clearSession()
+  ElMessage.info('Bạn đã thoát khỏi phiên đổi mật khẩu. Vui lòng đăng nhập lại khi sẵn sàng.')
+  router.replace('/login')
 }
 </script>
 
@@ -431,6 +577,29 @@ const handleForceChangePassword = async () => {
   border-radius: 8px;
 }
 
+.login-options {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+}
+
+.remember-checkbox {
+  color: #475569;
+  font-size: 13px;
+}
+
+.forgot-link {
+  color: #4f46e5;
+  font-size: 13px;
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.forgot-link:hover {
+  text-decoration: underline;
+}
+
 .login-button {
   width: 100%;
   height: 44px;
@@ -469,6 +638,25 @@ const handleForceChangePassword = async () => {
   margin: 0 0 10px;
   color: #475569;
   line-height: 1.5;
+}
+
+.force-change-note {
+  margin-bottom: 12px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid #dbeafe;
+  background: #f8fbff;
+  color: #334155;
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.force-change-note p {
+  margin: 0;
+}
+
+.force-change-note p + p {
+  margin-top: 6px;
 }
 
 /* ─── Responsive ────────────────────────────────────────── */

@@ -4,14 +4,14 @@
     <div class="page-header">
       <div class="header-title">
         <el-icon :size="20" color="#409eff"><Shop /></el-icon>
-        <h2>Quản lý đại lý</h2>
+        <h2>{{ pageTitle }}</h2>
       </div>
       <el-button v-if="isSaOnly" type="primary" :icon="Plus" @click="handleAdd">
         Thêm đại lý
       </el-button>
     </div>
 
-    <div class="filter-section">
+    <div class="filter-section" v-if="!isAgencyOnly">
       <el-input
         v-model="keyword"
         placeholder="Tìm theo tên, mã đại lý hoặc số điện thoại..."
@@ -92,7 +92,7 @@
           <template #footer>
             <div class="button-group">
               <el-button 
-                v-if="isSaOnly"
+                v-if="canEditAgency"
                 type="info" 
                 plain 
                 :icon="Edit" 
@@ -172,7 +172,7 @@
             </el-form-item>
           </el-col>
           <el-col :span="12">
-            <el-form-item label="Địa chỉ Email">
+            <el-form-item label="Địa chỉ Email" required>
               <el-input v-model="formData.email" placeholder="example@gmail.com" />
             </el-form-item>
           </el-col>
@@ -246,6 +246,9 @@ import { confirmPopup } from '@/utils/popup';
 const router = useRouter();
 
 const isSaOnly = computed(() => authStore.hasAnyRole(['sa']));
+const isAgencyOnly = computed(() => authStore.hasAnyRole(['agency']) && !isSaOnly.value);
+const canEditAgency = computed(() => authStore.hasAnyRole(['sa', 'agency']));
+const pageTitle = computed(() => (isAgencyOnly.value ? 'Thông tin đại lý' : 'Quản lý đại lý'));
 
 const keyword = ref('')
 const loading = ref(true)
@@ -280,7 +283,7 @@ const fetchAgencies = async () => {
         phone: item.phone,
         email: item.email,   
         tax_code: item.tax_code,     
-        avatar: item.avatar || defaultAvatar
+        avatar: item.avatar // chỉ lấy từ API, không fallback ở đây
       }))
     } else {
       list.value = []
@@ -562,6 +565,42 @@ const handleSubmit = async () => {
     ElMessage.warning('Vui lòng nhập tên đại lý')
     return
   }
+
+  if (!formData.value.province_id) {
+    ElMessage.warning('Vui lòng chọn tỉnh/thành phố')
+    return
+  }
+
+  if (!formData.value.ward_id) {
+    ElMessage.warning('Vui lòng chọn quận/huyện')
+    return
+  }
+
+  const normalizedAddress = String(formData.value.address || '').trim()
+  if (!normalizedAddress) {
+    ElMessage.warning('Vui lòng nhập địa chỉ đại lý')
+    return
+  }
+  formData.value.address = normalizedAddress
+
+  const normalizedPhone = String(formData.value.phone || '').trim()
+  if (!normalizedPhone) {
+    ElMessage.warning('Vui lòng nhập số điện thoại đại lý')
+    return
+  }
+  formData.value.phone = normalizedPhone
+
+  const normalizedEmail = String(formData.value.email || '').trim().toLowerCase()
+  if (!normalizedEmail) {
+    ElMessage.warning('Vui lòng nhập email đại lý')
+    return
+  }
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) {
+    ElMessage.warning('Email đại lý không hợp lệ')
+    return
+  }
+  formData.value.email = normalizedEmail
+
   try {
     if (isEdit.value) {
       if(await agencyApi.updateAgency(formData.value.id, formData.value)) {

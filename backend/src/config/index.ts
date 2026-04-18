@@ -31,6 +31,24 @@ export const config = {
   jwtSecret: process.env.JWT_SECRET || 'fallback_secret',
   nodeEnv: nodeEnv,
   corsOrigin: process.env.CORS_ORIGIN,
+  auth: {
+    loginRateLimitMaxAttempts: parseInt(process.env.AUTH_LOGIN_RATE_LIMIT_MAX_ATTEMPTS || '5', 10),
+    loginRateLimitWindowMs: parseInt(process.env.AUTH_LOGIN_RATE_LIMIT_WINDOW_MS || '900000', 10),
+    loginUserLockThreshold: parseInt(process.env.AUTH_LOGIN_USER_LOCK_THRESHOLD || '3', 10),
+    loginUserLockMs: parseInt(process.env.AUTH_LOGIN_USER_LOCK_MS || '1800000', 10),
+    loginUserLockTrackWindowMs: parseInt(process.env.AUTH_LOGIN_USER_LOCK_TRACK_WINDOW_MS || '3600000', 10),
+    passwordResetTokenTtlMinutes: parseInt(process.env.AUTH_PASSWORD_RESET_TOKEN_TTL_MINUTES || '30', 10),
+    passwordResetUrlBase: process.env.AUTH_PASSWORD_RESET_URL_BASE || 'http://localhost:5173/reset-password',
+  },
+  mail: {
+    enabled: process.env.MAIL_ENABLED === 'true',
+    host: process.env.MAIL_HOST || '',
+    port: parseInt(process.env.MAIL_PORT || '587', 10),
+    secure: process.env.MAIL_SECURE === 'true',
+    user: process.env.MAIL_USER || '',
+    pass: process.env.MAIL_PASS || '',
+    from: process.env.MAIL_FROM || process.env.MAIL_USER || '',
+  },
   
   // Cấu hình Database (Dùng cho Knex hoặc các service khác)
   db: {

@@ -4,6 +4,9 @@ import db from '../db/index.js';
 export type AuditAction =
   | 'LOGIN_SUCCESS'
   | 'LOGIN_FAILED'
+  | 'PASSWORD_RESET_REQUEST'
+  | 'PASSWORD_RESET_SUCCESS'
+  | 'PASSWORD_RESET_FAILED'
   | 'USER_CREATE'
   | 'USER_UPDATE'
   | 'USER_DELETE'

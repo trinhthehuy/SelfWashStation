@@ -4,6 +4,7 @@ import { ApiTokenService } from '../services/api-token.service.js';
 import { BankTransferService } from '../services/bank-transfer.service.js';
 import { DevModeService } from '../services/dev-mode.service.js';
 import { mqttService } from '../services/mqtt.service.js';
+import { SmtpSettingsService } from '../services/smtp-settings.service.js';
 
 const router = Router();
 
@@ -136,6 +137,39 @@ router.post('/settings/mqtt', authorizeRoles(['sa', 'engineer']), async (req, re
     });
     res.json({ success: true });
   } catch (error) {
+    next(error);
+  }
+});
+
+router.get('/settings/smtp', authorizeRoles(['sa']), async (_req, res, next) => {
+  try {
+    const data = await SmtpSettingsService.getAdminViewSettings();
+    res.json({ data });
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.post('/settings/smtp', authorizeRoles(['sa']), async (req: AuthRequest, res, next) => {
+  try {
+    const data = await SmtpSettingsService.updateSettings({
+      enabled: req.body?.enabled,
+      host: req.body?.host,
+      port: req.body?.port,
+      secure: req.body?.secure,
+      user: req.body?.user,
+      pass: req.body?.pass,
+      from: req.body?.from,
+    }, req.user?.id || null);
+    res.json({
+      message: 'Đã cập nhật cấu hình SMTP',
+      data,
+    });
+  } catch (error: any) {
+    if (error.message) {
+      res.status(400).json({ message: error.message });
+      return;
+    }
     next(error);
   }
 });
