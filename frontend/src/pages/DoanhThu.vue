@@ -133,6 +133,23 @@
           </el-select>
         </div>
 
+        <div v-if="!isMobile" class="desktop-filter-field bay-field">
+          <span class="desktop-filter-label">Mã trụ</span>
+          <el-select
+            v-model="filterForm.bay_code"
+            :disabled="['province','ward','agency','station'].includes(filterForm.level) || !filterForm.station_id"
+            filterable
+            clearable
+            :loading="selectLoading.bay"
+            @change="handleBayChange"
+            @clear="handleBayClear"
+            class="desktop-filter-select"
+            placeholder="Chọn trụ"
+          >
+            <el-option v-for="item in options.bays" :key="item.bay_code" :label="item.bay_code" :value="item.bay_code" />
+          </el-select>
+        </div>
+
         <el-popover v-if="isMobile" trigger="click" placement="bottom-start" :width="210" popper-class="filter-pop">
           <template #reference>
             <button class="filter-chip" :class="{ active: filterForm.province_id }" :disabled="filterForm.level === 'agency'">
@@ -196,6 +213,21 @@
             :loading="selectLoading.station" @change="handleStationChange" @clear="handleStationClear"
             style="width:100%" placeholder="Chọn trạm">
             <el-option v-for="item in options.stations" :key="item.id" :label="item.name" :value="item.id" />
+          </el-select>
+        </el-popover>
+
+        <el-popover v-if="isMobile" trigger="click" placement="bottom-start" :width="220" popper-class="filter-pop">
+          <template #reference>
+            <button class="filter-chip" :class="{ active: filterForm.bay_code }" :disabled="['province','ward','agency','station'].includes(filterForm.level) || !filterForm.station_id">
+              <span class="chip-label">Mã trụ</span>
+              <span class="chip-val" v-if="filterForm.bay_code">{{ filterForm.bay_code }}</span>
+              <el-icon><ArrowDown /></el-icon>
+            </button>
+          </template>
+          <el-select v-model="filterForm.bay_code" :disabled="['province','ward','agency','station'].includes(filterForm.level) || !filterForm.station_id" filterable clearable
+            :loading="selectLoading.bay" @change="handleBayChange" @clear="handleBayClear"
+            style="width:100%" placeholder="Chọn trụ">
+            <el-option v-for="item in options.bays" :key="item.bay_code" :label="item.bay_code" :value="item.bay_code" />
           </el-select>
         </el-popover>
       </div>
@@ -377,6 +409,7 @@ import provinceData from '../../provinces.json'
 import { wardApi } from '@/api/ward'
 import { agencyApi } from '@/api/agency'
 import { stationApi } from '@/api/station'
+import { bayApi } from '@/api/bay'
 import { authStore } from '@/stores/auth'
 
 const isAgency = computed(() => authStore.hasAnyRole(['agency']))
@@ -392,14 +425,16 @@ const displayMode = ref('compact')
 const options = reactive({
   wards: [],
   agencies: [],
-  stations: []
+  stations: [],
+  bays: []
 })
 
 const selectLoading = reactive({
   province: false,
   ward: false,
   agency: false,
-  station: false
+  station: false,
+  bay: false
 })
 
 const filterForm = reactive({
@@ -409,7 +444,8 @@ const filterForm = reactive({
   province_id: null,
   ward_id: null,
   agency_id: null,
-  station_id: null
+  station_id: null,
+  bay_code: null
 })
 const agencySearchKeyword = ref('')
 
@@ -580,6 +616,10 @@ const handleLevelFilter = async () => {
     tasks.push(fetchStations(province_id, ward_id, agency_id))
   }
 
+  if (level === 'bay' && filterForm.station_id) {
+    tasks.push(fetchBays(filterForm.station_id))
+  }
+
   try {
     if (tasks.length > 0) await Promise.all(tasks)
     if (isAgency.value) {
@@ -596,7 +636,9 @@ const handleLevelFilter = async () => {
 const handleProvinceChange = async (val) => {
   filterForm.ward_id = null
   filterForm.station_id = null
+  filterForm.bay_code = null
   options.stations = []
+  options.bays = []
 
   if (!val) {
     options.wards = []
@@ -622,7 +664,9 @@ const handleProvinceChange = async (val) => {
 
 const handleWardChange = async (val) => {
   filterForm.station_id = null
+  filterForm.bay_code = null
   options.stations = []
+  options.bays = []
 
   if (!val) {
     if (['station', 'bay'].includes(filterForm.level)) {
@@ -641,7 +685,9 @@ const handleWardChange = async (val) => {
 
 const handleAgencyChange = async (val) => {
   filterForm.station_id = null
+  filterForm.bay_code = null
   options.stations = []
+  options.bays = []
 
   if (!val) {
     if (['station', 'bay'].includes(filterForm.level)) {
@@ -658,12 +704,35 @@ const handleAgencyChange = async (val) => {
   scheduleFetchData({ resetPage: true })
 }
 
-const handleStationChange = () => {
+const handleStationChange = async (val) => {
+  filterForm.bay_code = null
+  options.bays = []
+
+  if (!val) {
+    scheduleFetchData({ resetPage: true })
+    return
+  }
+
+  if (filterForm.level === 'bay') {
+    await fetchBays(val)
+  }
+
   scheduleFetchData({ resetPage: true })
 }
 
 const handleStationClear = () => {
   filterForm.station_id = null
+  filterForm.bay_code = null
+  options.bays = []
+  scheduleFetchData({ resetPage: true })
+}
+
+const handleBayChange = () => {
+  scheduleFetchData({ resetPage: true })
+}
+
+const handleBayClear = () => {
+  filterForm.bay_code = null
   scheduleFetchData({ resetPage: true })
 }
 
@@ -732,6 +801,21 @@ const fetchStations = async (provinceId, wardId, agencyId) => {
   }
 }
 
+const fetchBays = async (stationId) => {
+  try {
+    selectLoading.bay = true
+    const res = await bayApi.getBays(stationId)
+    const data = res.data?.data || res.data || []
+    options.bays = data.map((i) => ({
+      bay_code: i.bay_code
+    }))
+  } catch (error) {
+    console.error('Lỗi tải trụ:', error)
+  } finally {
+    selectLoading.bay = false
+  }
+}
+
 const activeColumns = computed(() => {
   return allColumnConfigs[filterForm.level] || allColumnConfigs.province
 })
@@ -793,7 +877,8 @@ const fetchData = async ({ resetPage = false } = {}) => {
       province_id: filterForm.province_id,
       ward_id: filterForm.ward_id,
       agency_id: filterForm.agency_id,
-      station_id: filterForm.station_id
+      station_id: filterForm.station_id,
+      bay_code: filterForm.bay_code
     }
 
     const response = await revenueApi.getRevenueReport(params)
@@ -1017,7 +1102,8 @@ onMounted(async () => {
     width: 150px;
   }
 
-  .station-field .desktop-filter-select {
+  .station-field .desktop-filter-select,
+  .bay-field .desktop-filter-select {
     width: 180px;
   }
 

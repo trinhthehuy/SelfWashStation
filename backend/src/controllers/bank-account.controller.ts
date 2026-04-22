@@ -2,6 +2,7 @@
 import { Response, NextFunction } from 'express';
 import { getAgencyScope, type AuthRequest } from '../middleware/auth.js';
 import { BankAccountService } from '../services/bank-account.service.js';
+import { auditService } from '../services/audit.service.js';
 
 const bankAccountService = new BankAccountService();
 
@@ -25,6 +26,18 @@ export class BankAccountController {
     async createBankAccount(req: AuthRequest, res: Response, next: NextFunction) {
       try {
         const newBankAccount = await bankAccountService.createBankAccount(req.body, getAgencyScope(req));
+        
+        auditService.log({
+          userId: req.user?.id,
+          username: req.user?.username || 'system',
+          role: req.user?.role || 'unknown',
+          action: 'BANK_ACCOUNT_CREATE',
+          entityType: 'bank_account',
+          entityId: newBankAccount.id,
+          entityName: newBankAccount.account_number || newBankAccount.bank_name,
+          ip: req.ip,
+        });
+
         res.status(201).json({
           message: "Tạo Tài khoản ngân hàng thành công",
           data: newBankAccount
@@ -47,6 +60,17 @@ export class BankAccountController {
         return res.status(404).json({ message: 'Không tìm thấy Tài khoản ngân hàng cần sửa' });
       }
   
+      auditService.log({
+        userId: req.user?.id,
+        username: req.user?.username || 'system',
+        role: req.user?.role || 'unknown',
+        action: 'BANK_ACCOUNT_UPDATE',
+        entityType: 'bank_account',
+        entityId: updatedBankAccount.id,
+        entityName: updatedBankAccount.account_number || updatedBankAccount.bank_name,
+        ip: req.ip,
+      });
+
       return res.status(200).json(updatedBankAccount);
     } catch (error: any) {
       console.error("Lỗi Controller Update:", error);
@@ -57,8 +81,19 @@ export class BankAccountController {
     async deleteBankAccount(req: AuthRequest, res: Response, next: NextFunction) {
     try {
       const { id } = req.params;
-      await bankAccountService.deleteBankAccount(Number(id), getAgencyScope(req));
+      const deletedBankAccount = await bankAccountService.deleteBankAccount(Number(id), getAgencyScope(req));
       
+      auditService.log({
+        userId: req.user?.id,
+        username: req.user?.username || 'system',
+        role: req.user?.role || 'unknown',
+        action: 'BANK_ACCOUNT_DELETE',
+        entityType: 'bank_account',
+        entityId: Number(id),
+        entityName: deletedBankAccount.account_number || deletedBankAccount.bank_name,
+        ip: req.ip,
+      });
+
       res.status(200).json({
         message: "Xóa Tài khoản ngân hàng thành công",
         data: { id: Number(id) }

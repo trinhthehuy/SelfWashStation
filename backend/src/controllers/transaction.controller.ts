@@ -1,7 +1,7 @@
-// Transaction.controller.ts
 import { Response, NextFunction } from 'express';
 import { getRequestScope, type AuthRequest } from '../middleware/auth.js';
 import { TransService } from '../services/transaction.service.js';
+import { auditService } from '../services/audit.service.js';
 
 const transService = new TransService();
 
@@ -41,6 +41,34 @@ export class TransController {
 
         } catch (error) {
             console.error(">>> [Controller] ERROR Catch:", error);
+            next(error);
+        }
+    }
+
+    async deleteTransaction(req: AuthRequest, res: Response, next: NextFunction) {
+        try {
+            const { id } = req.params;
+            const scope = getRequestScope(req);
+            
+            await transService.deleteTransaction(Number(id), scope);
+            
+            auditService.log({
+                userId: req.user?.id,
+                username: req.user?.username || 'system',
+                role: req.user?.role || 'unknown',
+                action: 'TRANSACTION_DELETE',
+                entityType: 'transaction',
+                entityId: Number(id),
+                entityName: `Phiên rửa #${id}`,
+                ip: req.ip,
+            });
+
+            res.json({
+                success: true,
+                message: 'Đã xóa phiên rửa thành công'
+            });
+        } catch (error) {
+            console.error(">>> [Controller] ERROR Delete Transaction:", error);
             next(error);
         }
     }

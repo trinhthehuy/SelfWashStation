@@ -20,7 +20,8 @@ export class RevenueService {
             province_id,
             ward_id,
             agency_id,
-            station_id
+            station_id,
+            bay_code
         } = params;
 
         const offset = (Number(page) - 1) * Number(limit);
@@ -69,6 +70,7 @@ export class RevenueService {
         if (ward_id) query.where('w.id', ward_id);
         if (agency_id) query.where('a.id', agency_id);
         if (station_id) query.where('s.id', station_id);
+        if (bay_code) query.where('dbs.bay_code', bay_code);
 
         // 4b. Áp dụng scope bắt buộc theo role (ghi đè filter UI)
         const scoped_province_ids = params.scoped_province_ids as number[] | undefined;

@@ -2,6 +2,7 @@
 import { Response, NextFunction } from 'express';
 import { getRequestScope, type AuthRequest } from '../middleware/auth.js';
 import { BayService } from '../services/bay.service.js';
+import { auditService } from '../services/audit.service.js';
 
 const bayService = new BayService();
 
@@ -26,6 +27,18 @@ export class BayController {
                 });
             }
             const newBay = await bayService.createBay(Number(station_id), getRequestScope(req));
+            
+            auditService.log({
+                userId: req.user?.id,
+                username: req.user?.username || 'system',
+                role: req.user?.role || 'unknown',
+                action: 'BAY_CREATE',
+                entityType: 'bay',
+                entityId: newBay.id,
+                entityName: newBay.bay_code,
+                ip: req.ip,
+            });
+
             return res.status(201).json({
                 success: true,
                 message: "Thêm trụ mới thành công",
@@ -48,6 +61,18 @@ export class BayController {
       if (!updatedBay) {
         return res.status(404).json({ message: 'Không tìm thấy Trụ rửa để cập nhật' });
       }
+
+      auditService.log({
+        userId: req.user?.id,
+        username: req.user?.username || 'system',
+        role: req.user?.role || 'unknown',
+        action: 'BAY_UPDATE',
+        entityType: 'bay',
+        entityId: Number(id),
+        entityName: updatedBay.bay_code,
+        ip: req.ip,
+      });
+
       res.json(updatedBay);
     } catch (error) {
       next(error); // Đồng nhất cách xử lý lỗi
@@ -57,7 +82,19 @@ export class BayController {
   async deleteBay(req: AuthRequest, res: Response, next: NextFunction) {
     try {
       const { id } = req.params;
-      await bayService.deleteBay(Number(id), getRequestScope(req));
+      const deletedBay = await bayService.deleteBay(Number(id), getRequestScope(req));
+      
+      auditService.log({
+        userId: req.user?.id,
+        username: req.user?.username || 'system',
+        role: req.user?.role || 'unknown',
+        action: 'BAY_DELETE',
+        entityType: 'bay',
+        entityId: Number(id),
+        entityName: deletedBay.bay_code,
+        ip: req.ip,
+      });
+
       res.json({ message: "Xóa thành công", id: Number(id) });
     } catch (error) {
       next(error);

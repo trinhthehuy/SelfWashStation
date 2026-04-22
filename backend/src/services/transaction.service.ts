@@ -57,4 +57,28 @@ export class TransService {
             limit: Number(limit)
         };
     }
+
+    async deleteTransaction(id: number, scope?: RequestScope | null) {
+        const query = db('transactions').where('id', id);
+
+        // Áp dụng scope bảo mật theo role
+        if (scope?.agencyId) {
+            // Cần join với bảng stations để kiểm tra agencyId
+            const transaction = await db('transactions as w')
+                .leftJoin('stations as s', 'w.station_id', 's.id')
+                .where('w.id', id)
+                .select('w.*', 's.agency_id')
+                .first();
+
+            if (!transaction || transaction.agency_id !== scope.agencyId) {
+                throw new Error('Bạn không có quyền xóa phiên rửa này');
+            }
+        }
+
+        const deleted = await query.del();
+        if (!deleted) {
+            throw new Error('Phiên rửa không tồn tại');
+        }
+        return true;
+    }
 }

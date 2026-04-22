@@ -83,7 +83,7 @@ export class StrategyController {
       async deleteStrategy(req: AuthRequest, res: Response, next: NextFunction) {
       try {
         const { id } = req.params;
-        await strategyService.deleteStrategy(Number(id), getAgencyScope(req));
+        const deletedStrategy = await strategyService.deleteStrategy(Number(id), getAgencyScope(req));
         auditService.log({
           userId: req.user?.id,
           username: req.user?.username || 'system',
@@ -91,6 +91,7 @@ export class StrategyController {
           action: 'STRATEGY_DELETE',
           entityType: 'strategy',
           entityId: Number(id),
+          entityName: deletedStrategy.strategy_name,
           ip: req.ip,
         });
         res.status(200).json({

@@ -96,7 +96,10 @@ export class AgencyController {
           data: newAgency
         });
       } catch (error: any) {
-        if (error.message === 'Tên đăng nhập đã tồn tại') {
+        if (
+          error.message === 'Tên đăng nhập đã tồn tại' ||
+          error.message === 'Số CCCD / ID này đã được sử dụng bởi một đại lý khác'
+        ) {
           res.status(409).json({ message: error.message });
           return;
         }
@@ -137,7 +140,11 @@ export class AgencyController {
   
       return res.status(200).json(updatedAgency);
     } catch (error: any) {
-      if (error.message === 'Email đại lý là bắt buộc' || error.message === 'Email đại lý không hợp lệ') {
+      if (
+        error.message === 'Email đại lý là bắt buộc' || 
+        error.message === 'Email đại lý không hợp lệ' ||
+        error.message === 'Số CCCD / ID này đã được sử dụng bởi một đại lý khác'
+      ) {
         return res.status(400).json({ message: error.message });
       }
       console.error("Lỗi Controller Update:", error);
@@ -152,7 +159,7 @@ export class AgencyController {
         res.status(403).json({ message: 'Tài khoản này không được xóa đại lý' });
         return;
       }
-      await agencyService.deleteAgency(Number(id), getRequestScope(req));
+      const deletedAgency = await agencyService.deleteAgency(Number(id), getRequestScope(req));
       auditService.log({
         userId: req.user?.id,
         username: req.user?.username || 'system',
@@ -160,6 +167,7 @@ export class AgencyController {
         action: 'AGENCY_DELETE',
         entityType: 'agency',
         entityId: Number(id),
+        entityName: deletedAgency.agency_name,
         ip: req.ip,
       });
       res.status(200).json({

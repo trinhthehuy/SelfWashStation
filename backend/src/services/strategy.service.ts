@@ -1,5 +1,5 @@
-// strategy.service.ts
 import db from '../db/index.js';
+import { AppError } from '../middleware/error-handler.js';
 
 export class StrategyService {
   /**
@@ -49,7 +49,7 @@ export class StrategyService {
       return await db('strategy').where('id', id).first();
     }
   
-    // Strategy.service.js
+  // Strategy.service.ts
   async deleteStrategy(id: number, scopedAgencyId?: number | null) {
     // 1. Kiểm tra Chiến lược có tồn tại không trước khi xóa
     const strategyQuery = db('strategy').where('id', id);
@@ -59,15 +59,33 @@ export class StrategyService {
 
     const Strategy = await strategyQuery.first();
     if (!Strategy) {
-      throw new Error('Chiến lược không tồn tại');
+      throw new AppError('Chiến lược không tồn tại', 404);
     }
-    // 2. Thực hiện xóa
+
+    // 2. Kiểm tra chiến lược có đang được trạm nào sử dụng không
+    const usingStation = await db('stations').where('strategy_id', id).first();
+    if (usingStation) {
+      throw new AppError('Không thể xóa: Chiến lược đang được sử dụng bởi trạm. Vui lòng đổi chiến lược cho trạm trước.', 400);
+    }
+
+    // 3. Kiểm tra nếu đây là chiến lược cuối cùng của đại lý, và đại lý có trạm
+    const strategyCountResult = await db('strategy').where('agency_id', Strategy.agency_id).count({ total: 'id' });
+    const strategyCount = Number(strategyCountResult[0]?.total || 0);
+
+    if (strategyCount === 1) {
+      const agencyStations = await db('stations').where('agency_id', Strategy.agency_id).first();
+      if (agencyStations) {
+        throw new AppError('Không thể xóa: Đây là chiến lược duy nhất của đại lý đang có trạm hoạt động. Cần ít nhất 1 chiến lược để vận hành.', 400);
+      }
+    }
+
+    // 4. Thực hiện xóa
     const deleteQuery = db('strategy').where('id', id);
     if (scopedAgencyId) {
       deleteQuery.andWhere('agency_id', scopedAgencyId);
     }
 
-    const result = await deleteQuery.del();  
-    return result;
+    await deleteQuery.del();  
+    return Strategy;
   }
 }

@@ -121,6 +121,13 @@
         </template>
       </el-table-column>
 
+      <el-table-column label="Thao tác" width="80" align="center" v-if="isAdmin">
+        <template #default="scope">
+          <el-button type="danger" size="small" circle @click="handleDelete(scope.row)">
+            <el-icon><Delete /></el-icon>
+          </el-button>
+        </template>
+      </el-table-column>
     </el-table>
 
     <!-- Mobile card list -->
@@ -132,9 +139,14 @@
             <span class="mc-name">{{ row.bay_code }}</span>
             <span class="mc-sub">{{ row.mqtt_topic }}</span>
           </div>
-          <el-tag :type="statusType(row.status)" size="small">
-            {{ row.status ? row.status.toUpperCase() : 'N/A' }}
-          </el-tag>
+          <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 6px;">
+            <el-tag :type="statusType(row.status)" size="small">
+              {{ row.status ? row.status.toUpperCase() : 'N/A' }}
+            </el-tag>
+            <el-button v-if="isAdmin" type="danger" size="small" circle @click.stop="handleDelete(row)">
+              <el-icon><Delete /></el-icon>
+            </el-button>
+          </div>
         </div>
         <div class="mc-amount">{{ formatMoney(row.amount) }}</div>
         <div class="mc-stats">
@@ -179,19 +191,22 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted, onUnmounted } from 'vue'
+import { ref, reactive, onMounted, onUnmounted, computed } from 'vue'
 import { watch } from 'vue'
 import dayjs from 'dayjs'
-import { Timer } from '@element-plus/icons-vue'
+import { Timer, Delete } from '@element-plus/icons-vue'
 
 const isMobile = ref(window.innerWidth < 768)
 const _onResize = () => { isMobile.value = window.innerWidth < 768 }
 onMounted(() => window.addEventListener('resize', _onResize))
 onUnmounted(() => window.removeEventListener('resize', _onResize))
-import { ElMessage } from 'element-plus';
+import { ElMessage, ElMessageBox } from 'element-plus';
 import { transactionApi } from '@/api/transaction';
 import { stationApi } from '@/api/station';
 import { bayApi } from '@/api/bay';
+import { authStore } from '@/stores/auth';
+
+const isAdmin = computed(() => authStore.state.user?.role === 'sa');
 
 const loading = ref(false)
 const tableData = ref([]); // Biến chứa dữ liệu phiên rửa để hiển thị trong Table
@@ -350,9 +365,32 @@ const fetchData = async () => {
     // Có thể reset tableData về rỗng nếu gọi lỗi
     tableData.value = []
     total.value = 0
-  } finally {
+} finally {
     loading.value = false
   }
+}
+
+const handleDelete = (row) => {
+  ElMessageBox.confirm(
+    `Bạn có chắc chắn muốn xóa phiên rửa tại trụ ${row.bay_code} không? Dữ liệu không thể khôi phục.`,
+    'Cảnh báo',
+    {
+      confirmButtonText: 'Xóa',
+      cancelButtonText: 'Hủy',
+      type: 'warning',
+    }
+  ).then(async () => {
+    try {
+      await transactionApi.deleteTransaction(row.id)
+      ElMessage.success('Xóa phiên rửa thành công')
+      fetchData()
+    } catch (error) {
+      console.error('Lỗi khi xóa phiên rửa:', error)
+      ElMessage.error(error.response?.data?.message || 'Không thể xóa phiên rửa')
+    }
+  }).catch(() => {
+    // Huỷ xoá
+  })
 }
 
 // Gọi lần đầu khi component mount

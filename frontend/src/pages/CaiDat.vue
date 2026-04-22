@@ -11,10 +11,19 @@
       <template #header>
         <div class="card-header">
           <span>Danh sách tài khoản hệ thống</span>
-          <el-button v-if="isSa" type="primary" :icon="Plus" @click="handleAdd">Thêm tài khoản</el-button>
+          <div class="header-actions">
+            <el-input
+              v-model="searchKeyword"
+              placeholder="Tìm kiếm tài khoản, email, họ tên..."
+              clearable
+              :prefix-icon="Search"
+              class="search-input"
+            />
+            <el-button v-if="isSa" type="primary" :icon="Plus" @click="handleAdd">Thêm tài khoản</el-button>
+          </div>
         </div>
       </template>
-      <el-table :data="users" stripe v-loading="loading">
+      <el-table :data="filteredUsers" stripe v-loading="loading">
         <el-table-column prop="username" label="Tài khoản" min-width="160" />
         <el-table-column prop="email" label="Email account" min-width="220">
           <template #default="{ row }">{{ row.email || '-' }}</template>
@@ -88,12 +97,11 @@
         <el-form-item
           label="Email account"
           prop="email"
-          :rules="[{ validator: validateEmailField, trigger: 'blur' }]"
+          :rules="[{ required: true, message: 'Bắt buộc', trigger: 'blur' }, { validator: validateEmailField, trigger: 'blur' }]"
         >
           <el-input
             v-model="form.email"
-            :disabled="form.role === 'agency'"
-            :placeholder="form.role === 'agency' ? 'Tự đồng bộ theo email đại lý' : 'vd: user@company.com'"
+            placeholder="vd: user@company.com"
           />
         </el-form-item>
         <el-form-item label="Vai trò" prop="role" :rules="[{ required: true, message: 'Bắt buộc', trigger: 'change' }]">
@@ -167,7 +175,7 @@
 <script setup>
 import { onMounted, ref, computed, h } from 'vue'
 import { ElMessage } from 'element-plus'
-import { Plus, Edit, Delete, Key } from '@element-plus/icons-vue'
+import { Plus, Edit, Delete, Key, Search } from '@element-plus/icons-vue'
 import { authApi } from '@/api/auth'
 import { agencyApi } from '@/api/agency'
 import { wardApi } from '@/api/ward'
@@ -177,6 +185,7 @@ import { confirmPopup } from '@/utils/popup'
 
 const loading = ref(false)
 const saving = ref(false)
+const searchKeyword = ref('')
 const pwdLoading = ref(false)
 const provinceLoading = ref(false)
 const stationLoading = ref(false)
@@ -209,10 +218,6 @@ const validateEmailField = (_rule, value, cb) => {
   const email = String(value || '').trim().toLowerCase()
 
   if (!email) {
-    if (form.value.role === 'agency') {
-      cb(new Error('Đại lý liên kết chưa có email'))
-      return
-    }
     cb(new Error('Email account là bắt buộc'))
     return
   }
@@ -250,6 +255,17 @@ const roleTag = (role) => ({
 }[role] || '')
 
 const normalizeSearchValue = (value) => String(value || '').toLowerCase().trim()
+
+const filteredUsers = computed(() => {
+  if (!searchKeyword.value) return users.value
+  const keyword = normalizeSearchValue(searchKeyword.value)
+  return users.value.filter(u => {
+    return normalizeSearchValue(u.username).includes(keyword) ||
+           normalizeSearchValue(u.email).includes(keyword) ||
+           normalizeSearchValue(u.fullName).includes(keyword)
+  })
+})
+
 const agencyDisplayLabel = (agency) => `${agency?.agency_name || 'Không rõ'} - ID: ${agency?.identity_number || 'N/A'}`
 const agencySearchText = (agency) => normalizeSearchValue(`${agency?.id || ''} ${agency?.agency_name || ''} ${agency?.identity_number || ''} ${agency?.phone || ''}`)
 
@@ -485,6 +501,16 @@ onMounted(() => {
   display: flex;
   justify-content: space-between;
   align-items: center;
+}
+
+.header-actions {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.search-input {
+  width: 300px;
 }
 
 .pwd-form {

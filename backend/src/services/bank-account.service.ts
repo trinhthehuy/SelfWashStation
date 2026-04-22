@@ -81,7 +81,7 @@ export class BankAccountService {
       deleteQuery.andWhere('agency_id', scopedAgencyId);
     }
 
-    const result = await deleteQuery.del();  
-    return result;
+    await deleteQuery.del();  
+    return BankAccount;
   }
 }

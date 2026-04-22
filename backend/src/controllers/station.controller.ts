@@ -162,7 +162,7 @@ export class StationController {
   async deleteStation(req: AuthRequest, res: Response, next: NextFunction) {
   try {
     const { id } = req.params;
-    await stationService.deleteStation(Number(id), getRequestScope(req));
+    const deletedStation = await stationService.deleteStation(Number(id), getRequestScope(req));
     auditService.log({
       userId: req.user?.id,
       username: req.user?.username || 'system',
@@ -170,6 +170,7 @@ export class StationController {
       action: 'STATION_DELETE',
       entityType: 'station',
       entityId: Number(id),
+      entityName: deletedStation.station_name,
       ip: req.ip,
     });
     res.status(200).json({

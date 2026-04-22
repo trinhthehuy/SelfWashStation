@@ -349,7 +349,8 @@ const handleDelete = async () => {
     emit('refresh');
     visible.value = false;
   } catch (error) {
-    ElMessage.error('Lỗi khi xóa trạm');
+    const errorMsg = error.response?.data?.error || error.response?.data?.message || 'Lỗi khi xóa trạm';
+    ElMessage.error(errorMsg);
   } finally {
     submitting.value = false;
   }

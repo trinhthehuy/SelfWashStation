@@ -330,9 +330,7 @@ export class SystemAuthService {
     if (existing) throw new Error('Tên đăng nhập đã tồn tại');
 
     const passwordHash = await bcrypt.hash(data.password, 10);
-    const nextEmail = data.role === 'agency'
-      ? await resolveRequiredAgencyEmail(data.agencyId)
-      : normalizeOptionalEmail(data.email);
+    const nextEmail = normalizeOptionalEmail(data.email);
 
     if (!nextEmail) {
       throw new Error('Email account là bắt buộc và phải đúng định dạng');
@@ -382,13 +380,8 @@ export class SystemAuthService {
     if (data.role !== undefined) updates.role = data.role;
     if ('agencyId' in data) updates.agency_id = data.agencyId ?? null;
     if (data.isActive !== undefined) updates.is_active = data.isActive;
-    if ('email' in data) updates.email = normalizeOptionalEmail(data.email);
-
-    const nextRole = (data.role ?? user.role) as UserRole;
-    const nextAgencyId = ('agencyId' in data) ? (data.agencyId ?? null) : user.agency_id;
-    if (nextRole === 'agency') {
-      updates.email = await resolveRequiredAgencyEmail(nextAgencyId);
-    } else if ('email' in data) {
+    if ('email' in data) {
+      updates.email = normalizeOptionalEmail(data.email);
       if (!updates.email) {
         throw new Error('Email account là bắt buộc và phải đúng định dạng');
       }

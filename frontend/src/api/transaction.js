@@ -6,4 +6,8 @@ export const transactionApi = {
     // Truyền params vào object cấu hình của axios
     return apiClient.get('/transactions', { params: params });
   },
+  
+  deleteTransaction(id) {
+    return apiClient.delete(`/transactions/${id}`);
+  }
 };

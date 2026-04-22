@@ -13,9 +13,9 @@
     <el-card shadow="never" class="table-card">
       <div class="toolbar">
         <el-radio-group v-model="statusFilter" size="small" @change="fetchNotifications">
-          <el-radio-button label="all">Tất cả</el-radio-button>
-          <el-radio-button label="unread">Chưa đọc</el-radio-button>
-          <el-radio-button label="read">Đã đọc</el-radio-button>
+          <el-radio-button value="all">Tất cả</el-radio-button>
+          <el-radio-button value="unread">Chưa đọc</el-radio-button>
+          <el-radio-button value="read">Đã đọc</el-radio-button>
         </el-radio-group>
         <el-tag type="danger" effect="light" v-if="unreadCount > 0">{{ unreadCount }} chưa đọc</el-tag>
       </div>

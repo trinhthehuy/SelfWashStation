@@ -64,7 +64,7 @@
           :loading="submitting"
           :disabled="submitting"
         >
-          Tao lien ket dat lai mat khau
+          Gui yeu cau dat lai mat khau
         </el-button>
       </el-form>
 

@@ -507,7 +507,9 @@ const handleDelete = async () => {
       fetchData();
     }
   } catch (error) {
-    ElMessage.error("Lỗi khi xóa chiến lược");
+    console.error("Lỗi xóa chiến lược:", error, error.response?.data);
+    const errorMsg = error.response?.data?.error || error.response?.data?.message || error.message || "Lỗi khi xóa chiến lược";
+    ElMessage.error(errorMsg);
   }
 };
 

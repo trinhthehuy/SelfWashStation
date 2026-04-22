@@ -234,10 +234,16 @@ async deleteStation(id: number, scope?: RequestScope | null) {
     throw new Error('Trạm không tồn tại');
   }
   // 2. Thực hiện xóa
-  const deleteQuery = db('stations').where('id', id);
-
-  const result = await deleteQuery.del();  
-  return result;
+  try {
+    const deleteQuery = db('stations').where('id', id);
+    await deleteQuery.del();
+    return station;
+  } catch (err: any) {
+    if (err.code === 'ER_ROW_IS_REFERENCED_2' || err.errno === 1451) {
+      throw new Error('Không thể xóa trạm vì đang có dữ liệu giao dịch hoặc cấu hình liên quan. Vui lòng chuyển trạng thái sang "Tạm dừng" thay vì xóa.');
+    }
+    throw err;
+  }
 }
 
   /**

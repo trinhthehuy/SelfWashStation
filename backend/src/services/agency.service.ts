@@ -34,13 +34,17 @@ export class AgencyService {
         'p.province_name',
         'w.ward_name',
         'a.*',
-        db.raw(`su.avatar as user_avatar`)
+        db.raw(`(
+          SELECT su.avatar 
+          FROM system_users su 
+          WHERE su.agency_id = a.id 
+            AND su.role = 'agency' 
+          ORDER BY su.id ASC 
+          LIMIT 1
+        ) as user_avatar`)
       )
       .leftJoin('provinces as p', 'a.province_id', 'p.id')
-      .leftJoin('wards as w', 'a.ward_id', 'w.id')
-      .leftJoin('system_users as su', function() {
-        this.on('su.agency_id', '=', 'a.id').andOn('su.role', '=', db.raw('?', ['agency']))
-      });
+      .leftJoin('wards as w', 'a.ward_id', 'w.id');
 
     // 2. Áp dụng scope theo role trước, sau đó mới xét filter UI
     if (scope?.agencyId) {
@@ -76,6 +80,14 @@ export class AgencyService {
    * trong cùng một transaction. Rollback toàn bộ nếu username đã tồn tại.
    */
   async createAgency(data: any, accountData?: { username: string; password: string } | null) {
+    // Kiểm tra CCCD trước khi tạo
+    if (data.identity_number) {
+      const existingAgency = await db('agency').where('identity_number', data.identity_number).first();
+      if (existingAgency) {
+        throw new Error('Số CCCD / ID này đã được sử dụng bởi một đại lý khác');
+      }
+    }
+
     if (!accountData) {
       const [newId] = await db('agency').insert(data);
       return await db('agency').where('id', newId).first();
@@ -111,6 +123,17 @@ export class AgencyService {
      * Cập nhật thông tin đại lý
      */
     async updateAgency(id: number, data: any, scope?: RequestScope | null) {
+      // Kiểm tra CCCD không bị trùng với đại lý khác
+      if (data.identity_number) {
+        const existingAgency = await db('agency')
+          .where('identity_number', data.identity_number)
+          .andWhere('id', '!=', id)
+          .first();
+        if (existingAgency) {
+          throw new Error('Số CCCD / ID này đã được sử dụng bởi một đại lý khác');
+        }
+      }
+
       await db.transaction(async (trx) => {
         const query = trx('agency').where('id', id);
 
@@ -156,7 +179,7 @@ export class AgencyService {
       throw new Error('Đại lý không tồn tại');
     }
     // 2. Thực hiện xóa
-    const result = await db('agency').where('id', id).del();  
-    return result;
+    await db('agency').where('id', id).del();  
+    return agency;
   }
 }

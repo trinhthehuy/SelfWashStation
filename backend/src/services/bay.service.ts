@@ -126,7 +126,7 @@ export class BayService {
     }
     // 2. Thực hiện xóa
     const deleteQuery = db('wash_bays').where('id', id);
-    const result = await deleteQuery.del();  
-    return result;
+    await deleteQuery.del();  
+    return bay;
   }
 }

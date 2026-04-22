@@ -64,7 +64,7 @@ router.post('/forgot-password', async (req, res) => {
     });
 
     res.json({
-      message: 'Nếu tài khoản tồn tại, liên kết đặt lại mật khẩu đã được gửi tới email đã đăng ký.',
+      message: 'Email hướng dẫn đặt lại mật khẩu đã được gửi tới email của bạn.',
       ...(config.nodeEnv !== 'production' && !result.emailSent ? { deliveryHint: 'Email chưa được gửi. Kiểm tra cấu hình SMTP trong màn Cấu hình hệ thống hoặc biến MAIL_*.' } : {}),
       ...(result.resetToken ? { resetToken: result.resetToken } : {}),
     });
@@ -155,15 +155,13 @@ router.post('/users', authenticateToken, authorizeRoles(['sa', 'regional_manager
       res.status(400).json({ message: 'Thiếu thông tin bắt buộc' });
       return;
     }
-    if (role !== 'agency') {
-      if (!String(email || '').trim()) {
-        res.status(400).json({ message: 'Email account là bắt buộc' });
-        return;
-      }
-      if (!isValidEmail(String(email || ''))) {
-        res.status(400).json({ message: 'Email không hợp lệ' });
-        return;
-      }
+    if (!String(email || '').trim()) {
+      res.status(400).json({ message: 'Email account là bắt buộc' });
+      return;
+    }
+    if (!isValidEmail(String(email || ''))) {
+      res.status(400).json({ message: 'Email không hợp lệ' });
+      return;
     }
     if (password.length < 6) {
       res.status(400).json({ message: 'Mật khẩu phải có ít nhất 6 ký tự' });
@@ -216,16 +214,15 @@ router.post('/users', authenticateToken, authorizeRoles(['sa', 'regional_manager
 router.put('/users/:id', authenticateToken, authorizeRoles(['sa']), async (req: AuthRequest, res, next) => {
   try {
     const { fullName, role, agencyId, email, isActive } = req.body;
-    if (role !== 'agency') {
-      if (!String(email || '').trim()) {
-        res.status(400).json({ message: 'Email account là bắt buộc' });
-        return;
-      }
-      if (!isValidEmail(String(email || ''))) {
-        res.status(400).json({ message: 'Email không hợp lệ' });
-        return;
-      }
+    if (!String(email || '').trim()) {
+      res.status(400).json({ message: 'Email account là bắt buộc' });
+      return;
     }
+    if (!isValidEmail(String(email || ''))) {
+      res.status(400).json({ message: 'Email không hợp lệ' });
+      return;
+    }
+    const targetUser = await SystemAuthService.getById(Number(req.params.id));
     await SystemAuthService.updateUser(Number(req.params.id), { fullName, role, agencyId, email, isActive });
     auditService.log({
       userId: req.user!.id,
@@ -234,6 +231,7 @@ router.put('/users/:id', authenticateToken, authorizeRoles(['sa']), async (req: 
       action: 'USER_UPDATE',
       entityType: 'system_user',
       entityId: Number(req.params.id),
+      entityName: targetUser.username,
       details: { fullName, role, agencyId, email, isActive },
       ip: req.ip,
     });
@@ -246,6 +244,7 @@ router.put('/users/:id', authenticateToken, authorizeRoles(['sa']), async (req: 
 router.delete('/users/:id', authenticateToken, authorizeRoles(['sa']), async (req: AuthRequest, res, next) => {
   try {
     const targetId = Number(req.params.id);
+    const targetUser = await SystemAuthService.getById(targetId);
     await SystemAuthService.deleteUser(targetId, req.user!.id);
     auditService.log({
       userId: req.user!.id,
@@ -254,6 +253,7 @@ router.delete('/users/:id', authenticateToken, authorizeRoles(['sa']), async (re
       action: 'USER_DELETE',
       entityType: 'system_user',
       entityId: targetId,
+      entityName: targetUser.username,
       ip: req.ip,
     });
     res.json({ message: 'Xóa tài khoản thành công' });
@@ -274,6 +274,7 @@ router.put('/users/:id/password', authenticateToken, authorizeRoles(['sa']), asy
       return;
     }
     const targetId = Number(req.params.id);
+    const targetUser = await SystemAuthService.getById(targetId);
     await SystemAuthService.resetPassword(targetId, newPassword);
     auditService.log({
       userId: req.user!.id,
@@ -282,6 +283,7 @@ router.put('/users/:id/password', authenticateToken, authorizeRoles(['sa']), asy
       action: 'USER_RESET_PASSWORD',
       entityType: 'system_user',
       entityId: targetId,
+      entityName: targetUser.username,
       ip: req.ip,
     });
     res.json({ message: 'Đặt lại mật khẩu thành công' });
@@ -378,6 +380,7 @@ router.put('/users/:id/scope', authenticateToken, authorizeRoles(['sa']), async 
       await ScopeService.setStationScope(targetId, stationIds);
     }
 
+    const targetUser = await SystemAuthService.getById(targetId);
     auditService.log({
       userId: req.user!.id,
       username: req.user!.username,
@@ -385,6 +388,7 @@ router.put('/users/:id/scope', authenticateToken, authorizeRoles(['sa']), async 
       action: 'USER_SCOPE_UPDATE',
       entityType: 'system_user',
       entityId: targetId,
+      entityName: targetUser.username,
       details: { provinceIds, stationIds },
       ip: req.ip,
     });

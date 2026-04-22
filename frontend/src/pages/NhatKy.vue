@@ -55,6 +55,9 @@
               <el-option label="Sửa chiến lược" value="STRATEGY_UPDATE" />
               <el-option label="Xóa chiến lược" value="STRATEGY_DELETE" />
             </el-option-group>
+            <el-option-group label="Khác">
+              <el-option label="Xóa phiên rửa" value="TRANSACTION_DELETE" />
+            </el-option-group>
           </el-select>
         </el-col>
         <el-col :span="5">
@@ -63,6 +66,7 @@
             <el-option label="Đại lý" value="agency" />
             <el-option label="Trạm" value="station" />
             <el-option label="Chiến lược" value="strategy" />
+            <el-option label="Phiên rửa" value="transaction" />
           </el-select>
         </el-col>
         <el-col :span="7">
@@ -314,7 +318,7 @@ const getDetailText = (row) => {
 }
 
 const roleLabel = (role) => ({ sa: 'SA', engineer: 'Engineer', agency: 'Đại lý' }[role] || role)
-const roleTagType = (role) => ({ sa: 'danger', engineer: 'warning', agency: 'info' }[role] || '')
+const roleTagType = (role) => ({ sa: 'danger', engineer: 'warning', agency: 'info' }[role] || 'info')
 
 const ACTION_LABELS = {
   LOGIN_SUCCESS: 'Đăng nhập',
@@ -336,6 +340,7 @@ const ACTION_LABELS = {
   BAY_CREATE: 'Tạo trụ',
   BAY_UPDATE: 'Sửa trụ',
   BAY_DELETE: 'Xóa trụ',
+  TRANSACTION_DELETE: 'Xóa phiên rửa',
 }
 const actionLabel = (action) => ACTION_LABELS[action] || action
 
@@ -344,7 +349,7 @@ const actionTagType = (action) => {
   if (action.endsWith('_CREATE')) return 'success'
   if (action.endsWith('_UPDATE') || action === 'USER_RESET_PASSWORD') return 'warning'
   if (action === 'LOGIN_SUCCESS') return 'primary'
-  return ''
+  return 'info'
 }
 
 const ENTITY_LABELS = {
@@ -353,6 +358,7 @@ const ENTITY_LABELS = {
   station: 'Trạm',
   strategy: 'Chiến lược',
   bay: 'Trụ rửa',
+  transaction: 'Phiên rửa',
 }
 const entityTypeLabel = (type) => ENTITY_LABELS[type] || type
 </script>
