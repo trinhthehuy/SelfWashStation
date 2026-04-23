@@ -17,27 +17,27 @@
       <div class="category"><span class="nav-label">Quản lý</span></div>
 
       <!-- Doanh thu – not for engineer -->
-      <router-link v-if="!isEngineer" to="/doanh-thu" class="menu-item">
+      <router-link v-if="!isEngineer" to="/revenue" class="menu-item">
         <LineChart class="icon"/>
         <span class="nav-label">Doanh thu</span>
       </router-link>
       
       <!-- Trạm – all roles -->
-      <router-link to="/tram" class="menu-item">
+      <router-link to="/station" class="menu-item">
         <Building2 class="icon"/>
         <span class="nav-label">Trạm</span>
       </router-link>
 
       <!-- Phiên rửa – all roles -->
-      <router-link to="/phien-rua" class="menu-item">
+      <router-link to="/wash-session" class="menu-item">
         <History class="icon"/>
         <span class="nav-label">Phiên rửa</span>
       </router-link>
       
       <!-- Đại lý group – SA only -->
       <div class="menu-group" v-if="isSA">
-        <div class="menu-item-wrapper" :class="{ 'active': $route.path.startsWith('/dai-ly') }">
-          <router-link to="/dai-ly" class="menu-item main-link">
+        <div class="menu-item-wrapper" :class="{ 'active': $route.path.startsWith('/agency') }">
+          <router-link to="/agency" class="menu-item main-link">
             <Users class="icon"/>
             <span class="nav-label">Đại lý</span>
           </router-link>
@@ -47,12 +47,12 @@
         </div>
 
         <div v-show="isDaiLyOpen && !isCollapsed" class="sub-menu-container">
-          <router-link to="/tai-khoan-ngan-hang" class="sub-item">
+          <router-link to="/bank-account" class="sub-item">
             <Wallet class="sub-icon"/>
             <span>Tài khoản ngân hàng</span>
           </router-link>
 
-          <router-link to="/chien-luoc" class="sub-item">
+          <router-link to="/strategy" class="sub-item">
             <Target class="sub-icon"/>
             <span>Chiến lược</span>
           </router-link>
@@ -61,8 +61,8 @@
 
       <!-- Agency: grouped Dai Ly menu (same pattern as SA) -->
       <div class="menu-group" v-if="isAgency">
-        <div class="menu-item-wrapper" :class="{ 'active': $route.path.startsWith('/dai-ly') }">
-          <router-link to="/dai-ly" class="menu-item main-link">
+        <div class="menu-item-wrapper" :class="{ 'active': $route.path.startsWith('/agency') }">
+          <router-link to="/agency" class="menu-item main-link">
             <Users class="icon"/>
             <span class="nav-label">Đại lý</span>
           </router-link>
@@ -72,12 +72,12 @@
         </div>
 
         <div v-show="isDaiLyOpen && !isCollapsed" class="sub-menu-container">
-          <router-link to="/tai-khoan-ngan-hang" class="sub-item">
+          <router-link to="/bank-account" class="sub-item">
             <Wallet class="sub-icon"/>
             <span>Tài khoản ngân hàng</span>
           </router-link>
 
-          <router-link to="/chien-luoc" class="sub-item">
+          <router-link to="/strategy" class="sub-item">
             <Target class="sub-icon"/>
             <span>Chiến lược</span>
           </router-link>
@@ -88,52 +88,26 @@
     <!-- Settings section – SA and Engineer -->
     <div class="category" v-if="isSA || isEngineer"><span class="nav-label">Thiết lập</span></div>
 
-    <!-- SA: full collapsible settings group -->
-    <div class="menu-group" v-if="isSA">
-      <div class="menu-item-wrapper">
-        <router-link to="/cau-hinh" class="menu-item main-link">
-          <Sliders class="icon"/>
-          <span class="nav-label">Cấu hình</span>
-        </router-link>
-        <div class="toggle-icon" v-if="!isCollapsed" @click="isSettingsOpen = !isSettingsOpen">
-          <ChevronDown :class="{ 'rotate': isSettingsOpen }"/>
-        </div>
-      </div>
-
-      <div v-show="isSettingsOpen && !isCollapsed" class="sub-menu-container">
-        <router-link to="/api-management" class="sub-item">
-          <KeyRound class="sub-icon"/>
-          <span>Quản lý API</span>
-        </router-link>
-        <router-link to="/system-test" class="sub-item">
-          <FlaskConical class="sub-icon"/>
-          <span>Test hệ thống</span>
-        </router-link>
-        <router-link to="/cai-dat" class="sub-item">
-          <Settings class="sub-icon"/>
-          <span>Tài khoản hệ thống</span>
-        </router-link>
-        <router-link to="/nhat-ky" class="sub-item">
-          <ScrollText class="sub-icon"/>
-          <span>Nhật ký hệ thống</span>
-        </router-link>
-      </div>
-    </div>
-
-    <!-- Engineer: direct links for API and System Test -->
-    <div class="menu" v-if="isEngineer">
-      <router-link to="/api-management" class="menu-item">
-        <KeyRound class="icon"/>
-        <span class="nav-label">Quản lý API</span>
+    <!-- SA and Engineer: direct links -->
+    <div class="menu" v-if="isSA || isEngineer">
+      <router-link to="/configuration" class="menu-item">
+        <Sliders class="icon"/>
+        <span class="nav-label">Cấu hình</span>
       </router-link>
-      <router-link to="/system-test" class="menu-item">
-        <FlaskConical class="icon"/>
-        <span class="nav-label">Test hệ thống</span>
-      </router-link>
+      <template v-if="isSA">
+        <router-link to="/accounts" class="menu-item">
+          <Settings class="icon"/>
+          <span class="nav-label">Tài khoản</span>
+        </router-link>
+        <router-link to="/audit-log" class="menu-item">
+          <ScrollText class="icon"/>
+          <span class="nav-label">Nhật ký</span>
+        </router-link>
+      </template>
     </div>
 
     <div class="sidebar-bottom">
-      <router-link to="/gop-y" class="menu-item" @click="layoutStore.close()">
+      <router-link to="/feedback" class="menu-item" @click="layoutStore.close()">
         <MessageSquare class="icon"/>
         <span class="nav-label">Góp ý & Phản hồi</span>
       </router-link>
@@ -146,15 +120,15 @@
       <LayoutDashboard :size="22"/>
       <span>Tổng quan</span>
     </router-link>
-    <router-link v-if="!isEngineer" to="/doanh-thu" class="mobile-nav-item">
+    <router-link v-if="!isEngineer" to="/revenue" class="mobile-nav-item">
       <LineChart :size="22"/>
       <span>Doanh thu</span>
     </router-link>
-    <router-link to="/tram" class="mobile-nav-item">
+    <router-link to="/station" class="mobile-nav-item">
       <Building2 :size="22"/>
       <span>Trạm</span>
     </router-link>
-    <router-link to="/phien-rua" class="mobile-nav-item">
+    <router-link to="/wash-session" class="mobile-nav-item">
       <History :size="22"/>
       <span>Phiên rửa</span>
     </router-link>
@@ -175,7 +149,6 @@ import {
 } from 'lucide-vue-next';
 
 const isDaiLyOpen = ref(true);
-const isSettingsOpen = ref(true);
 
 const isSA = computed(() => authStore.hasAnyRole(['sa']));
 const isEngineer = computed(() => authStore.hasAnyRole(['engineer']));

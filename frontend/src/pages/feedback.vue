@@ -34,6 +34,7 @@
         border
         stripe
         style="width: 100%"
+        height="100%"
         :row-class-name="getRowClass"
       >
         <el-table-column v-if="isSA" prop="creator_name" label="Người gửi" min-width="140" />
@@ -350,20 +351,37 @@ const submitReply = async () => {
 
 <style scoped>
 .page-container {
-  padding: 24px;
+  padding: 12px 16px;
   background-color: var(--el-bg-color-page);
-  min-height: 100vh;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  overflow: hidden;
+  box-sizing: border-box;
 }
 
 .header-card {
-  margin-bottom: 20px;
   border: 1px solid var(--el-border-color-light);
   border-radius: var(--el-border-radius-base);
+  flex-shrink: 0;
 }
+:deep(.header-card .el-card__body) { padding: 8px 16px; }
 
 .table-card {
   border: 1px solid var(--el-border-color-light);
   border-radius: var(--el-border-radius-base);
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+:deep(.table-card .el-card__body) { 
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 10px;
 }
 
 .header-content {
@@ -373,8 +391,8 @@ const submitReply = async () => {
 }
 
 .page-title {
-  margin: 0 0 4px;
-  font-size: var(--el-font-size-extra-large);
+  margin: 0 0 2px;
+  font-size: 18px;
   font-weight: 600;
   color: var(--el-text-color-primary);
 }
@@ -442,7 +460,7 @@ const submitReply = async () => {
 }
 
 /* ── Mobile card list ────────────────────────────── */
-.mobile-card-list { display: flex; flex-direction: column; gap: 10px; }
+.mobile-card-list { flex: 1; display: flex; flex-direction: column; gap: 10px; overflow-y: auto; }
 .mobile-card {
   background: var(--el-bg-color);
   border-radius: 10px;

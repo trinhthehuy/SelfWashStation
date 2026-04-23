@@ -15,9 +15,12 @@ export class AggregationService {
 
             // 1. Truy vấn dữ liệu tổng hợp từ bảng transactions
             // Chỉ lấy các giao dịch có trạng thái 'processed'
+            // Tối ưu: dùng tran_date (generated column, có index) thay DATE(created_at)
+            // để MySQL dùng được Index Seek thay vì Full Table Scan
+
             const summaryData = await db('transactions')
                 .select(
-                    db.raw('DATE(created_at) as summary_date'),
+                    db.raw('tran_date as summary_date'),
                     'station_id',
                     'bay_code'
                 )
@@ -25,9 +28,10 @@ export class AggregationService {
                 .count('id as total_transactions')
                 .sum('op as total_op_time')
                 .sum('foam as total_foam_time')
-                .whereRaw('DATE(created_at) = ?', [today])
+                // Dùng tran_date (generated+indexed) thay DATE() function
+                .where('tran_date', today)
                 .where('status', 'processed')
-                .groupBy('summary_date', 'station_id', 'bay_code');
+                .groupBy('tran_date', 'station_id', 'bay_code');
 
             if (!summaryData || summaryData.length === 0) {
                 console.log(`>>> [Aggregation]: Không có giao dịch nào để tổng hợp trong ngày ${today}`);
@@ -71,9 +75,10 @@ export class AggregationService {
             console.log(`>>> [Sync]: Bắt đầu quét dữ liệu từ ${startDate} đến ${endDate}`);
 
             // 1. Lấy dữ liệu tổng hợp theo từng ngày trong khoảng thời gian
+            // Tối ưu: dùng tran_date (generated column, có index) thay DATE(created_at)
             const historyData = await db('transactions')
                 .select(
-                    db.raw('DATE(created_at) as summary_date'),
+                    db.raw('tran_date as summary_date'),
                     'station_id',
                     'bay_code'
                 )
@@ -81,9 +86,10 @@ export class AggregationService {
                 .count('id as total_transactions')
                 .sum('op as total_op_time')
                 .sum('foam as total_foam_time')
-                .whereRaw('DATE(created_at) BETWEEN ? AND ?', [startDate, endDate])
+                // tran_date có index → MySQL dùng Index Range Scan
+                .whereBetween('tran_date', [startDate, endDate])
                 .where('status', 'processed')
-                .groupBy('summary_date', 'station_id', 'bay_code');
+                .groupBy('tran_date', 'station_id', 'bay_code');
 
             if (!historyData || historyData.length === 0) {
                 console.log(">>> [Sync]: Không tìm thấy dữ liệu cũ.");
@@ -118,10 +124,11 @@ export class AggregationService {
             console.log(">>> [Auto-Sync]: Bắt đầu kiểm tra toàn diện dữ liệu...");
 
             // 1. Lấy tất cả các ngày thực tế ĐANG CÓ giao dịch trong bảng transactions
+            // Tối ưu: dùng tran_date (generated column, có index) thay DATE(created_at)
             const distinctDaysInTrans = await db('transactions')
-                .select(db.raw('DISTINCT DATE(created_at) as date'))
+                .distinct(db.raw('tran_date as date'))
                 .where('status', 'processed')
-                .orderBy('date', 'asc');
+                .orderBy('tran_date', 'asc');
 
             if (distinctDaysInTrans.length === 0) {
                 console.log(">>> [Auto-Sync]: Không có giao dịch nào để xử lý.");
@@ -168,11 +175,13 @@ export class AggregationService {
 
             // 2. Định nghĩa câu lệnh SQL thuần
             // Chú ý: Group by phải có đầy đủ 3 thành phần: Ngày, Trạm, Cầu
+            // Tối ưu: dùng tran_date (generated column, có index) thay DATE(created_at)
+            // → MySQL dùng Index Scan trên tran_date thay vì Full Table Scan
             const fullSql = `
                 INSERT INTO daily_bay_summary 
                 (summary_date, station_id, bay_code, total_amount, total_transactions, total_op_time, total_foam_time, last_updated_at)
                 SELECT 
-                    DATE(created_at) as summary_date, 
+                    tran_date as summary_date, 
                     station_id, 
                     bay_code, 
                     SUM(amount) as total_amount, 
@@ -182,7 +191,7 @@ export class AggregationService {
                     NOW() as last_updated_at 
                 FROM transactions 
                 WHERE status = 'processed' 
-                GROUP BY DATE(created_at), station_id, bay_code
+                GROUP BY tran_date, station_id, bay_code
             `;
 
             // 3. Thực thi

@@ -1,9 +1,9 @@
 <script setup>
 
-import CardKPI from "../components/CardKPI.vue"
-import RevenueChart from "../components/RevenueChart.vue"
-import TopTable from "../components/TopTable.vue"
-import RevenueHeatmap from "../components/RevenueHeatmap.vue"
+import CardKPI from "../components/card-kpi.vue"
+import RevenueChart from "../components/revenue-chart.vue"
+import TopTable from "../components/top-table.vue"
+import RevenueHeatmap from "../components/revenue-heatmap.vue"
 
 </script>
 
@@ -112,10 +112,10 @@ grid-template-columns:1fr;
 
 @media (max-width: 768px) {
   .dashboard {
-    height: auto;
-    min-height: 100%;
+    height: 100%;
     gap: 10px;
-    overflow: visible;
+    overflow-y: auto;
+    overflow-x: hidden;
   }
 
   .kpi-wrapper {

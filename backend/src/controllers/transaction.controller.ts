@@ -16,7 +16,8 @@ export class TransController {
                 bay_code,
                 start_date, 
                 end_date, 
-                status 
+                status,
+                include_total
             } = req.query;
 
             // STEP 2: Chuẩn bị object gửi vào Service
@@ -29,6 +30,7 @@ export class TransController {
                 start_date: start_date ? String(start_date) : undefined,
                 end_date: end_date ? String(end_date) : undefined,
                 status: status ? String(status) : undefined,
+                include_total: include_total !== undefined ? include_total : true,
                 scope: getRequestScope(req)
             };
 

@@ -185,10 +185,18 @@ import { Location, Delete } from '@element-plus/icons-vue';
 import { stationApi } from "@/api/station";
 import { wardApi } from "@/api/ward";
 import { strategyApi } from "@/api/strategy";
-import { bankaccountApi } from "@/api/bankaccount";
+import { bankaccountApi } from "@/api/bank-account";
 import { agencyApi } from "@/api/agency";
-import provinceData from '../../provinces.json';
+import { useMetadataStore } from '@/stores/metadata';
 import { confirmPopup } from '@/utils/popup'
+
+const metadataStore = useMetadataStore();
+
+const provinceData = computed(() => metadataStore.provinces.map(p => ({
+  id: p.id,
+  name: p.province_name,
+  code: p.province_code
+})));
 
 const emit = defineEmits(['close', 'refresh']);
 const props = defineProps({ editData: { type: Object, default: null } });
@@ -245,7 +253,7 @@ const normalizeInitialBayCount = (value) => {
 // Logic giữ nguyên nhưng thay Alert bằng ElMessage
 const handleProvinceChange = async (val) => {
   form.ward_id = null;
-  const selectedProvince = provinceData.find(p => p.id === val);
+  const selectedProvince = provinceData.value.find(p => p.id === val);
   if (!selectedProvince) return;
 
   try {
@@ -357,6 +365,7 @@ const handleDelete = async () => {
 };
 
 onMounted(async () => {
+  await metadataStore.fetchProvinces();
   if (props.editData) {
     Object.assign(form, {
       ...props.editData,

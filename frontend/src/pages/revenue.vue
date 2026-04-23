@@ -72,7 +72,7 @@
             class="desktop-filter-select"
             placeholder="Chọn tỉnh"
           >
-            <el-option v-for="item in provinceData" :key="item.id" :label="item.name" :value="item.id" />
+            <el-option v-for="item in options.provinces" :key="item.id" :label="item.name" :value="item.id" />
           </el-select>
         </div>
 
@@ -161,7 +161,7 @@
           <el-select v-model="filterForm.province_id" :disabled="filterForm.level === 'agency'" filterable clearable
             :loading="selectLoading.province" @change="handleProvinceChange" @clear="handleProvinceChange(null)"
             style="width:100%" placeholder="Chọn tỉnh">
-            <el-option v-for="item in provinceData" :key="item.id" :label="item.name" :value="item.id" />
+            <el-option v-for="item in options.provinces" :key="item.id" :label="item.name" :value="item.id" />
           </el-select>
         </el-popover>
 
@@ -230,6 +230,15 @@
             <el-option v-for="item in options.bays" :key="item.bay_code" :label="item.bay_code" :value="item.bay_code" />
           </el-select>
         </el-popover>
+
+        <!-- Right-aligned display mode switch -->
+        <div v-if="!isMobile" class="display-mode-switch-inline">
+          <span class="display-mode-label">Hiển thị</span>
+          <el-radio-group v-model="displayMode" size="small" class="display-mode-group">
+            <el-radio-button value="compact">Rút gọn</el-radio-button>
+            <el-radio-button value="full">Đầy đủ</el-radio-button>
+          </el-radio-group>
+        </div>
       </div>
     </el-card>
 
@@ -252,125 +261,121 @@
       </div>
     </div>
 
-    <div v-if="!isMobile" class="display-mode-switch">
-      <span class="display-mode-label">Hiển thị</span>
-      <el-radio-group v-model="displayMode" size="small" class="display-mode-group">
-        <el-radio-button value="compact">Rút gọn</el-radio-button>
-        <el-radio-button value="full">Đầy đủ</el-radio-button>
-      </el-radio-group>
-    </div>
 
-    <!-- Desktop table -->
-    <el-table
-      v-if="!isMobile"
-      :data="tableData"
-      stripe
-      style="width: 100%; margin-top: 16px"
-      v-loading="loading"
-      show-summary
-      :summary-method="getSummaries"
-    >
-      <el-table-column label="STT" type="index" :index="indexMethod" width="60" align="center" fixed="left" />
-      <el-table-column
-        v-for="col in displayedColumns"
-        :key="col.prop"
-        :prop="col.prop"
-        :label="col.label"
-        :width="col.width"
-        :sortable="col.sortable"
-        :align="getColumnAlign(col.prop)"
-        :header-align="getColumnAlign(col.prop)"
+    <div class="table-main">
+      <el-table
+        v-if="!isMobile"
+        ref="tableRef"
+        :data="tableData"
+        stripe
+        style="width: 100%; margin-top: 16px"
+        height="100%"
+        v-loading="loading"
+        show-summary
+        :summary-method="getSummaries"
       >
-        <template #default="scope">
-          <template v-if="col.prop === 'revenue'">
-            <span class="revenue-emphasis">
-              {{ formatMoney(scope.row[col.prop]) }}
-            </span>
+        <el-table-column label="STT" type="index" :index="indexMethod" width="60" align="center" fixed="left" />
+        <el-table-column
+          v-for="col in displayedColumns"
+          :key="col.prop"
+          :prop="col.prop"
+          :label="col.label"
+          :width="col.width"
+          :sortable="col.sortable"
+          :align="getColumnAlign(col.prop)"
+          :header-align="getColumnAlign(col.prop)"
+        >
+          <template #default="scope">
+            <template v-if="col.prop === 'revenue'">
+              <span class="revenue-emphasis">
+                {{ formatMoney(scope.row[col.prop]) }}
+              </span>
+            </template>
+            <template v-else-if="col.prop === 'revenue_per_bay'">
+              <span class="revenue-secondary">
+                {{ formatNumber(scope.row[col.prop]) }}
+                <span class="money-unit">đ</span>
+              </span>
+            </template>
+            <template v-else>{{ scope.row[col.prop] }}</template>
           </template>
-          <template v-else-if="col.prop === 'revenue_per_bay'">
-            <span class="revenue-secondary">
-              {{ formatNumber(scope.row[col.prop]) }}
-              <span class="money-unit">đ</span>
-            </span>
-          </template>
-          <template v-else>{{ scope.row[col.prop] }}</template>
-        </template>
-      </el-table-column>
-    </el-table>
+        </el-table-column>
+      </el-table>
 
-    <!-- Mobile card list -->
-    <div v-else class="mobile-card-list" v-loading="loading">
-      <div
-        v-for="(row, idx) in tableData"
-        :key="idx"
-        class="mobile-card"
-        role="button"
-        tabindex="0"
-        :aria-expanded="expandedCard === idx"
-        @click="toggleExpandedCard(idx)"
-        @keydown.enter.prevent="toggleExpandedCard(idx)"
-        @keydown.space.prevent="toggleExpandedCard(idx)"
-      >
-        <!-- Card header: STT + tên chính + thời gian -->
-        <div class="mc-header">
-          <span class="mc-stt">{{ indexMethod(idx) }}</span>
-          <div class="mc-title">
-            <span class="mc-name">{{ row[mobileCardCfg.title] ?? '—' }}</span>
-            <span class="mc-sub" v-if="mobileCardCfg.sub">{{ row[mobileCardCfg.sub] }}</span>
+      <!-- Mobile card list -->
+      <div v-else class="mobile-card-list" v-loading="loading">
+        <div
+          v-for="(row, idx) in tableData"
+          :key="idx"
+          class="mobile-card"
+          role="button"
+          tabindex="0"
+          :aria-expanded="expandedCard === idx"
+          @click="toggleExpandedCard(idx)"
+          @keydown.enter.prevent="toggleExpandedCard(idx)"
+          @keydown.space.prevent="toggleExpandedCard(idx)"
+        >
+          <!-- Card header: STT + tên chính + thời gian -->
+          <div class="mc-header">
+            <span class="mc-stt">{{ indexMethod(idx) }}</span>
+            <div class="mc-title">
+              <span class="mc-name">{{ row[mobileCardCfg.title] ?? '—' }}</span>
+              <span class="mc-sub" v-if="mobileCardCfg.sub">{{ row[mobileCardCfg.sub] }}</span>
+            </div>
+            <span class="mc-time">{{ row.Time }}</span>
           </div>
-          <span class="mc-time">{{ row.Time }}</span>
+
+          <!-- Doanh thu nổi bật -->
+          <div class="mc-revenue">{{ formatMoney(row.revenue) }}</div>
+
+          <!-- Stats dòng chính -->
+          <div class="mc-stats">
+            <div class="mc-stat" v-if="row.total_sessions !== undefined">
+              <span class="mcs-label">Phiên</span>
+              <span class="mcs-val">{{ row.total_sessions }}</span>
+            </div>
+            <div class="mc-stat" v-if="row.bay_count !== undefined">
+              <span class="mcs-label">Số trụ</span>
+              <span class="mcs-val">{{ row.bay_count }}</span>
+            </div>
+            <div class="mc-stat" v-if="row.revenue_per_bay !== undefined">
+              <span class="mcs-label">DT/Trụ</span>
+              <span class="mcs-val money">{{ formatMoney(row.revenue_per_bay) }}</span>
+            </div>
+          </div>
+
+          <!-- Chi tiết mở rộng -->
+          <transition name="expand">
+            <div class="mc-detail" v-if="expandedCard === idx">
+              <div class="mc-detail-row" v-if="row.station_count !== undefined">
+                <span>Số trạm</span><span>{{ row.station_count }}</span>
+              </div>
+              <div class="mc-detail-row" v-if="row.agency_count !== undefined">
+                <span>Số đại lý</span><span>{{ row.agency_count }}</span>
+              </div>
+              <div class="mc-detail-row" v-if="row.ward_count !== undefined">
+                <span>Số xã có trạm</span><span>{{ row.ward_count }}</span>
+              </div>
+              <div class="mc-detail-row" v-if="row.sessions_per_bay !== undefined">
+                <span>Phiên/Trụ</span><span>{{ row.sessions_per_bay }}</span>
+              </div>
+              <div class="mc-detail-row" v-if="row.province_name && mobileCardCfg.title !== 'province_name'">
+                <span>Tỉnh</span><span>{{ row.province_name }}</span>
+              </div>
+              <div class="mc-detail-row" v-if="row.agency_name && mobileCardCfg.title !== 'agency_name'">
+                <span>Đại lý</span><span>{{ row.agency_name }}</span>
+              </div>
+              <div class="mc-detail-row" v-if="row.address">
+                <span>Địa chỉ</span><span>{{ row.address }}</span>
+              </div>
+            </div>
+          </transition>
+
+          <div class="mc-expand-hint">{{ expandedCard === idx ? '▲ Thu gọn' : '▼ Chi tiết' }}</div>
         </div>
 
-        <!-- Doanh thu nổi bật -->
-        <div class="mc-revenue">{{ formatMoney(row.revenue) }}</div>
-
-        <!-- Stats dòng chính -->
-        <div class="mc-stats">
-          <div class="mc-stat" v-if="row.total_sessions !== undefined">
-            <span class="mcs-label">Phiên</span>
-            <span class="mcs-val">{{ row.total_sessions }}</span>
-          </div>
-          <div class="mc-stat" v-if="row.bay_count !== undefined">
-            <span class="mcs-label">Số trụ</span>
-            <span class="mcs-val">{{ row.bay_count }}</span>
-          </div>
-          <div class="mc-stat" v-if="row.revenue_per_bay !== undefined">
-            <span class="mcs-label">DT/Trụ</span>
-            <span class="mcs-val money">{{ formatMoney(row.revenue_per_bay) }}</span>
-          </div>
-        </div>
-
-        <!-- Chi tiết mở rộng -->
-        <transition name="expand">
-          <div class="mc-detail" v-if="expandedCard === idx">
-            <div class="mc-detail-row" v-if="row.station_count !== undefined">
-              <span>Số trạm</span><span>{{ row.station_count }}</span>
-            </div>
-            <div class="mc-detail-row" v-if="row.agency_count !== undefined">
-              <span>Số đại lý</span><span>{{ row.agency_count }}</span>
-            </div>
-            <div class="mc-detail-row" v-if="row.ward_count !== undefined">
-              <span>Số xã có trạm</span><span>{{ row.ward_count }}</span>
-            </div>
-            <div class="mc-detail-row" v-if="row.sessions_per_bay !== undefined">
-              <span>Phiên/Trụ</span><span>{{ row.sessions_per_bay }}</span>
-            </div>
-            <div class="mc-detail-row" v-if="row.province_name && mobileCardCfg.title !== 'province_name'">
-              <span>Tỉnh</span><span>{{ row.province_name }}</span>
-            </div>
-            <div class="mc-detail-row" v-if="row.agency_name && mobileCardCfg.title !== 'agency_name'">
-              <span>Đại lý</span><span>{{ row.agency_name }}</span>
-            </div>
-            <div class="mc-detail-row" v-if="row.address">
-              <span>Địa chỉ</span><span>{{ row.address }}</span>
-            </div>
-          </div>
-        </transition>
-
-        <div class="mc-expand-hint">{{ expandedCard === idx ? '▲ Thu gọn' : '▼ Chi tiết' }}</div>
+        <div v-if="!loading && tableData.length === 0" class="mc-empty">Không có dữ liệu</div>
       </div>
-
-      <div v-if="!loading && tableData.length === 0" class="mc-empty">Không có dữ liệu</div>
     </div>
 
     <!-- Pagination -->
@@ -405,12 +410,12 @@ import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 import { ArrowDown } from '@element-plus/icons-vue'
 import { revenueApi } from '@/api/revenue'
 import { ElMessage } from 'element-plus'
-import provinceData from '../../provinces.json'
 import { wardApi } from '@/api/ward'
 import { agencyApi } from '@/api/agency'
 import { stationApi } from '@/api/station'
 import { bayApi } from '@/api/bay'
 import { authStore } from '@/stores/auth'
+import { useMetadataStore } from '@/stores/metadata'
 
 const isAgency = computed(() => authStore.hasAnyRole(['agency']))
 
@@ -419,10 +424,12 @@ const currentPage = ref(1)
 const pageSize = ref(20)
 const tableData = ref([])
 const loading = ref(false)
+const tableRef = ref(null)
 const expandedCard = ref(null)
 const displayMode = ref('compact')
 
 const options = reactive({
+  provinces: [],
   wards: [],
   agencies: [],
   stations: [],
@@ -489,7 +496,7 @@ const mobileCardCfg = computed(() => {
 })
 
 const selectedProvinceName = computed(() =>
-  filterForm.province_id ? (provinceData.find((p) => p.id === filterForm.province_id)?.name ?? null) : null
+  filterForm.province_id ? (options.provinces.find((p) => p.id === filterForm.province_id)?.name ?? null) : null
 )
 
 const selectedWardName = computed(() =>
@@ -744,6 +751,8 @@ const toggleExpandedCard = (idx) => {
   expandedCard.value = expandedCard.value === idx ? null : idx
 }
 
+const metadataStore = useMetadataStore()
+
 const fetchWards = async (provinceId) => {
   try {
     selectLoading.ward = true
@@ -764,9 +773,8 @@ const fetchWards = async (provinceId) => {
 const fetchAgencies = async () => {
   try {
     selectLoading.agency = true
-    const res = await agencyApi.getAgencies()
-    const data = res.data?.data || res.data || []
-    options.agencies = data.map((i) => ({
+    await metadataStore.fetchAgencies()
+    options.agencies = metadataStore.agencies.map((i) => ({
       id: i.id,
       agency_name: i.agency_name,
       identity_number: i.identity_number,
@@ -777,6 +785,21 @@ const fetchAgencies = async () => {
     ElMessage.error('Lỗi tải thông tin đại lý')
   } finally {
     selectLoading.agency = false
+  }
+}
+
+const fetchProvinces = async () => {
+  try {
+    selectLoading.province = true
+    await metadataStore.fetchProvinces()
+    options.provinces = metadataStore.provinces.map((i) => ({
+      id: i.id,
+      name: i.province_name
+    }))
+  } catch (error) {
+    console.error('Lỗi tải tỉnh:', error)
+  } finally {
+    selectLoading.province = false
   }
 }
 
@@ -867,6 +890,7 @@ const fetchData = async ({ resetPage = false } = {}) => {
   const requestSeq = ++fetchRequestSeq
   loading.value = true
   try {
+    const shouldIncludeTotal = resetPage || total.value === 0
     const params = {
       page: currentPage.value,
       limit: pageSize.value,
@@ -878,7 +902,8 @@ const fetchData = async ({ resetPage = false } = {}) => {
       ward_id: filterForm.ward_id,
       agency_id: filterForm.agency_id,
       station_id: filterForm.station_id,
-      bay_code: filterForm.bay_code
+      bay_code: filterForm.bay_code,
+      include_total: shouldIncludeTotal
     }
 
     const response = await revenueApi.getRevenueReport(params)
@@ -886,7 +911,13 @@ const fetchData = async ({ resetPage = false } = {}) => {
 
     const result = response.data.data
     tableData.value = result.list || []
-    total.value = result.total || 0
+    if (result.total !== undefined) {
+      total.value = result.total
+    }
+    // Tự động cuộn bảng về đầu dòng
+    if (tableRef.value) {
+      tableRef.value.setScrollTop(0)
+    }
   } catch (error) {
     if (requestSeq !== fetchRequestSeq) return
     ElMessage.error('Không thể tải dữ liệu')
@@ -949,6 +980,7 @@ const getSummaries = (param) => {
 }
 
 onMounted(async () => {
+  fetchProvinces() // Tải danh sách tỉnh cho bộ lọc
   await handleLevelFilter()
 })
 </script>
@@ -1181,36 +1213,84 @@ onMounted(async () => {
 }
 
 .insight-strip {
-  margin-top: 2px;
+  margin-top: 5px;
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 10px;
+  gap: 12px;
+  flex-shrink: 0;
+}
+
+@media (max-width: 1200px) {
+  .insight-strip {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 600px) {
+  .insight-strip {
+    grid-template-columns: 1fr;
+  }
 }
 
 .insight-card {
   background: var(--bg-card);
   border: 1px solid var(--report-border);
-  border-radius: var(--report-card-radius);
-  padding: 11px 13px;
+  border-radius: 12px;
+  padding: 16px 20px;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 8px;
+  transition: transform 0.2s, box-shadow 0.2s;
+  position: relative;
+  overflow: hidden;
+}
+
+.insight-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  border-color: var(--report-accent);
+}
+
+.insight-card::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 4px;
+  height: 100%;
+  background: var(--report-accent);
+  opacity: 0.5;
 }
 
 .insight-label {
-  font-size: 11px;
+  font-size: 12px;
+  font-weight: 500;
   color: var(--report-text-sub);
-  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
 }
 
 .insight-value {
-  font-size: 18px;
+  font-size: 22px;
   font-weight: 700;
   color: var(--report-text-main);
+  line-height: 1.2;
 }
 
 .insight-value.primary {
   color: var(--report-accent);
+  text-shadow: 0 0 15px rgba(83, 168, 255, 0.2);
+}
+
+.display-mode-switch-inline {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 8px;
+  background: var(--report-soft-bg);
+  border-radius: 8px;
+  border: 1px solid var(--report-border);
 }
 
 .display-mode-switch {
@@ -1532,5 +1612,52 @@ onMounted(async () => {
   padding: 40px 0;
   color: var(--report-text-sub);
   font-size: 14px;
+}
+.revenue-report-container {
+  padding: 12px 16px;
+  background-color: var(--el-bg-color-page);
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+.filter-card {
+  border-radius: 8px;
+  flex-shrink: 0;
+}
+:deep(.filter-card .el-card__body) { padding: 10px 16px; }
+
+
+.display-mode-switch {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 5px;
+  flex-shrink: 0;
+}
+
+.pagination-container {
+  margin-top: 10px;
+  display: flex;
+  justify-content: flex-end;
+  flex-shrink: 0;
+}
+
+.table-main {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.mobile-card-list {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  overflow-y: auto;
 }
 </style>

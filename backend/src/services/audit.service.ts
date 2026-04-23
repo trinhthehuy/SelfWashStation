@@ -66,17 +66,61 @@ function buildDefaultDetails(params: AuditLogParams): Record<string, any> | null
 }
 
 class AuditLogService {
+  private logQueue: any[] = [];
+  private isProcessing = false;
+  private workerTimer: NodeJS.Timeout | null = null;
+  private readonly MAX_BATCH_SIZE = 50;
+  private readonly FLUSH_INTERVAL = 5000; // 5 giây
+
+  constructor() {
+    // Tự động khởi động worker khi service được khởi tạo
+    this.startWorker();
+  }
+
   /**
-   * Ghi một dòng audit log.
-   * Lỗi được xử lý im lặng để không ảnh hưởng luồng chính.
+   * Khởi động worker ngầm để xử lý hàng đợi
    */
-  async log(params: AuditLogParams): Promise<void> {
+  private startWorker() {
+    if (this.workerTimer) return;
+    this.workerTimer = setInterval(() => this.processQueue(), this.FLUSH_INTERVAL);
+  }
+
+  /**
+   * Xử lý lưu log từ hàng đợi vào Database theo Batch
+   */
+  private async processQueue() {
+    if (this.isProcessing || this.logQueue.length === 0) return;
+
+    this.isProcessing = true;
+    const batch = this.logQueue.splice(0, this.MAX_BATCH_SIZE);
+
+    try {
+      await db('audit_logs').insert(batch);
+      // console.log(`[AuditLog] Successfully flushed ${batch.length} logs.`);
+    } catch (error) {
+      console.error('[AuditLog] Failed to flush logs batch:', error);
+      // Nếu lỗi, có thể cân nhắc đẩy ngược lại hàng đợi hoặc lưu vào file backup
+    } finally {
+      this.isProcessing = false;
+      
+      // Nếu hàng đợi vẫn còn nhiều, tiếp tục xử lý ngay lập tức
+      if (this.logQueue.length > 0) {
+        setImmediate(() => this.processQueue());
+      }
+    }
+  }
+
+  /**
+   * Ghi một dòng audit log (Xử lý Background).
+   * Phương thức này giờ đây trả về ngay lập tức để không chặn luồng chính.
+   */
+  log(params: AuditLogParams): void {
     try {
       const details = params.details && Object.keys(params.details).length > 0
         ? params.details
         : buildDefaultDetails(params);
 
-      await db('audit_logs').insert({
+      const logEntry = {
         user_id: params.userId ?? null,
         username: params.username,
         role: params.role,
@@ -86,10 +130,17 @@ class AuditLogService {
         entity_name: params.entityName ?? null,
         details: details ? JSON.stringify(details) : null,
         ip_address: params.ip ?? null,
-        created_at: db.fn.now(),
-      });
+        created_at: new Date(), // Sử dụng thời gian JS để đảm bảo chính xác thứ tự
+      };
+
+      this.logQueue.push(logEntry);
+
+      // Nếu hàng đợi quá lớn, xử lý ngay không đợi interval
+      if (this.logQueue.length >= this.MAX_BATCH_SIZE) {
+        setImmediate(() => this.processQueue());
+      }
     } catch (error) {
-      console.error('[AuditLog] Failed to write log:', error);
+      console.error('[AuditLog] Error adding to queue:', error);
     }
   }
 
@@ -104,8 +155,18 @@ class AuditLogService {
     entityType?: string;
     startDate?: string;
     endDate?: string;
+    includeTotal?: boolean;
   }) {
-    const { page = 1, limit = 50, userId, action, entityType, startDate, endDate } = filters;
+    const { 
+      page = 1, 
+      limit = 50, 
+      userId, 
+      action, 
+      entityType, 
+      startDate, 
+      endDate,
+      includeTotal = true 
+    } = filters;
     const offset = (Number(page) - 1) * Number(limit);
 
     const query = db('audit_logs').orderBy('created_at', 'desc');
@@ -119,14 +180,20 @@ class AuditLogService {
       query.where('created_at', '>=', `${startDate} 00:00:00`);
     }
 
+    const dataPromise = query.clone().select('*').limit(Number(limit)).offset(offset);
+    let totalPromise = null;
+    if (includeTotal) {
+      totalPromise = query.clone().count('id as total').first();
+    }
+
     const [data, countResult] = await Promise.all([
-      query.clone().select('*').limit(Number(limit)).offset(offset),
-      query.clone().count('id as total').first(),
+      dataPromise,
+      totalPromise,
     ]);
 
     return {
       data,
-      total: Number(countResult?.total || 0),
+      ...(includeTotal ? { total: Number(countResult?.total || 0) } : {}),
       page: Number(page),
       limit: Number(limit),
     };

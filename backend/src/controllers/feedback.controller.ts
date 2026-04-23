@@ -84,7 +84,7 @@ export class FeedbackController {
         relatedFeedbackId: feedback.id,
       });
 
-      await auditService.log({
+      auditService.log({
         userId: req.user!.id,
         username: req.user!.username,
         role: req.user!.role,
@@ -132,7 +132,7 @@ export class FeedbackController {
         relatedFeedbackId: updated.id,
       });
 
-      await auditService.log({
+      auditService.log({
         userId: req.user!.id,
         username: req.user!.username,
         role: req.user!.role,

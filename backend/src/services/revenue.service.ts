@@ -39,13 +39,21 @@ export class RevenueService {
         const includeTotal = asBool(include_total, true);
 
         // 1. Khởi tạo Query chính
+        // Tối ưu: chỉ JOIN các bảng dimension THIẾT YẾU cho mọi level.
+        // provinces as ap và wards as aw (địa chỉ đại lý) CHỈ JOIN khi level=agency
+        // → tránh JOIN thừa gây tải cho CPU khi level=province/ward/station/bay
         let query = db('daily_bay_summary as dbs')
             .leftJoin('stations as s', 'dbs.station_id', 's.id')
             .leftJoin('agency as a', 's.agency_id', 'a.id')
-            .leftJoin('wards as w', 's.ward_id', 'w.id') 
-            .leftJoin('provinces as p', 's.province_id', 'p.id')
-            .leftJoin('provinces as ap', 'a.province_id', 'ap.id')
-            .leftJoin('wards as aw', 'a.ward_id', 'aw.id');
+            .leftJoin('wards as w', 's.ward_id', 'w.id')
+            .leftJoin('provinces as p', 's.province_id', 'p.id');
+
+        // JOIN thêm địa chỉ đại lý chỉ khi cần thiết
+        if (!groupByTimeOnly && level === 'agency') {
+            query = query
+                .leftJoin('provinces as ap', 'a.province_id', 'ap.id')
+                .leftJoin('wards as aw', 'a.ward_id', 'aw.id');
+        }
 
         // 2. Thiết lập định dạng thời gian
         let timeFormat = '%Y-%m-%d';
@@ -65,18 +73,20 @@ export class RevenueService {
             groupByFields.push(db.raw(`DATE_FORMAT(dbs.summary_date, '${timeFormat}')`));
         }
 
-        // 4. Lọc theo các ID cụ thể (Bổ sung mới)
-        if (province_id) query.where('p.id', province_id);
-        if (ward_id) query.where('w.id', ward_id);
-        if (agency_id) query.where('a.id', agency_id);
-        if (station_id) query.where('s.id', station_id);
-        if (bay_code) query.where('dbs.bay_code', bay_code);
+        // 4. Lọc theo các ID cụ thể
+        // Tối ưu: pushdown filter xuống cột có index trực tiếp trên bảng driving
+        // thay vì lọc qua bảng dimension đã JOIN (tránh MySQL phải resolve join trước khi filter)
+        if (province_id) query.where('s.province_id', province_id);   // s.province_id có index
+        if (ward_id)     query.where('s.ward_id', ward_id);            // s.ward_id có index
+        if (agency_id)   query.where('s.agency_id', agency_id);        // s.agency_id có index
+        if (station_id)  query.where('dbs.station_id', station_id);    // dbs.station_id có index
+        if (bay_code)    query.where('dbs.bay_code', bay_code);
 
         // 4b. Áp dụng scope bắt buộc theo role (ghi đè filter UI)
         const scoped_province_ids = params.scoped_province_ids as number[] | undefined;
         const scoped_station_ids  = params.scoped_station_ids  as number[] | undefined;
         if (scoped_province_ids?.length) query.whereIn('s.province_id', scoped_province_ids);
-        if (scoped_station_ids?.length)  query.whereIn('s.id', scoped_station_ids);
+        if (scoped_station_ids?.length)  query.whereIn('dbs.station_id', scoped_station_ids); // pushdown vào dbs
 
         // 5. Lọc theo Keyword dựa trên Level
         if (keyword && keyword.trim() !== '') {
@@ -211,12 +221,35 @@ export class RevenueService {
             );
             groupByFields.push('a.id', 'a.agency_name', 'a.identity_number', 'ap.province_name', 'aw.ward_name');
         } else if (!groupByTimeOnly && level === 'station') {
-            selectFields.push('s.station_name as station_code', 'a.agency_name', 'p.province_name', 'w.ward_name', 's.address', db.raw('(SELECT COUNT(*) FROM wash_bays WHERE bay_status = 1 AND station_id = s.id) as bay_count'));
+            // Tối ưu: thay correlated subquery chạy N lần bằng pre-aggregated subquery JOIN một lần
+            // Cũ: db.raw('(SELECT COUNT(*) FROM wash_bays WHERE bay_status = 1 AND station_id = s.id)')
+            // Mới: JOIN với subquery đã group sẵn theo station_id → chạy 1 lần duy nhất
+            const stationBayAgg = db('wash_bays as wb_s')
+                .select('wb_s.station_id', db.raw('COUNT(*) as bay_count'))
+                .where('wb_s.bay_status', 1)
+                .groupBy('wb_s.station_id');
+
+            // Áp dụng scope nếu có
+            if (scoped_station_ids?.length) {
+                stationBayAgg.whereIn('wb_s.station_id', scoped_station_ids);
+            }
+
+            query.leftJoin(stationBayAgg.as('sba'), 'sba.station_id', 's.id');
+
+            selectFields.push(
+                's.station_name as station_code',
+                'a.agency_name',
+                'p.province_name',
+                'w.ward_name',
+                's.address',
+                db.raw('COALESCE(sba.bay_count, 0) as bay_count')
+            );
             groupByFields.push('s.id', 's.station_name', 'a.agency_name', 'p.province_name', 'w.ward_name', 's.address');
         } else if (!groupByTimeOnly && level === 'bay') {
             selectFields.push('dbs.bay_code', 's.station_name as station_code', 'p.province_name', 'w.ward_name', 's.address');
             groupByFields.push('dbs.station_id', 'dbs.bay_code', 's.station_name', 'p.province_name', 'w.ward_name', 's.address');
         }
+
 
         const sortableFields = new Set([
             'Time',
@@ -270,7 +303,10 @@ export class RevenueService {
 
             return {
                 success: true,
-                data: { list, total: includeTotal ? total : list.length }
+                data: { 
+                    list, 
+                    ...(includeTotal ? { total } : {}) 
+                }
             };
         } catch (error) {
             console.error("Database Error:", error);
@@ -295,25 +331,15 @@ export class RevenueService {
                 )
                 .where('t.status', 'processed')
                 .where('t.is_test', false)
+                // Tối ưu: GROUP BY dùng function chỉ trên SELECT, WHERE filter dùng tran_date (indexed)
                 .groupByRaw(
                     'HOUR(COALESCE(t.transaction_time, t.created_at)), DAYOFWEEK(COALESCE(t.transaction_time, t.created_at))'
                 );
 
             if (start_date && end_date) {
-                const start = `${start_date} 00:00:00`;
-                const endExclusive = db.raw('DATE_ADD(?, INTERVAL 1 DAY)', [end_date]);
-
-                query.where(function (this: any) {
-                    this.where(function (this: any) {
-                        this.whereNotNull('t.transaction_time')
-                            .where('t.transaction_time', '>=', start)
-                            .where('t.transaction_time', '<', endExclusive);
-                    }).orWhere(function (this: any) {
-                        this.whereNull('t.transaction_time')
-                            .where('t.created_at', '>=', start)
-                            .where('t.created_at', '<', endExclusive);
-                    });
-                });
+                // Tối ưu: dùng t.tran_date (generated column, có composite index) thay vì
+                // DATE(COALESCE(transaction_time, created_at)) → MySQL có thể dùng Index Seek
+                query.whereBetween('t.tran_date', [start_date, end_date]);
             }
 
             if (station_id) {
@@ -457,16 +483,18 @@ export class RevenueService {
                 ),
 
                 // Trend 7 ngày (D-7 đến D-1) cho sparkline
+                // Tối ưu: dùng tran_date (generated column, indexed) thay DATE(COALESCE(...))
+                // → index idx_tx_status_test_trandate_station có thể được sử dụng cho GROUP BY
                 applyTxDateRange(
                     agencyFilter(db('transactions')
                     .select(
-                        db.raw('DATE(COALESCE(transaction_time, created_at)) as day'),
+                        db.raw('tran_date as day'),
                         db.raw('SUM(amount) as revenue'),
                         db.raw('COUNT(id) as sessions')
                     )
                     .where('status', 'processed').where('is_test', false)
-                    .groupBy(db.raw('DATE(COALESCE(transaction_time, created_at))'))
-                    .orderBy('day', 'asc')
+                    .groupBy('tran_date')
+                    .orderBy('tran_date', 'asc')
                     ),
                     'DATE_SUB(CURDATE(), INTERVAL 7 DAY)',
                     'CURDATE()'

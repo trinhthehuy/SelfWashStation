@@ -255,9 +255,12 @@ const userInitials = computed(() => {
   padding: 16px;
   max-width: 860px;
   margin: 0 auto;
+  height: 100%;
   display: flex;
   flex-direction: column;
   gap: 16px;
+  overflow-y: auto;
+  box-sizing: border-box;
 }
 
 /* ── Profile header card ─────────────────────────────────── */

@@ -92,7 +92,7 @@ export const authStore = {
   },
   getDefaultRoute() {
     const role = state.user?.role
-    if (role === 'engineer') return '/tram'
+    if (role === 'engineer') return '/station'
     return '/'
   },
   updateUser(updates) {

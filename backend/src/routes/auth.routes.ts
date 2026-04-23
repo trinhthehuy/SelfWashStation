@@ -139,10 +139,14 @@ router.get('/me', authenticateToken, async (req: AuthRequest, res, next) => {
   }
 });
 
-router.get('/users', authenticateToken, authorizeRoles(['sa', 'engineer']), async (_req, res, next) => {
+router.get('/users', authenticateToken, authorizeRoles(['sa', 'engineer']), async (req, res, next) => {
   try {
-    const users = await SystemAuthService.listUsers();
-    res.json({ data: users });
+    const page = Number(req.query.page) || 1;
+    const limit = Number(req.query.limit) || 20;
+    const includeTotal = req.query.include_total === 'true' || req.query.include_total === '1';
+
+    const result = await SystemAuthService.listUsers({ page, limit, includeTotal });
+    res.json(result);
   } catch (error) {
     next(error);
   }

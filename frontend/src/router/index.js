@@ -1,46 +1,42 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { authStore } from '@/stores/auth'
 
-const Login = () => import('@/pages/Login.vue')
-const ForgotPassword = () => import('@/pages/ForgotPassword.vue')
-const ResetPassword = () => import('@/pages/ResetPassword.vue')
-const Dashboard = () => import('@/pages/Dashboard.vue')
-const DaiLy = () => import('@/pages/DaiLy.vue')
-const Tram = () => import('@/pages/Tram.vue')
-const ThemSuaXoaTram = () => import('@/pages/ThemSuaXoaTram.vue')
-const TaiKhoanNganHang = () => import('@/pages/TaiKhoanNganHang.vue')
-const PhienRua = () => import('@/pages/PhienRua.vue')
-const DoanhThu = () => import('@/pages/DoanhThu.vue')
-const CanhBao = () => import('@/pages/CanhBao.vue')
-const GopY = () => import('@/pages/GopY.vue')
-const HoSo = () => import('@/pages/HoSo.vue')
-const CaiDat = () => import('@/pages/CaiDat.vue')
-const CauHinh = () => import('@/pages/CauHinh.vue')
-const ChienLuoc = () => import('@/pages/ChienLuoc.vue')
-const ApiManagement = () => import('@/pages/ApiManagement.vue')
-const SystemTest = () => import('@/pages/SystemTest.vue')
-const NhatKy = () => import('@/pages/NhatKy.vue')
+const login = () => import('@/pages/login.vue')
+const forgotPassword = () => import('@/pages/forgot-password.vue')
+const resetPassword = () => import('@/pages/reset-password.vue')
+const dashboard = () => import('@/pages/dashboard.vue')
+const agency = () => import('@/pages/agency.vue')
+const station = () => import('@/pages/station.vue')
+const stationDetail = () => import('@/pages/station-detail.vue')
+const bankAccount = () => import('@/pages/bank-account.vue')
+const washSession = () => import('@/pages/wash-session.vue')
+const revenue = () => import('@/pages/revenue.vue')
+const notifications = () => import('@/pages/notifications.vue')
+const feedback = () => import('@/pages/feedback.vue')
+const profile = () => import('@/pages/profile.vue')
+const accounts = () => import('@/pages/accounts.vue')
+const configuration = () => import('@/pages/configuration.vue')
+const strategy = () => import('@/pages/strategy.vue')
+const auditLog = () => import('@/pages/audit-log.vue')
 
 const routes = [
-  { path: '/login', name: 'login', component: Login, meta: { public: true, noShell: true } },
-  { path: '/forgot-password', name: 'forgot-password', component: ForgotPassword, meta: { public: true, noShell: true } },
-  { path: '/reset-password/:token', name: 'reset-password', component: ResetPassword, meta: { public: true, noShell: true } },
-  { path: '/', name: 'dashboard', component: Dashboard, meta: { roles: ['sa', 'agency'] } },
-  { path: '/dai-ly', name: 'dai-ly', component: DaiLy, meta: { roles: ['sa', 'agency'] } },
-  { path: '/tram', name: 'tram', component: Tram, meta: { roles: ['sa', 'engineer', 'agency'] } },
-  { path: '/Them_Sua_Xoa_Tram', name: 'Them_Sua_Xoa_Tram', component: ThemSuaXoaTram, meta: { roles: ['sa'] } },
-  { path: '/tai-khoan-ngan-hang', name: 'tai-khoan-ngan-hang', component: TaiKhoanNganHang, meta: { roles: ['sa', 'agency'] } },
-  { path: '/phien-rua', name: 'phien-rua', component: PhienRua, meta: { roles: ['sa', 'engineer', 'agency'] } },
-  { path: '/doanh-thu', name: 'doanh-thu', component: DoanhThu, meta: { roles: ['sa', 'agency'] } },
-  { path: '/canh-bao', name: 'canh-bao', component: CanhBao, meta: { roles: ['sa', 'engineer', 'agency', 'regional_manager', 'station_supervisor'] } },
-  { path: '/gop-y', name: 'gop-y', component: GopY, meta: { roles: ['sa', 'engineer', 'agency', 'regional_manager', 'station_supervisor'] } },
-  { path: '/cau-hinh', name: 'cau-hinh', component: CauHinh, meta: { roles: ['sa'] } },
-  { path: '/api-management', name: 'api-management', component: ApiManagement, meta: { roles: ['sa', 'engineer'] } },
-  { path: '/system-test', name: 'system-test', component: SystemTest, meta: { roles: ['sa', 'engineer'] } },
-  { path: '/cai-dat', name: 'cai-dat', component: CaiDat, meta: { roles: ['sa'] } },
-  { path: '/nhat-ky', name: 'nhat-ky', component: NhatKy, meta: { roles: ['sa'] } },
-  { path: '/ho-so', name: 'ho-so', component: HoSo, meta: { roles: ['sa', 'engineer', 'agency'] } },
-  { path: '/chien-luoc', name: 'chien-luoc', component: ChienLuoc, meta: { roles: ['sa', 'agency'] } }
+  { path: '/login', name: 'login', component: login, meta: { public: true, noShell: true } },
+  { path: '/forgot-password', name: 'forgot-password', component: forgotPassword, meta: { public: true, noShell: true } },
+  { path: '/reset-password/:token', name: 'reset-password', component: resetPassword, meta: { public: true, noShell: true } },
+  { path: '/', name: 'dashboard', component: dashboard, meta: { roles: ['sa', 'agency'] } },
+  { path: '/agency', name: 'agency', component: agency, meta: { roles: ['sa', 'agency'] } },
+  { path: '/station', name: 'station', component: station, meta: { roles: ['sa', 'engineer', 'agency'] } },
+  { path: '/station-detail', name: 'station-detail', component: stationDetail, meta: { roles: ['sa'] } },
+  { path: '/bank-account', name: 'bank-account', component: bankAccount, meta: { roles: ['sa', 'agency'] } },
+  { path: '/wash-session', name: 'wash-session', component: washSession, meta: { roles: ['sa', 'engineer', 'agency'] } },
+  { path: '/revenue', name: 'revenue', component: revenue, meta: { roles: ['sa', 'agency'] } },
+  { path: '/notifications', name: 'notifications', component: notifications, meta: { roles: ['sa', 'engineer', 'agency', 'regional_manager', 'station_supervisor'] } },
+  { path: '/feedback', name: 'feedback', component: feedback, meta: { roles: ['sa', 'engineer', 'agency', 'regional_manager', 'station_supervisor'] } },
+  { path: '/configuration', name: 'configuration', component: configuration, meta: { roles: ['sa', 'engineer'] } },
+  { path: '/accounts', name: 'accounts', component: accounts, meta: { roles: ['sa'] } },
+  { path: '/audit-log', name: 'audit-log', component: auditLog, meta: { roles: ['sa'] } },
+  { path: '/profile', name: 'profile', component: profile, meta: { roles: ['sa', 'engineer', 'agency'] } },
+  { path: '/strategy', name: 'strategy', component: strategy, meta: { roles: ['sa', 'agency'] } }
 ]
 
 const router = createRouter({

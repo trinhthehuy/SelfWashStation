@@ -87,64 +87,78 @@
     </el-card>
 
     <el-card shadow="never" class="table-card">
-      <el-table
-        :data="filteredList"
-        v-loading="loading"
-        style="width: 100%"
-        border
-        stripe
-        :header-cell-style="{ background: '#f5f7fa', color: '#606266' }"
-      >
-        <el-table-column prop="id" label="ID" width="70" align="right" header-align="right" />
+      <div class="table-main">
+        <el-table
+          :data="visibleList"
+          v-loading="loading"
+          style="width: 100%"
+          height="100%"
+          border
+          stripe
+          :header-cell-style="{ background: '#f5f7fa', color: '#606266' }"
+        >
+          <el-table-column prop="id" label="ID" width="70" align="right" header-align="right" />
+  
+          <el-table-column label="Thông tin Đại lý" min-width="200">
+            <template #default="{ row }">
+              <div class="agency-cell">
+                <div class="font-bold primary-text">{{ row.agency_name }}</div>
+              </div>
+            </template>
+          </el-table-column>
+  
+          <el-table-column label="Ngân hàng" min-width="180">
+            <template #default="{ row }">
+              <el-tag type="success" effect="light" class="bank-tag">
+                {{ row.bank_name }}
+              </el-tag>
+            </template>
+          </el-table-column>
+  
+          <el-table-column label="Chi tiết tài khoản" min-width="250">
+            <template #default="{ row }">
+              <div class="bank-details">
+                <div class="account-number">{{ row.account_number }}</div>
+                <div class="account-name text-secondary">{{ row.account_name }}</div>
+              </div>
+            </template>
+          </el-table-column>
+  
+          <el-table-column label="Thao tác" width="170" fixed="right" align="center">
+            <template #default="{ row }">
+              <div class="action-buttons">
+                <el-button
+                  type="primary"
+                  link
+                  :icon="Edit"
+                  @click="handleEdit(row)"
+                >
+                  Sửa
+                </el-button>
+                <el-button
+                  type="primary"
+                  link
+                  :icon="Grid"
+                  @click="openQrModal(row)"
+                >
+                  Tạo mã QR
+                </el-button>
+              </div>
+            </template>
+          </el-table-column>
+        </el-table>
+      </div>
 
-        <el-table-column label="Thông tin Đại lý" min-width="200">
-          <template #default="{ row }">
-            <div class="agency-cell">
-              <div class="font-bold primary-text">{{ row.agency_name }}</div>
-            </div>
-          </template>
-        </el-table-column>
-
-        <el-table-column label="Ngân hàng" min-width="180">
-          <template #default="{ row }">
-            <el-tag type="success" effect="light" class="bank-tag">
-              {{ row.bank_name }}
-            </el-tag>
-          </template>
-        </el-table-column>
-
-        <el-table-column label="Chi tiết tài khoản" min-width="250">
-          <template #default="{ row }">
-            <div class="bank-details">
-              <div class="account-number">{{ row.account_number }}</div>
-              <div class="account-name text-secondary">{{ row.account_name }}</div>
-            </div>
-          </template>
-        </el-table-column>
-
-        <el-table-column label="Thao tác" width="170" fixed="right" align="center">
-          <template #default="{ row }">
-            <div class="action-buttons">
-              <el-button
-                type="primary"
-                link
-                :icon="Edit"
-                @click="handleEdit(row)"
-              >
-                Sửa
-              </el-button>
-              <el-button
-                type="primary"
-                link
-                :icon="Grid"
-                @click="openQrModal(row)"
-              >
-                Tạo mã QR
-              </el-button>
-            </div>
-          </template>
-        </el-table-column>
-      </el-table>
+      <div class="pagination-footer" v-if="filteredList.length > pageSize">
+        <el-pagination
+          background
+          layout="total, prev, pager, next"
+          :total="filteredList.length"
+          :page-size="pageSize"
+          v-model:current-page="page"
+          @current-change="handlePageChange"
+        />
+      </div>
     </el-card>
 
     <el-dialog
@@ -327,7 +341,7 @@
 import { ref, computed, onMounted, reactive, watch } from "vue";
 import { Plus, Edit, Search, Delete, Postcard, Grid } from "@element-plus/icons-vue";
 import { ElMessage } from "element-plus";
-import { bankaccountApi } from "@/api/bankaccount";
+import { bankaccountApi } from "@/api/bank-account";
 import { agencyApi } from "@/api/agency";
 import { useRoute, useRouter } from "vue-router";
 import { authStore } from '@/stores/auth';
@@ -402,6 +416,9 @@ const accountNumberFilterOptions = computed(() => uniqueSortedBy((item) => item.
 const accountNameFilterOptions = computed(() => uniqueSortedBy((item) => item.account_name));
 const bankFilterOptions = computed(() => uniqueSortedBy((item) => item.bank_name));
 
+const page = ref(1);
+const pageSize = ref(15);
+
 const filteredList = computed(() => {
   const search = normalizeFilterValue(keyword.value);
   const agencyNameFilter = isSystemAdmin.value ? normalizeFilterValue(fieldFilters.agencyName) : '';
@@ -409,7 +426,7 @@ const filteredList = computed(() => {
   const accountNameFilter = isSystemAdmin.value ? normalizeFilterValue(fieldFilters.accountName) : '';
   const bankNameFilter = isSystemAdmin.value ? normalizeFilterValue(fieldFilters.bankName) : '';
 
-  return list.value.filter((item) => {
+  const filtered = list.value.filter((item) => {
     const matchesQuickSearch = !search || Object.values(item).some((val) => String(val).toLowerCase().includes(search));
     const matchesAgencyName = !agencyNameFilter || normalizeFilterValue(item.agency_name) === agencyNameFilter;
     const matchesAccountNumber = !accountNumberFilter || normalizeFilterValue(item.account_number) === accountNumberFilter;
@@ -418,7 +435,20 @@ const filteredList = computed(() => {
 
     return matchesQuickSearch && matchesAgencyName && matchesAccountNumber && matchesAccountName && matchesBankName;
   });
+  return filtered;
 });
+
+const visibleList = computed(() => {
+  const start = (page.value - 1) * pageSize.value;
+  const end = start + pageSize.value;
+  return filteredList.value.slice(start, end);
+});
+
+const handlePageChange = (p) => {
+  page.value = p;
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+};
+
 
 const resetFilters = () => {
   keyword.value = '';
@@ -754,17 +784,23 @@ onMounted(async () => {
 
 <style scoped>
 .page-container {
-  padding: 24px;
+  padding: 16px 24px;
   background: var(--bg-body);
-  min-height: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
   color: var(--text-main);
   transition: background 0.2s ease;
+  overflow: hidden;
+  box-sizing: border-box;
 }
 
 .header-card {
-  margin-bottom: 24px;
+  margin-bottom: 16px;
   border-radius: 8px;
+  flex-shrink: 0;
 }
+:deep(.header-card .el-card__body) { padding: 12px 20px; }
 
 .header-content {
   display: flex;
@@ -969,5 +1005,33 @@ onMounted(async () => {
 
 :deep(.el-dialog__body) {
   padding-top: 10px;
+}
+.table-card {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  border-radius: 8px;
+}
+:deep(.table-card .el-card__body) { 
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 10px;
+  overflow: hidden;
+}
+
+.table-main {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+.pagination-footer {
+  margin-top: 10px;
+  display: flex;
+  justify-content: flex-end;
+  flex-shrink: 0;
 }
 </style>

@@ -32,7 +32,7 @@
 
       <div class="grid" v-else>
         <el-card 
-          v-for="item in filteredList" 
+          v-for="item in visibleList" 
           :key="item.id" 
           class="agency-card" 
           shadow="hover"
@@ -104,6 +104,17 @@
             </div>
           </template>
         </el-card>
+      </div>
+
+      <div class="pagination-footer" v-if="filteredList.length > pageSize">
+        <el-pagination
+          background
+          layout="prev, pager, next"
+          :total="filteredList.length"
+          :page-size="pageSize"
+          v-model:current-page="page"
+          @current-change="handlePageChange"
+        />
       </div>
     </div>
 
@@ -255,42 +266,57 @@ const loading = ref(true)
 const list = ref([]) // Dữ liệu từ API
 const defaultAvatar = 'https://i.pravatar.cc/100?img=3'
 
+const page = ref(1)
+const pageSize = ref(8)
+
+import { useMetadataStore } from '@/stores/metadata';
+
+const metadataStore = useMetadataStore();
+
 // Lọc danh sách theo keyword
 const filteredList = computed(() => {
   if (!keyword.value) return list.value
+  const kw = keyword.value.toLowerCase()
   return list.value.filter(item =>
-    item.agency_name.toLowerCase().includes(keyword.value.toLowerCase()) ||
-    String(item.identity_number).includes(keyword.value)
+    item.agency_name.toLowerCase().includes(kw) ||
+    String(item.identity_number).includes(kw)
   )
 })
+
+// Phân trang phía client
+const visibleList = computed(() => {
+  const start = (page.value - 1) * pageSize.value
+  const end = start + pageSize.value
+  return filteredList.value.slice(start, end)
+})
+
+const handlePageChange = (p) => {
+  page.value = p
+  window.scrollTo({ top: 0, behavior: 'smooth' })
+}
 
 // Gọi API lấy dữ liệu
 const fetchAgencies = async () => {
   loading.value = true
   try {
-    const response = await agencyApi.getAgencies();
-    const data = await response.data.data;
-    if (Array.isArray(data)) {
-      list.value = data.map(item => ({  
-        id: item.id,      
-        agency_name: item.agency_name,
-        identity_number: item.identity_number,        
-        address: item.address,
-        ward_id: item.ward_id,
-        province_id: item.province_id,
-        ward_name: item.ward_name,
-        province_name: item.province_name,
-        phone: item.phone,
-        email: item.email,   
-        tax_code: item.tax_code,     
-        avatar: item.avatar // chỉ lấy từ API, không fallback ở đây
-      }))
-    } else {
-      list.value = []
-      console.error('API trả về không phải mảng:', data)
-    }
+    await metadataStore.fetchAgencies()
+    const data = metadataStore.agencies
+    list.value = data.map(item => ({  
+      id: item.id,      
+      agency_name: item.agency_name,
+      identity_number: item.identity_number,        
+      address: item.address,
+      ward_id: item.ward_id,
+      province_id: item.province_id,
+      ward_name: item.ward_name,
+      province_name: item.province_name,
+      phone: item.phone,
+      email: item.email,   
+      tax_code: item.tax_code,     
+      avatar: item.avatar
+    }))
   } catch (error) {
-    console.error('Lỗi khi fetch API:', error)
+    console.error('Lỗi khi fetch agencies:', error)
     list.value = []
   } finally {
     loading.value = false
@@ -299,7 +325,14 @@ const fetchAgencies = async () => {
 
 onMounted(() => {
   fetchAgencies()
+  metadataStore.fetchProvinces()
 })
+
+const provinceData = computed(() => metadataStore.provinces.map(p => ({
+  id: p.id,
+  name: p.province_name,
+  code: p.province_code
+})))
 
 const showModal = ref(false)
 const isEdit = ref(false)
@@ -321,50 +354,13 @@ const formData = ref({
   is_active: '',
   avatar: '' 
 })
-// Danh sách tỉnh
-const provinceData = [
-  { name: "An Giang", code: "AG", id: 32 },
-  { name: "Bắc Ninh", code: "BN", id: 2 },
-  { name: "Cà Mau", code: "CM", id: 34 },
-  { name: "Cần Thơ", code: "CT", id: 33 },
-  { name: "Cao Bằng", code: "CB", id: 7 },
-  { name: "Đà Nẵng", code: "DN", id: 21 },
-  { name: "Đắc Lắc", code: "DL", id: 25 },
-  { name: "Điện Biên", code: "DB", id: 13 },
-  { name: "Đồng Nai", code: "DI", id: 28 },
-  { name: "Đồng Tháp", code: "DT", id: 31 },
-  { name: "Gia Lai", code: "GL", id: 24 },
-  { name: "Hà Nội", code: "HN", id: 1 },
-  { name: "Hà Tĩnh", code: "HT", id: 18 },
-  { name: "Hải Phòng", code: "HP", id: 4 },
-  { name: "Hồ Chí Minh", code: "HC", id: 29 },
-  { name: "Huế", code: "HU", id: 20 },
-  { name: "Hưng Yên", code: "HY", id: 5 },
-  { name: "Khánh Hòa", code: "KH", id: 23 },
-  { name: "Lai Châu", code: "LU", id: 14 },
-  { name: "Lâm Đồng", code: "LD", id: 26 },
-  { name: "Lạng Sơn", code: "LS", id: 11 },
-  { name: "Lào Cai", code: "LI", id: 9 },
-  { name: "Nghệ An", code: "NA", id: 17 },
-  { name: "Ninh Bình", code: "NB", id: 6 },
-  { name: "Phú Thọ", code: "PT", id: 12 },
-  { name: "Quảng Ngãi", code: "QI", id: 22 },
-  { name: "Quảng Ninh", code: "QH", id: 3 },
-  { name: "Quảng Trị", code: "QT", id: 19 },
-  { name: "Sơn La", code: "SL", id: 15 },
-  { name: "Tây Ninh", code: "TI", id: 27 },
-  { name: "Thái Nguyên", code: "TN", id: 10 },
-  { name: "Thanh Hóa", code: "TH", id: 16 },
-  { name: "Tuyên Quang", code: "TQ", id: 8 },
-  { name: "Vĩnh Long", code: "VL", id: 30 }
-];
+
 // Load Tỉnh/Huyện/Đại lý
 const wards = ref([]);
 const loadingWards = ref(false);
 const handleProvinceChange = async (val) => {
   formData.value.ward_id = null;
-  const selectedProvince = provinceData.find(p => p.id === val);
-  if (!selectedProvince) return;
+  if (!val) return;
 
   try {
     loadingWards.value = true;
@@ -711,26 +707,40 @@ const handleDelete = async () => {
 }
 
 .page {
-  padding: 24px;
+  padding: 16px 24px;
   background: var(--bg-body);
-  min-height: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
   color: var(--text-main);
   transition: background 0.2s ease;
+  overflow: hidden;
+  box-sizing: border-box;
 }
 
 .page-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 20px;
+  margin-bottom: 16px;
+  flex-shrink: 0;
 }
 
 .filter-section {
-  margin-bottom: 24px;
+  margin-bottom: 16px;
+  flex-shrink: 0;
 }
 
 .search-input {
   max-width: 400px;
+}
+
+.grid-wrapper {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
 }
 
 /* Cấu trúc Grid cho Card */
@@ -738,6 +748,9 @@ const handleDelete = async () => {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
   gap: 20px;
+  flex: 1;
+  overflow-y: auto;
+  padding-right: 4px; /* Space for scrollbar */
 }
 
 .agency-card {
@@ -794,6 +807,14 @@ const handleDelete = async () => {
 
 .flex-1 {
   flex: 1;
+}
+
+.pagination-footer {
+  margin-top: auto;
+  padding-top: 10px;
+  display: flex;
+  justify-content: center;
+  flex-shrink: 0;
 }
 
 .dialog-footer {

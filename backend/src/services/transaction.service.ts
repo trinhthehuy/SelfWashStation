@@ -5,13 +5,26 @@ import type { RequestScope } from '../middleware/auth.js';
 
 export class TransService {
     async getTransactions(params: any) {
-        const { page = 1, limit = 20, station_id, bay_id, bay_code, start_date, end_date, status, agencyId, scope } = params;
+        const { 
+            page = 1, 
+            limit = 20, 
+            station_id, 
+            bay_id, 
+            bay_code, 
+            start_date, 
+            end_date, 
+            status, 
+            agencyId, 
+            scope,
+            include_total = true
+        } = params;
         const offset = (page - 1) * limit;
+        const includeTotal = String(include_total) === 'true';
 
         const query = db('transactions as w')
             .leftJoin('stations as s', 'w.station_id', 's.id');
 
-        // LOG ĐỂ BIỮ CHÍNH XÁC GIÁ TRỊ NHẬN VÀO
+        // LOG ĐỂ BIẾT CHÍNH XÁC GIÁ TRỊ NHẬN VÀO
         console.log(">>> [Check Filter]:", { station_id, bay_id, bay_code, start_date, end_date });
 
         // Áp dụng scope bảo mật theo role
@@ -45,14 +58,25 @@ export class TransService {
         // IN CÂU SQL HOÀN CHỈNH ĐỂ COPY CHẠY THỬ TRONG DB
         console.log(">>> [FULL SQL]:", query.toString());
 
+        const dataPromise = query.clone()
+            .select('w.*', 's.station_name')
+            .orderBy('w.created_at', 'desc')
+            .limit(limit)
+            .offset(offset);
+
+        let totalPromise = null;
+        if (includeTotal) {
+            totalPromise = query.clone().count('w.id as total').first();
+        }
+
         const [data, countResult] = await Promise.all([
-            query.clone().select('w.*', 's.station_name').orderBy('w.created_at', 'desc').limit(limit).offset(offset),
-            query.clone().count('w.id as total').first()
+            dataPromise,
+            totalPromise
         ]);
 
         return {
             data: data || [],
-            total: Number(countResult?.total || 0),
+            ...(includeTotal ? { total: Number(countResult?.total || 0) } : {}),
             page: Number(page),
             limit: Number(limit)
         };

@@ -299,23 +299,38 @@ export class SystemAuthService {
     return sanitizeUser(user);
   }
 
-  static async listUsers() {
-    const users = await db<SystemUserRow>('system_users')
+  static async listUsers(params: { page?: number; limit?: number; includeTotal?: boolean } = {}) {
+    const page = Number(params.page) || 1;
+    const limit = Number(params.limit) || 20;
+    const offset = (page - 1) * limit;
+
+    const query = db<SystemUserRow>('system_users')
       .select('id', 'username', 'full_name', 'email', 'role', 'agency_id', 'is_active', 'last_login_at', 'created_at')
       .orderByRaw("FIELD(role, 'sa', 'engineer', 'agency')")
       .orderBy('id', 'asc');
 
-    return users.map((user) => ({
-      id: user.id,
-      username: user.username,
-      fullName: user.full_name,
-      email: user.email || null,
-      role: user.role,
-      agencyId: user.agency_id,
-      isActive: Boolean(user.is_active),
-      lastLoginAt: user.last_login_at || null,
-      createdAt: (user as any)!.created_at || null
-    }));
+    const users = await query.clone().limit(limit).offset(offset);
+
+    let total = undefined;
+    if (params.includeTotal) {
+      const countRes = await db('system_users').count('id as count').first();
+      total = Number(countRes?.count || 0);
+    }
+
+    return {
+      data: users.map((user) => ({
+        id: user.id,
+        username: user.username,
+        fullName: user.full_name,
+        email: user.email || null,
+        role: user.role,
+        agencyId: user.agency_id,
+        isActive: Boolean(user.is_active),
+        lastLoginAt: user.last_login_at || null,
+        createdAt: (user as any)!.created_at || null
+      })),
+      total
+    };
   }
 
   static async createUser(data: {

@@ -98,7 +98,7 @@
         <template #dropdown>
           <el-dropdown-menu>
             <el-dropdown-item @click="goToProfile">Hồ sơ cá nhân</el-dropdown-item>
-            <el-dropdown-item @click="goToSettings" v-if="authStore.hasAnyRole(['sa', 'engineer'])">Tài khoản hệ thống</el-dropdown-item>
+            <el-dropdown-item @click="goToAccounts" v-if="authStore.hasAnyRole(['sa', 'engineer'])">Tài khoản hệ thống</el-dropdown-item>
             <el-dropdown-item divided @click="logout">Đăng xuất</el-dropdown-item>
           </el-dropdown-menu>
         </template>
@@ -120,22 +120,20 @@ const router = useRouter()
 const route  = useRoute()
 // ─── Page breadcrumb ──────────────────────────────────────────────
 const PAGE_LABELS = {
-  'dashboard':           'Tổng quan',
-  'dai-ly':              'Đại lý',
-  'tram':                'Trạm rửa',
-  'Them_Sua_Xoa_Tram':   'Quản lý trạm',
-  'tai-khoan-ngan-hang': 'Tài khoản ngân hàng',
-  'phien-rua':           'Phiên rửa',
-  'doanh-thu':           'Doanh thu',
-  'canh-bao':            'Cảnh báo',
-  'gop-y':               'Góp ý',
-  'cau-hinh':            'Cấu hình',
-  'api-management':      'Quản lý API',
-  'system-test':         'Kiểm tra hệ thống',
-  'cai-dat':             'Cài đặt',
-  'nhat-ky':             'Nhật ký',
-  'ho-so':               'Hồ sơ',
-  'chien-luoc':          'Chiến lược',
+  'dashboard':       'Tổng quan',
+  'agency':          'Đại lý',
+  'station':         'Trạm rửa',
+  'station-detail':  'Quản lý trạm',
+  'bank-account':    'Tài khoản ngân hàng',
+  'wash-session':    'Phiên rửa',
+  'revenue':         'Doanh thu',
+  'notifications':   'Cảnh báo',
+  'feedback':        'Góp ý',
+  'configuration':   'Cấu hình hệ thống',
+  'accounts':        'Tài khoản hệ thống',
+  'audit-log':       'Nhật ký',
+  'profile':         'Hồ sơ',
+  'strategy':        'Chiến lược',
 }
 const pageLabel = computed(() => PAGE_LABELS[route.name] ?? String(route.name ?? 'Tổng quan'))
 // ─── Notification bell ───────────────────────────────────────────
@@ -176,7 +174,7 @@ const openNotification = async (item) => {
     return
   }
 
-  router.push('/canh-bao')
+  router.push('/notifications')
 }
 
 const formatNotifDate = (date) => {
@@ -190,7 +188,7 @@ const formatNotifDate = (date) => {
 }
 
 const goToNotifications = () => {
-  router.push('/canh-bao')
+  router.push('/notifications')
 }
 
 let pollInterval = null
@@ -235,11 +233,11 @@ const userInitials = computed(() => {
 })
 
 const goToProfile = () => {
-  router.push('/ho-so')
+  router.push('/profile')
 }
 
-const goToSettings = () => {
-  router.push('/cai-dat')
+const goToAccounts = () => {
+  router.push('/accounts')
 }
 
 const logout = () => {

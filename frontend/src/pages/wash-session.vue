@@ -75,96 +75,106 @@
       </el-form>
     </el-card>
 
-    <!-- Desktop table -->
-    <el-table v-if="!isMobile" :data="tableData" stripe style="width: 100%" v-loading="loading">
-      <el-table-column prop="id" label="ID" width="70" align="right" header-align="right" />
-      
-      <el-table-column label="Thời gian" width="180">
-        <template #default="scope">
-          <div style="display: flex; align-items: center">
-            <el-icon><Timer /></el-icon> <span style="margin-left: 8px">{{ formatTime(scope.row.created_at) }}</span>
-          </div>
-        </template>
-      </el-table-column>
-
-      <el-table-column label="Vị trí">
-        <template #default="scope">
-          <el-tag effect="plain">{{ scope.row.mqtt_topic }}</el-tag>
-          <span style="margin-left: 8px; font-weight: bold">
-            {{ scope.row.bay_code }}
-          </span>
-        </template>
-      </el-table-column>
-
-      <el-table-column label="Thông số">
-        <template #default="scope">
-          <div>Vận hành: <b>{{ scope.row.op }}s</b></div>
-          <div :style="{ fontSize: '12px', color: '#909399' }">
-            Bọt tuyết: {{ scope.row.foam }}s
-          </div>
-        </template>
-      </el-table-column>
-
-      <el-table-column label="Số tiền" align="right" header-align="right">
-        <template #default="scope">
-          <span style="color: #f56c6c; font-weight: bold">
-            {{ formatMoney(scope.row.amount) }}
-          </span>
-        </template>
-      </el-table-column>
-
-      <el-table-column label="Trạng thái" width="120">
-        <template #default="scope">
-          <el-tag :type="statusType(scope.row.status)">
-            {{ scope.row.status ? scope.row.status.toUpperCase() : 'N/A' }}
-          </el-tag>
-        </template>
-      </el-table-column>
-
-      <el-table-column label="Thao tác" width="80" align="center" v-if="isAdmin">
-        <template #default="scope">
-          <el-button type="danger" size="small" circle @click="handleDelete(scope.row)">
-            <el-icon><Delete /></el-icon>
-          </el-button>
-        </template>
-      </el-table-column>
-    </el-table>
-
-    <!-- Mobile card list -->
-    <div v-else class="mobile-card-list" v-loading="loading">
-      <div v-for="(row, idx) in tableData" :key="row.id" class="mobile-card">
-        <div class="mc-header">
-          <span class="mc-stt">{{ (currentPage - 1) * pageSize + idx + 1 }}</span>
-          <div class="mc-title">
-            <span class="mc-name">{{ row.bay_code }}</span>
-            <span class="mc-sub">{{ row.mqtt_topic }}</span>
-          </div>
-          <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 6px;">
-            <el-tag :type="statusType(row.status)" size="small">
-              {{ row.status ? row.status.toUpperCase() : 'N/A' }}
+    <div class="table-main">
+      <!-- Desktop table -->
+      <el-table 
+        v-if="!isMobile" 
+        ref="tableRef"
+        :data="tableData" 
+        stripe 
+        style="width: 100%" 
+        height="100%"
+        v-loading="loading"
+      >
+        <el-table-column prop="id" label="ID" width="70" align="right" header-align="right" />
+        
+        <el-table-column label="Thời gian" width="180">
+          <template #default="scope">
+            <div style="display: flex; align-items: center">
+              <el-icon><Timer /></el-icon> <span style="margin-left: 8px">{{ formatTime(scope.row.created_at) }}</span>
+            </div>
+          </template>
+        </el-table-column>
+  
+        <el-table-column label="Vị trí">
+          <template #default="scope">
+            <el-tag effect="plain">{{ scope.row.mqtt_topic }}</el-tag>
+            <span style="margin-left: 8px; font-weight: bold">
+              {{ scope.row.bay_code }}
+            </span>
+          </template>
+        </el-table-column>
+  
+        <el-table-column label="Thông số">
+          <template #default="scope">
+            <div>Vận hành: <b>{{ scope.row.op }}s</b></div>
+            <div :style="{ fontSize: '12px', color: '#909399' }">
+              Bọt tuyết: {{ scope.row.foam }}s
+            </div>
+          </template>
+        </el-table-column>
+  
+        <el-table-column label="Số tiền" align="right" header-align="right">
+          <template #default="scope">
+            <span style="color: #f56c6c; font-weight: bold">
+              {{ formatMoney(scope.row.amount) }}
+            </span>
+          </template>
+        </el-table-column>
+  
+        <el-table-column label="Trạng thái" width="120">
+          <template #default="scope">
+            <el-tag :type="statusType(scope.row.status)">
+              {{ scope.row.status ? scope.row.status.toUpperCase() : 'N/A' }}
             </el-tag>
-            <el-button v-if="isAdmin" type="danger" size="small" circle @click.stop="handleDelete(row)">
+          </template>
+        </el-table-column>
+  
+        <el-table-column label="Thao tác" width="80" align="center" v-if="isAdmin">
+          <template #default="scope">
+            <el-button type="danger" size="small" circle @click="handleDelete(scope.row)">
               <el-icon><Delete /></el-icon>
             </el-button>
+          </template>
+        </el-table-column>
+      </el-table>
+  
+      <!-- Mobile card list -->
+      <div v-else class="mobile-card-list" v-loading="loading">
+        <div v-for="(row, idx) in tableData" :key="row.id" class="mobile-card">
+          <div class="mc-header">
+            <span class="mc-stt">{{ (currentPage - 1) * pageSize + idx + 1 }}</span>
+            <div class="mc-title">
+              <span class="mc-name">{{ row.bay_code }}</span>
+              <span class="mc-sub">{{ row.mqtt_topic }}</span>
+            </div>
+            <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 6px;">
+              <el-tag :type="statusType(row.status)" size="small">
+                {{ row.status ? row.status.toUpperCase() : 'N/A' }}
+              </el-tag>
+              <el-button v-if="isAdmin" type="danger" size="small" circle @click.stop="handleDelete(row)">
+                <el-icon><Delete /></el-icon>
+              </el-button>
+            </div>
+          </div>
+          <div class="mc-amount">{{ formatMoney(row.amount) }}</div>
+          <div class="mc-stats">
+            <div class="mc-stat">
+              <span class="mcs-label">Thời gian</span>
+              <span class="mcs-val">{{ formatTime(row.created_at) }}</span>
+            </div>
+            <div class="mc-stat">
+              <span class="mcs-label">Vận hành</span>
+              <span class="mcs-val">{{ row.op }}s</span>
+            </div>
+            <div class="mc-stat">
+              <span class="mcs-label">Bọt tuyết</span>
+              <span class="mcs-val">{{ row.foam }}s</span>
+            </div>
           </div>
         </div>
-        <div class="mc-amount">{{ formatMoney(row.amount) }}</div>
-        <div class="mc-stats">
-          <div class="mc-stat">
-            <span class="mcs-label">Thời gian</span>
-            <span class="mcs-val">{{ formatTime(row.created_at) }}</span>
-          </div>
-          <div class="mc-stat">
-            <span class="mcs-label">Vận hành</span>
-            <span class="mcs-val">{{ row.op }}s</span>
-          </div>
-          <div class="mc-stat">
-            <span class="mcs-label">Bọt tuyết</span>
-            <span class="mcs-val">{{ row.foam }}s</span>
-          </div>
-        </div>
+        <div v-if="!loading && tableData.length === 0" class="mc-empty">Không có dữ liệu</div>
       </div>
-      <div v-if="!loading && tableData.length === 0" class="mc-empty">Không có dữ liệu</div>
     </div>
 
     <div class="pagination-container" style="margin-top: 16px; display: flex; justify-content: flex-end;">
@@ -172,9 +182,12 @@
         v-if="!isMobile"
         v-model:current-page="currentPage"
         v-model:page-size="pageSize"
+        :page-sizes="[10, 20, 50, 100]"
         :total="total"
-        layout="total, prev, pager, next"
-        @current-change="handleFilter"
+        layout="total, sizes, prev, pager, next"
+        @current-change="fetchData"
+        @size-change="handleFilter"
+        background
       />
       <el-pagination
         v-else
@@ -184,31 +197,33 @@
         layout="prev, pager, next"
         :pager-count="5"
         size="small"
-        @current-change="handleFilter"
+        @current-change="fetchData"
+        background
       />
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref, reactive, onMounted, onUnmounted, computed } from 'vue'
-import { watch } from 'vue'
+import { ref, reactive, onMounted, onUnmounted, computed, watch } from 'vue'
 import dayjs from 'dayjs'
 import { Timer, Delete } from '@element-plus/icons-vue'
+import { ElMessage, ElMessageBox } from 'element-plus'
+import { transactionApi } from '@/api/transaction'
+import { stationApi } from '@/api/station'
+import { bayApi } from '@/api/bay'
+import { authStore } from '@/stores/auth'
+import { useMetadataStore } from '@/stores/metadata'
 
 const isMobile = ref(window.innerWidth < 768)
 const _onResize = () => { isMobile.value = window.innerWidth < 768 }
 onMounted(() => window.addEventListener('resize', _onResize))
 onUnmounted(() => window.removeEventListener('resize', _onResize))
-import { ElMessage, ElMessageBox } from 'element-plus';
-import { transactionApi } from '@/api/transaction';
-import { stationApi } from '@/api/station';
-import { bayApi } from '@/api/bay';
-import { authStore } from '@/stores/auth';
 
 const isAdmin = computed(() => authStore.state.user?.role === 'sa');
 
 const loading = ref(false)
+const tableRef = ref(null)
 const tableData = ref([]); // Biến chứa dữ liệu phiên rửa để hiển thị trong Table
 const currentPage = ref(1)
 const pageSize = ref(20)
@@ -223,14 +238,14 @@ const filterForm = reactive({
   status: ''
 })
 
+
+const metadataStore = useMetadataStore();
+
 // Hàm gọi API lấy danh sách trạm
 const fetchStations = async () => {
   try {    
-    const response = await stationApi.getStations();
-    
-    if (response.data) {
-      stationOptions.value = response.data
-    }
+    await metadataStore.fetchAllStations()
+    stationOptions.value = metadataStore.allStations
   } catch (error) {
     console.error('Lỗi khi lấy danh sách trạm:', error)
     ElMessage.error('Không thể tải danh sách trạm')
@@ -293,17 +308,7 @@ const handleStationChange = async (stationId) => {
 }
 
 const handleFilter = () => {
-  loading.value = true
-  const params = {
-    page: currentPage.value,
-    station_id: filterForm.station,
-    bay_code: filterForm.bayCode,
-    // Nếu có chọn ngày thì format về dạng YYYY-MM-DD
-    start_date: filterForm.dateRange?.[0] ? dayjs(filterForm.dateRange[0]).format('YYYY-MM-DD') : null,
-    end_date: filterForm.dateRange?.[1] ? dayjs(filterForm.dateRange[1]).format('YYYY-MM-DD') : null,
-    status: filterForm.status
-  }
-  fetchData(params);
+  fetchData({ resetPage: true });
 }
 
 // Hàm Reset bộ lọc
@@ -313,11 +318,12 @@ const resetFilter = () => {
   bayOptions.value = []
   filterForm.timeRange = 30 // Reset về "30 ngày qua"
   filterForm.status = ''
-  currentPage.value = 1
-  fetchData()
+  fetchData({ resetPage: true })
 }
 
-const fetchData = async () => {
+const fetchData = async ({ resetPage = false } = {}) => {
+  if (resetPage) currentPage.value = 1
+  
   // 1. Kiểm tra logic điều kiện trước khi thực hiện bất kỳ thao tác nào
   const hasStation = !!filterForm.station;
   const isLongTimeRange = Number(filterForm.timeRange) > 90;
@@ -335,37 +341,45 @@ const fetchData = async () => {
     let endDate = dayjs().format('YYYY-MM-DD HH:mm:ss')
 
     if (filterForm.timeRange > 0) {
-      // Giữ nguyên logic trừ ngày của bạn
       startDate = dayjs()
         .subtract(filterForm.timeRange - 1, 'day')
         .startOf('day')
         .format('YYYY-MM-DD HH:mm:ss')
+    } else if (filterForm.dateRange?.length === 2) {
+      startDate = dayjs(filterForm.dateRange[0]).startOf('day').format('YYYY-MM-DD HH:mm:ss')
+      endDate = dayjs(filterForm.dateRange[1]).endOf('day').format('YYYY-MM-DD HH:mm:ss')
     }
 
     // 3. Xây dựng params
+    const shouldIncludeTotal = resetPage || total.value === 0
     const params = {
       page: currentPage.value,
       limit: pageSize.value,
-      // Nếu không có station_id, backend sẽ hiểu là lấy toàn bộ (khi timeRange = 1)
       station_id: filterForm.station || undefined,
       bay_code: filterForm.bayCode || undefined,
       start_date: startDate || undefined,
       end_date: endDate,
-      status: filterForm.status || undefined
+      status: filterForm.status || undefined,
+      include_total: shouldIncludeTotal
     }
 
     const response = await transactionApi.gettransactions(params);
     
     if (response && response.data) {
-      tableData.value = response.data.data
-      total.value = Number(response.data.total) || 0
+      const result = response.data
+      tableData.value = result.data || []
+      if (result.total !== undefined) {
+        total.value = Number(result.total) || 0
+      }
+      // Tự động cuộn bảng về đầu dòng
+      if (tableRef.value) {
+        tableRef.value.setScrollTop(0)
+      }
     }
   } catch (error) {
     console.error('Lỗi khi lấy dữ liệu:', error)
-    // Có thể reset tableData về rỗng nếu gọi lỗi
     tableData.value = []
-    total.value = 0
-} finally {
+  } finally {
     loading.value = false
   }
 }
@@ -411,19 +425,44 @@ watch([pageSize], () => {
 
 <style scoped>
 .wash-session-container {
-  padding: 20px;
+  padding: 12px 16px;
   background: var(--bg-body);
-  min-height: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
   color: var(--text-main);
   transition: background 0.2s ease;
+  overflow: hidden;
+  box-sizing: border-box;
 }
+
 .filter-card {
-  margin-bottom: 20px;
+  border-radius: 8px;
+  flex-shrink: 0;
 }
+:deep(.filter-card .el-card__body) { padding: 10px 16px; }
+
 .pagination-container {
-  margin-top: 20px;
+  margin-top: 8px;
   display: flex;
   justify-content: flex-end;
+  flex-shrink: 0;
+}
+
+.table-main {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.mobile-card-list {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  overflow-y: auto;
 }
 
 /* Desktop/Tablet: avoid over-compressed filter fields */

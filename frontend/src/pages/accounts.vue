@@ -1,20 +1,19 @@
 <template>
-  <div class="settings-page">
-    <el-card shadow="never" class="header-card">
-      <p class="section-kicker">Thiết lập</p>
-      <h2>Phân quyền tài khoản hệ thống</h2>
-      <p>Danh sách tài khoản được lấy trực tiếp từ backend và áp dụng theo phân quyền thực tế.</p>
+  <div class="accounts-page">
+    <el-card shadow="never" class="settings-hero">
+      <p class="page-title">Tài khoản hệ thống</p>
+      <p class="page-desc">Quản lý tài khoản và phân quyền hệ thống.</p>
     </el-card>
 
     <!-- Bảng danh sách tài khoản -->
-    <el-card shadow="never" class="table-card">
+    <el-card shadow="never" class="table-card user-list-card">
       <template #header>
         <div class="card-header">
           <span>Danh sách tài khoản hệ thống</span>
           <div class="header-actions">
             <el-input
               v-model="searchKeyword"
-              placeholder="Tìm kiếm tài khoản, email, họ tên..."
+              placeholder="Tìm kiếm..."
               clearable
               :prefix-icon="Search"
               class="search-input"
@@ -23,18 +22,24 @@
           </div>
         </div>
       </template>
-      <el-table :data="filteredUsers" stripe v-loading="loading">
-        <el-table-column prop="username" label="Tài khoản" min-width="160" />
-        <el-table-column prop="email" label="Email account" min-width="220">
+      <el-table 
+        ref="tableRef"
+        :data="filteredUsers" 
+        stripe 
+        v-loading="loading"
+        height="100%"
+      >
+        <el-table-column prop="username" label="Tài khoản" min-width="140" />
+        <el-table-column prop="email" label="Email" min-width="180">
           <template #default="{ row }">{{ row.email || '-' }}</template>
         </el-table-column>
-        <el-table-column prop="fullName" label="Họ tên" min-width="180" />
-        <el-table-column label="Vai trò" width="140">
+        <el-table-column prop="fullName" label="Họ tên" min-width="160" />
+        <el-table-column label="Vai trò" width="130">
           <template #default="{ row }">
-            <el-tag :type="roleTag(row.role)">{{ roleLabel(row.role) }}</el-tag>
+            <el-tag :type="roleTag(row.role)" size="small">{{ roleLabel(row.role) }}</el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="Liên kết" min-width="160">
+        <el-table-column label="Liên kết" min-width="150">
           <template #default="{ row }">
             <span v-if="row.role === 'agency'">{{ agencyById(row.agencyId)?.agency_name || `Đại lý #${row.agencyId}` }}</span>
             <span v-else-if="row.role === 'regional_manager' && row._scope">{{ row._scope.provinceIds?.length || 0 }} tỉnh</span>
@@ -42,46 +47,59 @@
             <span v-else>-</span>
           </template>
         </el-table-column>
-        <el-table-column label="Đăng nhập lần cuối" min-width="160">
-          <template #default="{ row }">{{ row.lastLoginAt ? formatDate(row.lastLoginAt) : 'Chưa đăng nhập' }}</template>
+        <el-table-column label="Đăng nhập cuối" min-width="140">
+          <template #default="{ row }">{{ row.lastLoginAt ? formatDate(row.lastLoginAt) : '-' }}</template>
         </el-table-column>
-        <el-table-column label="Trạng thái" width="120">
+        <el-table-column label="Trạng thái" width="100">
           <template #default="{ row }">
-            <el-tag :type="row.isActive ? 'success' : 'danger'">{{ row.isActive ? 'Hoạt động' : 'Khóa' }}</el-tag>
+            <el-tag :type="row.isActive ? 'success' : 'danger'" size="small">{{ row.isActive ? 'Bật' : 'Khóa' }}</el-tag>
           </template>
         </el-table-column>
-        <el-table-column v-if="isSa" label="Thao tác" width="190" fixed="right">
+        <el-table-column v-if="isSa" label="Thao tác" width="180" fixed="right" align="right">
           <template #default="{ row }">
             <el-button type="primary" link :icon="Edit" @click="handleEdit(row)">Sửa</el-button>
-            <el-button type="warning" link :icon="Key" @click="handleResetPwd(row)">Mật khẩu</el-button>
-            <el-button type="danger" link :icon="Delete" @click="handleDelete(row)" :disabled="row.username === 'sa' || row.id === currentUserId">Xóa</el-button>
+            <el-button type="warning" link :icon="Key" @click="handleResetPwd(row)"></el-button>
+            <el-button type="danger" link :icon="Delete" @click="handleDelete(row)" :disabled="row.username === 'sa' || row.id === currentUserId"></el-button>
           </template>
         </el-table-column>
       </el-table>
+
+      <div class="pagination-wrap" v-if="total > 0">
+        <el-pagination
+          v-model:current-page="page"
+          v-model:page-size="pageSize"
+          :total="total"
+          layout="total, prev, pager, next"
+          @current-change="handlePageChange"
+          size="small"
+        />
+      </div>
     </el-card>
 
     <!-- Đổi mật khẩu của chính mình -->
-    <el-card shadow="never" class="table-card">
-      <template #header><span>Đổi mật khẩu của tôi</span></template>
-      <el-form :model="pwdForm" label-position="top" class="pwd-form" ref="pwdFormRef">
-        <el-row :gutter="20">
-          <el-col :span="8">
+    <el-card shadow="never" class="table-card pwd-card">
+      <template #header><span style="font-size: 14px; font-weight: 600;">Đổi mật khẩu của tôi</span></template>
+      <el-form :model="pwdForm" label-position="top" class="pwd-form-inline" ref="pwdFormRef">
+        <el-row :gutter="15">
+          <el-col :span="6">
             <el-form-item label="Mật khẩu hiện tại" prop="current" :rules="[{ required: true, message: 'Bắt buộc' }]">
-              <el-input v-model="pwdForm.current" type="password" show-password placeholder="Nhập mật khẩu hiện tại" />
+              <el-input v-model="pwdForm.current" type="password" show-password placeholder="Mật khẩu cũ" size="small" />
             </el-form-item>
           </el-col>
-          <el-col :span="8">
+          <el-col :span="6">
             <el-form-item label="Mật khẩu mới" prop="newPwd" :rules="[{ required: true, min: 6, message: 'Tối thiểu 6 ký tự' }]">
-              <el-input v-model="pwdForm.newPwd" type="password" show-password placeholder="Tối thiểu 6 ký tự" />
+              <el-input v-model="pwdForm.newPwd" type="password" show-password placeholder="Mật khẩu mới" size="small" />
             </el-form-item>
           </el-col>
-          <el-col :span="8">
-            <el-form-item label="Xác nhận mật khẩu mới" prop="confirm" :rules="[{ required: true, message: 'Bắt buộc' }, { validator: validateConfirmPwd }]">
-              <el-input v-model="pwdForm.confirm" type="password" show-password placeholder="Nhập lại mật khẩu mới" />
+          <el-col :span="6">
+            <el-form-item label="Xác nhận lại" prop="confirm" :rules="[{ required: true, message: 'Bắt buộc' }, { validator: validateConfirmPwd }]">
+              <el-input v-model="pwdForm.confirm" type="password" show-password placeholder="Xác nhận lại" size="small" />
             </el-form-item>
+          </el-col>
+          <el-col :span="6" style="display: flex; align-items: flex-end; padding-bottom: 18px;">
+            <el-button type="primary" :loading="pwdLoading" @click="handleChangePwd" size="small">Đổi mật khẩu</el-button>
           </el-col>
         </el-row>
-        <el-button type="primary" :loading="pwdLoading" @click="handleChangePwd">Đổi mật khẩu</el-button>
       </el-form>
     </el-card>
 
@@ -89,55 +107,36 @@
     <el-dialog v-model="showModal" :title="isEdit ? 'Chỉnh sửa tài khoản' : 'Thêm tài khoản mới'" width="480px" destroy-on-close>
       <el-form :model="form" ref="formRef" label-position="top">
         <el-form-item label="Tên đăng nhập" prop="username" :rules="[{ required: true, message: 'Bắt buộc', trigger: 'blur' }]">
-          <el-input v-model="form.username" :disabled="isEdit" placeholder="vd: agency.hanoi" />
+          <el-input v-model="form.username" placeholder="Ví dụ: admin_station1" :disabled="isEdit" />
         </el-form-item>
         <el-form-item label="Họ tên" prop="fullName" :rules="[{ required: true, message: 'Bắt buộc', trigger: 'blur' }]">
-          <el-input v-model="form.fullName" placeholder="Tên hiển thị" />
+          <el-input v-model="form.fullName" placeholder="Nhập họ và tên" />
         </el-form-item>
-        <el-form-item
-          label="Email account"
-          prop="email"
-          :rules="[{ required: true, message: 'Bắt buộc', trigger: 'blur' }, { validator: validateEmailField, trigger: 'blur' }]"
-        >
-          <el-input
-            v-model="form.email"
-            placeholder="vd: user@company.com"
-          />
-        </el-form-item>
-        <el-form-item label="Vai trò" prop="role" :rules="[{ required: true, message: 'Bắt buộc', trigger: 'change' }]">
-          <el-select v-model="form.role" class="w-full" @change="onRoleChange">
-            <el-option value="sa" label="Quản trị hệ thống" />
-            <el-option value="engineer" label="Kỹ thuật viên" />
-            <el-option value="regional_manager" label="Quản lý vùng" />
-            <el-option value="station_supervisor" label="Giám sát trạm" />
-            <el-option value="agency" label="Đại lý" />
+        <el-form-item label="Vai trò" prop="role">
+          <el-select v-model="form.role" style="width:100%" @change="onRoleChange">
+            <el-option label="Quản trị hệ thống (SA)" value="sa" />
+            <el-option label="Kỹ thuật viên (Engineer)" value="engineer" />
+            <el-option label="Quản lý khu vực (RM)" value="regional_manager" />
+            <el-option label="Giám sát trạm (Supervisor)" value="station_supervisor" />
+            <el-option label="Chủ đại lý (Agency)" value="agency" />
           </el-select>
         </el-form-item>
-        <el-form-item v-if="form.role === 'agency'" label="Đại lý liên kết" prop="agencyId" :rules="[{ required: true, message: 'Vui lòng chọn đại lý', trigger: 'change' }]">
-          <el-select
-            v-model="form.agencyId"
-            filterable
-            :filter-method="filterAgencyOptions"
-            @change="onAgencyChange"
-            placeholder="Tìm theo ID, tên đại lý, CCCD, số điện thoại"
-            class="w-full"
-          >
-            <el-option v-for="a in filteredAgencies" :key="a.id" :label="a.agency_name" :value="a.id">
-              <div class="agency-dual">
-                <div class="agency-dual-name">{{ a.agency_name }}</div>
-                <div class="agency-dual-id">ID: {{ a.identity_number || 'N/A' }} · Email: {{ a.email || 'N/A' }}</div>
-              </div>
-            </el-option>
+        <el-form-item label="Email account" prop="email" :rules="[{ validator: validateEmailField, trigger: 'blur' }]">
+          <el-input v-model="form.email" placeholder="Nhập email tài khoản" />
+        </el-form-item>
+        <el-form-item v-if="form.role === 'agency'" label="Liên kết Đại lý" prop="agencyId" :rules="[{ required: true, message: 'Bắt buộc' }]">
+          <el-select v-model="form.agencyId" filterable remote :remote-method="filterAgencyOptions" placeholder="Tìm tên hoặc ID đại lý" style="width:100%" @change="onAgencyChange">
+            <el-option v-for="item in filteredAgencies" :key="item.id" :label="agencyDisplayLabel(item)" :value="item.id" />
           </el-select>
         </el-form-item>
-        <el-form-item v-if="form.role === 'regional_manager'" label="Tỉnh phụ trách">
-          <el-select v-model="form.provinceIds" multiple filterable collapse-tags collapse-tags-tooltip placeholder="Chọn tỉnh/thành phố" class="w-full" :loading="provinceLoading">
-            <el-option v-for="p in provinces" :key="p.id" :label="p.province_name" :value="p.id" />
+        <el-form-item v-if="form.role === 'regional_manager'" label="Quản lý Tỉnh" prop="provinceIds" :rules="[{ required: true, message: 'Bắt buộc' }]">
+          <el-select v-model="form.provinceIds" multiple collapse-tags collapse-tags-tooltip placeholder="Chọn các tỉnh quản lý" style="width:100%">
+            <el-option v-for="item in provinces" :key="item.id" :label="item.name" :value="item.id" />
           </el-select>
         </el-form-item>
-        <el-form-item v-if="form.role === 'station_supervisor'" label="Trạm phụ trách">
-          <el-select v-model="form.stationIds" multiple filterable collapse-tags collapse-tags-tooltip placeholder="Chọn trạm rửa xe" class="w-full" :loading="stationLoading">
-            <el-option v-for="s in allStations" :key="s.id" :label="s.station_name" :value="s.id" />
+        <el-form-item v-if="form.role === 'station_supervisor'" label="Giám sát Trạm" prop="stationIds" :rules="[{ required: true, message: 'Bắt buộc' }]">
+          <el-select v-model="form.stationIds" multiple collapse-tags collapse-tags-tooltip placeholder="Chọn các trạm giám sát" style="width:100%">
+            <el-option v-for="item in allStations" :key="item.id" :label="item.station_name" :value="item.id" />
           </el-select>
         </el-form-item>
         <el-form-item v-if="!isEdit" label="Mật khẩu" prop="password" :rules="[{ required: true, min: 6, message: 'Tối thiểu 6 ký tự', trigger: 'blur' }]">
@@ -155,7 +154,7 @@
 
     <!-- Modal đặt lại mật khẩu -->
     <el-dialog v-model="showResetPwd" title="Đặt lại mật khẩu" width="400px" destroy-on-close>
-      <p class="reset-hint">Đặt mật khẩu mới cho tài khoản <strong>{{ resetTarget?.username }}</strong></p>
+      <p style="margin: 0 0 16px; color: #909399;">Đặt mật khẩu mới cho tài khoản <strong>{{ resetTarget?.username }}</strong></p>
       <el-form :model="resetForm" :rules="resetRules" ref="resetFormRef" label-position="top">
         <el-form-item label="Mật khẩu mới" prop="newPassword">
           <el-input v-model="resetForm.newPassword" type="password" show-password placeholder="Tối thiểu 6 ký tự" />
@@ -177,23 +176,29 @@ import { onMounted, ref, computed, h } from 'vue'
 import { ElMessage } from 'element-plus'
 import { Plus, Edit, Delete, Key, Search } from '@element-plus/icons-vue'
 import { authApi } from '@/api/auth'
-import { agencyApi } from '@/api/agency'
-import { wardApi } from '@/api/ward'
-import { stationApi } from '@/api/station'
+import { useMetadataStore } from '@/stores/metadata'
 import { authStore } from '@/stores/auth'
 import { confirmPopup } from '@/utils/popup'
+
+const metadataStore = useMetadataStore()
 
 const loading = ref(false)
 const saving = ref(false)
 const searchKeyword = ref('')
 const pwdLoading = ref(false)
-const provinceLoading = ref(false)
-const stationLoading = ref(false)
 const users = ref([])
-const agencies = ref([])
+const total = ref(0)
+const page = ref(1)
+const pageSize = ref(10)
+const tableRef = ref(null)
+
+const agencies = computed(() => metadataStore.agencies)
+const provinces = computed(() => metadataStore.provinces)
+const allStations = computed(() => metadataStore.allStations)
+const provinceLoading = computed(() => metadataStore.provincesLoading)
+const stationLoading = computed(() => metadataStore.stationsLoading)
+
 const agencySearchKeyword = ref('')
-const provinces = ref([])
-const allStations = ref([])
 const showModal = ref(false)
 const isEdit = ref(false)
 const showResetPwd = ref(false)
@@ -206,6 +211,16 @@ const pwdFormRef = ref()
 const isSa = computed(() => authStore.hasAnyRole(['sa']))
 const currentUserId = computed(() => authStore.state.user?.id)
 
+const roleTag = (role) => {
+  const map = { sa: 'danger', engineer: 'warning', regional_manager: 'success', station_supervisor: 'info', agency: '' }
+  return map[role] || 'info'
+}
+
+const roleLabel = (role) => {
+  const map = { sa: 'SA', engineer: 'Kỹ thuật', regional_manager: 'Quản lý vùng', station_supervisor: 'Giám sát', agency: 'Đại lý' }
+  return map[role] || role
+}
+
 const form = ref({ username: '', fullName: '', email: '', role: 'agency', agencyId: null, provinceIds: [], stationIds: [], password: '', isActive: true })
 const resetForm = ref({ newPassword: '', confirm: '' })
 const pwdForm = ref({ current: '', newPwd: '', confirm: '' })
@@ -216,54 +231,34 @@ const validateConfirmPwd = (_rule, value, cb) => {
 }
 const validateEmailField = (_rule, value, cb) => {
   const email = String(value || '').trim().toLowerCase()
-
   if (!email) {
     cb(new Error('Email account là bắt buộc'))
     return
   }
-
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
     cb(new Error('Email không hợp lệ'))
     return
   }
-
   cb()
 }
 const validateResetConfirm = (_rule, value, cb) => {
   if (value !== resetForm.value.newPassword) cb(new Error('Mật khẩu nhập lại không khớp'))
   else cb()
 }
-
 const resetRules = {
-  newPassword: [{ required: true, min: 6, message: 'Tối thiểu 6 ký tự' }],
-  confirm: [{ required: true, message: 'Bắt buộc' }, { validator: validateResetConfirm }]
+  newPassword: [{ required: true, min: 6, message: 'Tối thiểu 6 ký tự', trigger: 'blur' }],
+  confirm: [{ required: true, message: 'Bắt buộc', trigger: 'blur' }, { validator: validateResetConfirm, trigger: 'blur' }]
 }
 
-const roleLabel = (role) => ({
-  sa: 'Quản trị hệ thống',
-  engineer: 'Kỹ thuật viên',
-  regional_manager: 'Quản lý vùng',
-  station_supervisor: 'Giám sát trạm',
-  agency: 'Đại lý'
-}[role] || role)
-const roleTag = (role) => ({
-  sa: 'danger',
-  engineer: 'warning',
-  regional_manager: 'primary',
-  station_supervisor: 'info',
-  agency: 'success'
-}[role] || '')
-
-const normalizeSearchValue = (value) => String(value || '').toLowerCase().trim()
-
+const normalizeSearchValue = (v) => String(v || '').toLowerCase().trim()
 const filteredUsers = computed(() => {
-  if (!searchKeyword.value) return users.value
-  const keyword = normalizeSearchValue(searchKeyword.value)
-  return users.value.filter(u => {
-    return normalizeSearchValue(u.username).includes(keyword) ||
-           normalizeSearchValue(u.email).includes(keyword) ||
-           normalizeSearchValue(u.fullName).includes(keyword)
-  })
+  const k = normalizeSearchValue(searchKeyword.value)
+  if (!k) return users.value
+  return users.value.filter(u => 
+    normalizeSearchValue(u.username).includes(k) || 
+    normalizeSearchValue(u.email).includes(k) || 
+    normalizeSearchValue(u.fullName).includes(k)
+  )
 })
 
 const agencyDisplayLabel = (agency) => `${agency?.agency_name || 'Không rõ'} - ID: ${agency?.identity_number || 'N/A'}`
@@ -278,12 +273,7 @@ const filterAgencyOptions = (query) => {
   agencySearchKeyword.value = normalizeSearchValue(query)
 }
 
-const agencyById = (id) => agencies.value.find((agency) => agency.id === id)
-
-const agencyName = (id) => {
-  const agency = agencies.value.find(a => a.id === id)
-  return agency ? agencyDisplayLabel(agency) : (id ? `Đại lý #${id}` : '-')
-}
+const agencyById = (id) => metadataStore.getAgencyById(id)
 
 const formatDate = (dateStr) => {
   if (!dateStr) return ''
@@ -293,8 +283,16 @@ const formatDate = (dateStr) => {
 const fetchUsers = async () => {
   loading.value = true
   try {
-    const res = await authApi.getUsers()
+    const res = await authApi.getUsers({ 
+      page: page.value, 
+      limit: pageSize.value,
+      include_total: 1 
+    })
     users.value = res.data.data || []
+    if (res.data.total !== undefined) {
+      total.value = res.data.total
+    }
+    if (tableRef.value) tableRef.value.setScrollTop(0)
   } catch {
     ElMessage.error('Không thể tải danh sách tài khoản')
   } finally {
@@ -302,47 +300,23 @@ const fetchUsers = async () => {
   }
 }
 
-const fetchAgencies = async () => {
-  try {
-    const res = await agencyApi.getAgencies()
-    agencies.value = res.data.data || []
-  } catch { /* silent */ }
+const handlePageChange = (p) => {
+  page.value = p
+  fetchUsers()
 }
 
-const fetchProvinces = async () => {
-  provinceLoading.value = true
-  try {
-    const res = await wardApi.getProvinces()
-    provinces.value = res.data.data || []
-  } catch { /* silent */ } finally {
-    provinceLoading.value = false
-  }
-}
-
-const fetchAllStations = async () => {
-  stationLoading.value = true
-  try {
-    const res = await stationApi.getStations()
-    allStations.value = res.data.data || []
-  } catch { /* silent */ } finally {
-    stationLoading.value = false
-  }
-}
+const fetchAgencies = () => metadataStore.fetchAgencies()
 
 const onRoleChange = () => {
   form.value.agencyId = null
   form.value.provinceIds = []
   form.value.stationIds = []
-  if (form.value.role === 'agency') {
-    form.value.email = ''
-  }
+  if (form.value.role === 'agency') form.value.email = ''
   formRef.value?.clearValidate(['email'])
 }
 
 const onAgencyChange = (agencyId) => {
-  if (form.value.role !== 'agency') {
-    return
-  }
+  if (form.value.role !== 'agency') return
   const agency = agencies.value.find((item) => item.id === agencyId)
   form.value.email = agency?.email || ''
   formRef.value?.validateField('email')
@@ -412,21 +386,14 @@ const handleSubmit = async () => {
 
 const handleDelete = async (row) => {
   const confirmed = await confirmPopup(
-    h('div', { class: 'delete-confirm-content' }, [
+    h('div', null, [
       h('p', null, `Xóa tài khoản "${row.username}"?`),
-      h('p', { class: 'delete-confirm-warning' }, 'Hành động này không thể hoàn tác.')
+      h('p', { style: 'color:red;font-size:12px' }, 'Hành động này không thể hoàn tác.')
     ]),
     'Xác nhận xóa',
-    {
-      type: 'warning',
-      confirmButtonText: 'Xóa',
-      cancelButtonText: 'Hủy',
-      customClass: 'delete-account-confirm'
-    }
+    { type: 'warning' }
   )
-  if (!confirmed) {
-    return
-  }
+  if (!confirmed) return
   try {
     await authApi.deleteUser(row.id)
     ElMessage.success('Đã xóa tài khoản')
@@ -476,82 +443,47 @@ const handleChangePwd = async () => {
 onMounted(() => {
   fetchUsers()
   fetchAgencies()
-  fetchProvinces()
-  fetchAllStations()
+  metadataStore.fetchProvinces()
+  metadataStore.fetchAllStations()
 })
 </script>
 
 <style scoped>
-.header-card,
-.table-card {
-  border-radius: 20px;
-}
-
-.header-card h2 {
-  margin: 0;
-  font-size: 28px;
-}
-
-.header-card p {
-  margin: 8px 0 0;
-  color: var(--text-muted);
-}
-
-.card-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.header-actions {
-  display: flex;
-  gap: 12px;
-  align-items: center;
-}
-
-.search-input {
-  width: 300px;
-}
-
-.pwd-form {
-  max-width: 900px;
-}
-
-.w-full {
-  width: 100%;
-}
-
-.reset-hint {
-  margin: 0 0 16px;
-  color: var(--text-muted);
-}
-
-.agency-dual {
+.accounts-page {
+  padding: 12px 16px;
+  background-color: var(--el-bg-color-page);
+  height: 100%;
   display: flex;
   flex-direction: column;
-  line-height: 1.2;
+  gap: 10px;
+  box-sizing: border-box;
+  overflow: hidden;
 }
+.settings-hero { border-radius: 8px; }
+:deep(.settings-hero .el-card__body) { padding: 8px 16px; }
+.page-title { margin: 0; font-size: 18px; font-weight: 600; color: var(--el-text-color-primary); }
+.page-desc { margin: 0; color: var(--el-text-color-secondary); font-size: 12px; }
 
-.agency-dual-name {
-  font-weight: 600;
+.user-list-card { 
+  flex: 1; 
+  min-height: 0; 
+  display: flex; 
+  flex-direction: column; 
 }
+:deep(.user-list-card .el-card__body) { 
+  flex: 1; 
+  min-height: 0; 
+  display: flex; 
+  flex-direction: column; 
+  padding: 10px;
+}
+.card-header { display: flex; justify-content: space-between; align-items: center; }
+.header-actions { display: flex; gap: 10px; align-items: center; }
+.search-input { width: 220px; }
+.pagination-wrap { margin-top: 8px; display: flex; justify-content: flex-end; flex-shrink: 0; }
 
-.agency-dual-id {
-  font-size: 12px;
-  color: var(--text-muted);
-}
-
-:global(.delete-account-confirm .el-message-box__message) {
-  line-height: 1.5;
-}
-
-:global(.delete-account-confirm .delete-confirm-content) {
-  display: grid;
-  gap: 4px;
-}
-
-:global(.delete-account-confirm .delete-confirm-warning) {
-  color: var(--el-color-danger);
-  font-weight: 500;
-}
+.pwd-card { border-radius: 8px; }
+:deep(.pwd-card .el-card__header) { padding: 8px 16px; }
+:deep(.pwd-card .el-card__body) { padding: 20px 16px 30px; }
+.pwd-form-inline .el-form-item { margin-bottom: 0; }
 </style>

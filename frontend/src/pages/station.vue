@@ -23,7 +23,7 @@
               @clear="handleProvinceClear"
               style="width: 150px"
             >
-              <el-option v-for="item in provinceData" :key="item.id" :label="item.name" :value="item.id" />
+              <el-option v-for="item in options.provinces" :key="item.id" :label="item.name" :value="item.id" />
             </el-select>
           </el-form-item>
 
@@ -77,6 +77,7 @@
           <el-form-item>
             <template v-if="isSelectionMode">
               <span class="selection-info" style="margin-right: 8px;">
+                <el-tag type="warning" size="small" style="margin-right:6px">{{ selectionAgencyName }}</el-tag>
                 <template v-if="selectedStations.length > 0">
                   Đã chọn <strong>{{ selectedStations.length }}</strong> trạm
                 </template>
@@ -93,7 +94,7 @@
               <el-button @click="exitSelectionMode">Hủy</el-button>
             </template>
             <template v-else>
-              <el-button :icon="MagicStick" @click="enterSelectionMode">
+              <el-button :icon="MagicStick" @click="openPickAgencyDialog">
                 Thay đổi chiến lược
               </el-button>
             </template>
@@ -103,155 +104,157 @@
     </el-card>
 
     <el-card shadow="never" class="table-card">
-      <!-- Desktop table -->
-      <el-table
-        v-if="!isMobile"
-        ref="tableRef"
-        :data="list" 
-        :row-key="(row) => row.id"
-        :class="{ 'selection-mode': isSelectionMode }"
-        v-loading="loading" 
-        style="width: 100%"
-        border
-        stripe
-        highlight-current-row
-        @selection-change="handleSelectionChange"
-      >
-        <el-table-column type="selection" width="48" align="center" class-name="selection-column" />
-        <el-table-column prop="id" label="ID" min-width="50" align="right" header-align="right" />
-        
-        <el-table-column label="Thông tin trạm" min-width="120">
-          <template #default="{ row }">
-            <div class="station-name">
-              <span class="station-name">{{ row.station_name }}</span>
-            </div>
-          </template>
-        </el-table-column>
-
-        <el-table-column label="Khu vực" min-width="200">
-          <template #default="{ row }">
-            <div class="font-bold">{{ row.province_name }}</div>
-            <div class="text-secondary">{{ row.ward_name }}</div>
-            <div class="text-secondary">{{ row.address }}</div>
-          </template>
-        </el-table-column>
-
-        <el-table-column prop="agency_name" label="Tên đại lý" min-width="100"  align="center"> </el-table-column>
-
-        <el-table-column label="Trạng thái" min-width="100"  max-width="120" align="center">
-          <template #default="{ row }">
-            <el-tag :type="row.is_active ? 'success' : 'danger'" effect="light">
-              {{ row.is_active ? 'Hoạt động' : 'Tạm dừng' }}
-            </el-tag>
-            <el-switch
-              v-model="row.is_active"
-              :active-value="1"
-              :inactive-value="0"
-              active-text=""
-              inactive-text=""
-              style="--el-switch-on-color: #67c23a; --el-switch-off-color: #f56c6c"
-              inline-prompt
-              @change="(val) => handleStationStatusChange(row, val)"
-            />
-          </template>
-        </el-table-column>
-
-        <el-table-column label="Tài khoản ngân hàng" min-width="150">
-          <template #default="{ row }">
-            <div class="bank-info">
-              <div class="font-bold">{{ row.bank_name }}</div>
-              <div>{{ row.account_number }}</div>
-              <div class="text-secondary">{{ row.account_name }}</div>
-            </div>
-          </template>
-        </el-table-column>
-
-        <el-table-column label="Chiến lược vận hành"  min-width="200">
-          <template #default="{ row }">
-            <div class="strategy-info">
-              <el-tooltip content="Số tiền mỗi đơn vị">
-                <el-tag size="small" type="info" class="mt-1">💰 {{ formatAmount(row.amount_per_unit) }} VNĐ</el-tag>
-              </el-tooltip>
-              <el-tooltip content="Thời gian vận hành">
-                <el-tag size="small" type="info" class="mt-1">⏱️ {{ row.op_per_unit }}s</el-tag>
-              </el-tooltip>
-              <el-tooltip content="Định lượng hóa chất">
-                <el-tag size="small" type="info" class="mt-1">🧪 {{ row.foam_per_unit }}ml</el-tag>
-              </el-tooltip>
-            </div>
-          </template>
-        </el-table-column>
-
-        <el-table-column label="Ngày tạo" min-width="100" align="center">
-          <template #default="{ row }">
-            {{ formatDate(row.created_at) }}
-          </template>
-        </el-table-column>
-
-        <el-table-column label="Thao tác" min-width="120" fixed="right" align="left">
-          <template #default="{ row }">
-            <div class="action-wrapper">
-              <el-button v-if="canManageStation" type="primary" link :icon="Edit" @click="handleEdit(row)">
-                Sửa
-              </el-button>
-              <el-button type="warning" link :icon="View" @click="handleViewBays(row)">
-                Chi tiết trụ
-              </el-button>
-            </div>
-          </template>
-        </el-table-column>
-      </el-table>
-
-      <!-- Mobile card list -->
-      <div v-else class="mobile-card-list" v-loading="loading">
-        <div v-for="row in list" :key="row.id" class="mobile-card">
-          <div class="mc-header">
-            <div class="mc-title">
-              <div v-if="isSelectionMode" class="mc-select">
-                <el-checkbox
-                  :model-value="isStationSelected(row.id)"
-                  @change="(checked) => toggleMobileStationSelection(row, checked)"
-                />
-                <span class="mc-select-label">Chọn trạm</span>
+      <div class="table-main">
+        <el-table
+          v-if="!isMobile"
+          ref="tableRef"
+          :data="list" 
+          :row-key="(row) => row.id"
+          :class="{ 'selection-mode': isSelectionMode }"
+          v-loading="loading" 
+          style="width: 100%"
+          height="100%"
+          border
+          stripe
+          highlight-current-row
+          @selection-change="handleSelectionChange"
+        >
+          <el-table-column type="selection" width="48" align="center" class-name="selection-column" />
+          <el-table-column prop="id" label="ID" min-width="50" align="right" header-align="right" />
+          
+          <el-table-column label="Thông tin trạm" min-width="120">
+            <template #default="{ row }">
+              <div class="station-name">
+                <span class="station-name">{{ row.station_name }}</span>
               </div>
-              <span class="mc-name">{{ row.station_name }}</span>
-              <span class="mc-sub">{{ row.province_name }} · {{ row.ward_name }}</span>
-              <span class="mc-sub" v-if="row.address">{{ row.address }}</span>
+            </template>
+          </el-table-column>
+
+          <el-table-column label="Khu vực" min-width="200">
+            <template #default="{ row }">
+              <div class="font-bold">{{ row.province_name }}</div>
+              <div class="text-secondary">{{ row.ward_name }}</div>
+              <div class="text-secondary">{{ row.address }}</div>
+            </template>
+          </el-table-column>
+
+          <el-table-column prop="agency_name" label="Tên đại lý" min-width="100"  align="center"> </el-table-column>
+
+          <el-table-column label="Trạng thái" min-width="100"  max-width="120" align="center">
+            <template #default="{ row }">
+              <el-tag :type="row.is_active ? 'success' : 'danger'" effect="light">
+                {{ row.is_active ? 'Hoạt động' : 'Tạm dừng' }}
+              </el-tag>
+              <el-switch
+                v-model="row.is_active"
+                :active-value="1"
+                :inactive-value="0"
+                active-text=""
+                inactive-text=""
+                style="--el-switch-on-color: #67c23a; --el-switch-off-color: #f56c6c"
+                inline-prompt
+                @change="(val) => handleStationStatusChange(row, val)"
+              />
+            </template>
+          </el-table-column>
+
+          <el-table-column label="Tài khoản ngân hàng" min-width="150">
+            <template #default="{ row }">
+              <div class="bank-info">
+                <div class="font-bold">{{ row.bank_name }}</div>
+                <div>{{ row.account_number }}</div>
+                <div class="text-secondary">{{ row.account_name }}</div>
+              </div>
+            </template>
+          </el-table-column>
+
+          <el-table-column label="Chiến lược vận hành"  min-width="200">
+            <template #default="{ row }">
+              <div class="strategy-info">
+                <el-tooltip content="Số tiền mỗi đơn vị">
+                  <el-tag size="small" type="info" class="mt-1">💰 {{ formatAmount(row.amount_per_unit) }} VNĐ</el-tag>
+                </el-tooltip>
+                <el-tooltip content="Thời gian vận hành">
+                  <el-tag size="small" type="info" class="mt-1">⏱️ {{ row.op_per_unit }}s</el-tag>
+                </el-tooltip>
+                <el-tooltip content="Định lượng hóa chất">
+                  <el-tag size="small" type="info" class="mt-1">🧪 {{ row.foam_per_unit }}ml</el-tag>
+                </el-tooltip>
+              </div>
+            </template>
+          </el-table-column>
+
+          <el-table-column label="Ngày tạo" min-width="100" align="center">
+            <template #default="{ row }">
+              {{ formatDate(row.created_at) }}
+            </template>
+          </el-table-column>
+
+          <el-table-column label="Thao tác" min-width="120" fixed="right" align="left">
+            <template #default="{ row }">
+              <div class="action-wrapper">
+                <el-button v-if="canManageStation" type="primary" link :icon="Edit" @click="handleEdit(row)">
+                  Sửa
+                </el-button>
+                <el-button type="warning" link :icon="View" @click="handleViewBays(row)">
+                  Chi tiết trụ
+                </el-button>
+              </div>
+            </template>
+          </el-table-column>
+        </el-table>
+
+        <!-- Mobile card list -->
+        <div v-else class="mobile-card-list" v-loading="loading">
+          <div v-for="row in list" :key="row.id" class="mobile-card">
+            <div class="mc-header">
+              <div class="mc-title">
+                <div v-if="isSelectionMode" class="mc-select">
+                  <el-checkbox
+                    :model-value="isStationSelected(row.id)"
+                    @change="(checked) => toggleMobileStationSelection(row, checked)"
+                  />
+                  <span class="mc-select-label">Chọn trạm</span>
+                </div>
+                <span class="mc-name">{{ row.station_name }}</span>
+                <span class="mc-sub">{{ row.province_name }} · {{ row.ward_name }}</span>
+                <span class="mc-sub" v-if="row.address">{{ row.address }}</span>
+              </div>
+              <el-tag :type="row.is_active ? 'success' : 'danger'" size="small" effect="light">
+                {{ row.is_active ? 'Hoạt động' : 'Tạm dừng' }}
+              </el-tag>
             </div>
-            <el-tag :type="row.is_active ? 'success' : 'danger'" size="small" effect="light">
-              {{ row.is_active ? 'Hoạt động' : 'Tạm dừng' }}
-            </el-tag>
-          </div>
 
-          <div class="mc-agency">{{ row.agency_name }}</div>
+            <div class="mc-agency">{{ row.agency_name }}</div>
 
-          <div class="mc-strategy">
-            <el-tag size="small" type="info">💰 {{ formatAmount(row.amount_per_unit) }} VNĐ</el-tag>
-            <el-tag size="small" type="info">⏱️ {{ row.op_per_unit }}s</el-tag>
-            <el-tag size="small" type="info">🧪 {{ row.foam_per_unit }}ml</el-tag>
-          </div>
+            <div class="mc-strategy">
+              <el-tag size="small" type="info">💰 {{ formatAmount(row.amount_per_unit) }} VNĐ</el-tag>
+              <el-tag size="small" type="info">⏱️ {{ row.op_per_unit }}s</el-tag>
+              <el-tag size="small" type="info">🧪 {{ row.foam_per_unit }}ml</el-tag>
+            </div>
 
-          <div class="mc-bank" v-if="row.bank_name">
-            <span class="mcs-label">Ngân hàng</span>
-            <span>{{ row.bank_name }} · {{ row.account_number }}</span>
-          </div>
+            <div class="mc-bank" v-if="row.bank_name">
+              <span class="mcs-label">Ngân hàng</span>
+              <span>{{ row.bank_name }} · {{ row.account_number }}</span>
+            </div>
 
-          <div class="mc-actions">
-            <el-switch
-              v-model="row.is_active"
-              :active-value="1"
-              :inactive-value="0"
-              style="--el-switch-on-color: #67c23a; --el-switch-off-color: #f56c6c"
-              inline-prompt
-              active-text="ON"
-              inactive-text="OFF"
-              @change="(val) => handleStationStatusChange(row, val)"
-            />
-            <el-button v-if="canManageStation" type="primary" size="small" plain :icon="Edit" @click="handleEdit(row)">Sửa</el-button>
-            <el-button type="warning" size="small" plain :icon="View" @click="handleViewBays(row)">Chi tiết trụ</el-button>
+            <div class="mc-actions">
+              <el-switch
+                v-model="row.is_active"
+                :active-value="1"
+                :inactive-value="0"
+                style="--el-switch-on-color: #67c23a; --el-switch-off-color: #f56c6c"
+                inline-prompt
+                active-text="ON"
+                inactive-text="OFF"
+                @change="(val) => handleStationStatusChange(row, val)"
+              />
+              <el-button v-if="canManageStation" type="primary" size="small" plain :icon="Edit" @click="handleEdit(row)">Sửa</el-button>
+              <el-button type="warning" size="small" plain :icon="View" @click="handleViewBays(row)">Chi tiết trụ</el-button>
+            </div>
           </div>
+          <div v-if="!loading && list.length === 0" class="mc-empty">Không có dữ liệu</div>
         </div>
-        <div v-if="!loading && list.length === 0" class="mc-empty">Không có dữ liệu</div>
       </div>
 
       <div class="pagination-wrapper">
@@ -309,15 +312,60 @@
       @refresh="handleStationSaved" 
     />
 
-    <!-- Dialog áp dụng chiến lược hàng loạt -->
+    <!-- Dialog bước 1: Chọn đại lý trước khi thay chiến lược -->
+    <el-dialog
+      v-model="pickAgencyDialogVisible"
+      title="Bước 1 — Chọn đại lý"
+      width="420px"
+      :close-on-click-modal="false"
+    >
+      <p style="margin-bottom:14px; color: var(--el-text-color-regular); font-size:13px;">
+        Chọn đại lý để lọc danh sách trạm và chiến lược tương ứng. Chỉ chiến lược thuộc đại lý đã chọn mới được áp dụng.
+      </p>
+      <el-select
+        v-model="selectionAgencyId"
+        placeholder="Chọn đại lý…"
+        filterable
+        :filter-method="handleSelectionAgencyFilter"
+        style="width: 100%"
+      >
+        <el-option
+          v-for="item in filteredSelectionAgencyOptions"
+          :key="item.id"
+          :label="item.agency_name"
+          :value="item.id"
+        >
+          <div class="agency-dual">
+            <div class="agency-dual-name">{{ item.agency_name }}</div>
+            <div class="agency-dual-id">ID: {{ item.identity_number || 'N/A' }}</div>
+          </div>
+        </el-option>
+      </el-select>
+      <template #footer>
+        <el-button @click="pickAgencyDialogVisible = false">Hủy</el-button>
+        <el-button type="primary" :disabled="!selectionAgencyId" @click="confirmPickAgency">
+          Tiếp tục
+        </el-button>
+      </template>
+    </el-dialog>
+
+    <!-- Dialog bước 2: Chọn chiến lược (đã lọc theo đại lý) -->
     <el-dialog
       v-model="assignStrategyDialogVisible"
-      title="Áp dụng chiến lược vận hành"
-      width="480px"
+      title="Bước 2 — Áp dụng chiến lược vận hành"
+      width="500px"
       :close-on-click-modal="false"
     >
       <div>
-        <p style="margin-bottom: 12px; color: var(--el-text-color-regular);">
+        <el-alert
+          type="info"
+          :closable="false"
+          style="margin-bottom:14px;"
+          :title="`Chiến lược thuộc đại lý: ${selectionAgencyName}`"
+          description="Chỉ những chiến lược của đại lý này mới được hiển thị để tránh áp dụng nhầm."
+          show-icon
+        />
+        <p style="margin-bottom: 10px; color: var(--el-text-color-regular); font-size:13px;">
           Áp dụng cho <strong>{{ selectedStations.length }}</strong> trạm đã chọn:
         </p>
         <div class="selected-stations-tags">
@@ -338,7 +386,11 @@
               v-model="selectedStrategyId"
               placeholder="Chọn chiến lược"
               style="width: 100%"
+              v-loading="loadingStrategies"
             >
+              <template v-if="strategies.length === 0 && !loadingStrategies">
+                <el-option disabled value="" label="Đại lý này chưa có chiến lược nào" />
+              </template>
               <el-option
                 v-for="s in strategies"
                 :key="s.id"
@@ -351,7 +403,7 @@
       </div>
       <template #footer>
         <el-button @click="assignStrategyDialogVisible = false">Hủy</el-button>
-        <el-button type="primary" :loading="loadingAssign" @click="confirmAssignStrategy">
+        <el-button type="primary" :loading="loadingAssign" :disabled="!selectedStrategyId" @click="confirmAssignStrategy">
           Áp dụng
         </el-button>
       </template>
@@ -370,11 +422,11 @@ import { Plus, Edit, Search, View, Delete, MagicStick } from "@element-plus/icon
 import { ElMessage } from 'element-plus';
 import { stationApi } from "@/api/station"; 
 import { strategyApi } from "@/api/strategy";
-import ThemSuaXoa from "./ThemSuaXoaTram.vue";
+import ThemSuaXoa from "./station-detail.vue";
 import { bayApi } from "@/api/bay";
-import provinceData from '../../provinces.json';
 import { wardApi } from "@/api/ward";
 import { agencyApi } from "@/api/agency";
+import { useMetadataStore } from '@/stores/metadata';
 import { authStore } from '@/stores/auth';
 import { confirmPopup } from '@/utils/popup'
 
@@ -396,9 +448,29 @@ const tableRef = ref(null);
 const selectedStations = ref([]);
 const isSelectionMode = ref(false);
 const assignStrategyDialogVisible = ref(false);
+const pickAgencyDialogVisible = ref(false);
 const selectedStrategyId = ref(null);
 const strategies = ref([]);
 const loadingAssign = ref(false);
+const loadingStrategies = ref(false);
+
+// Đại lý được chọn trong luồng thay chiến lược
+const selectionAgencyId = ref(null);
+const selectionAgencySearchKeyword = ref('');
+const selectionAgencyName = computed(() => {
+  if (!selectionAgencyId.value) return '';
+  return options.agencies.find(a => a.id === selectionAgencyId.value)?.agency_name || '';
+});
+const filteredSelectionAgencyOptions = computed(() => {
+  if (!selectionAgencySearchKeyword.value) return options.agencies;
+  return options.agencies.filter(a =>
+    String(a.search_text || '').includes(selectionAgencySearchKeyword.value)
+  );
+});
+const handleSelectionAgencyFilter = (query) => {
+  selectionAgencySearchKeyword.value = normalizeSearchValue(query);
+};
+
 let strategyLoadingPromise = null;
 const selectedStationIds = computed(() => new Set(selectedStations.value.map((s) => s.id)));
 
@@ -480,6 +552,13 @@ const fetchData = async ({ resetPage = false } = {}) => {
       pagination.limit = Number(payload?.limit ?? pagination.limit);
     }
     clearSelection();
+
+    // Tự động cuộn về đầu
+    if (!isMobile.value && tableRef.value) {
+      tableRef.value.setScrollTop(0);
+    } else if (isMobile.value) {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
   } catch (error) {
     console.error("Lỗi:", error);
     list.value = [];
@@ -583,12 +662,13 @@ const fetchWards = async (provinceId) => {
   }
 };
 
+const metadataStore = useMetadataStore()
+
 const fetchAgencies = async () => {
   selectLoading.agency = true;
   try {
-    const response = await agencyApi.getAgencies();
-    const data = response.data?.data || [];
-    options.agencies = data.map((agency) => ({
+    await metadataStore.fetchAgencies();
+    options.agencies = metadataStore.agencies.map((agency) => ({
       ...agency,
       search_text: normalizeSearchValue(`${agency.id || ''} ${agency.agency_name || ''} ${agency.identity_number || ''} ${agency.phone || ''}`)
     }));
@@ -596,6 +676,21 @@ const fetchAgencies = async () => {
     console.error("Lỗi khi lấy danh sách đại lý:", error);
   } finally {
     selectLoading.agency = false;
+  }
+};
+
+const fetchProvinces = async () => {
+  selectLoading.province = true;
+  try {
+    await metadataStore.fetchProvinces();
+    options.provinces = metadataStore.provinces.map((p) => ({
+      id: p.id,
+      name: p.province_name
+    }));
+  } catch (error) {
+    console.error("Lỗi khi lấy danh sách tỉnh:", error);
+  } finally {
+    selectLoading.province = false;
   }
 };
 
@@ -620,7 +715,8 @@ const fetchStations = async () => {
 onMounted(async () => {
   await Promise.all([
     fetchData(),
-    fetchAgencies()
+    fetchAgencies(),
+    fetchProvinces()
   ]);
 });
 
@@ -640,16 +736,63 @@ const handleSelectionChange = (selection) => {
   selectedStations.value = selection;
 };
 
-const enterSelectionMode = () => {
+// Mở dialog bước 1 - chọn đại lý (bỏ qua nếu user là agency vì đại lý đã fixed)
+const openPickAgencyDialog = () => {
+  const currentUser = authStore.state.user;
+  if (currentUser?.role === 'agency' && currentUser?.agencyId) {
+    // Agency user: tự động set đại lý, bỏ qua dialog chọn
+    selectionAgencyId.value = currentUser.agencyId;
+    selectionAgencySearchKeyword.value = '';
+    strategies.value = [];
+    confirmPickAgency();
+    return;
+  }
+  // SA/engineer: hiển thị dialog chọn đại lý
+  selectionAgencyId.value = null;
+  selectionAgencySearchKeyword.value = '';
+  strategies.value = [];
+  pickAgencyDialogVisible.value = true;
+};
+
+// Xác nhận chọn đại lý → vào selection mode với filter theo đại lý
+const confirmPickAgency = async () => {
+  if (!selectionAgencyId.value) return;
+  pickAgencyDialogVisible.value = false;
+
+  // Tự động filter table theo đại lý đã chọn
+  filterForm.agency_id = selectionAgencyId.value;
+  filterForm.station_id = null;
+  resetStationDropdown();
+  await fetchData({ resetPage: true });
+
+  // Vào selection mode và load chiến lược của đại lý này
   isSelectionMode.value = true;
-  if (strategies.value.length === 0) {
-    preloadStrategies();
+  await loadStrategiesForAgency(selectionAgencyId.value);
+};
+
+const loadStrategiesForAgency = async (agencyId) => {
+  loadingStrategies.value = true;
+  strategies.value = [];
+  strategyLoadingPromise = null;
+  try {
+    const response = await strategyApi.getStrategies(agencyId);
+    strategies.value = Array.isArray(response.data.data) ? response.data.data : [];
+  } catch {
+    ElMessage.error('Không thể tải danh sách chiến lược');
+  } finally {
+    loadingStrategies.value = false;
   }
 };
 
 const exitSelectionMode = () => {
   isSelectionMode.value = false;
+  selectionAgencyId.value = null;
+  strategies.value = [];
   clearSelection();
+  // Gỡ filter đại lý đã áp theo selection mode nếu người dùng hủy
+  filterForm.agency_id = null;
+  filterForm.station_id = null;
+  fetchData({ resetPage: true });
 };
 
 const clearSelection = () => {
@@ -668,34 +811,19 @@ const toggleMobileStationSelection = (station, checked) => {
     }
     return;
   }
-
   selectedStations.value = selectedStations.value.filter((s) => s.id !== station.id);
 };
 
-const preloadStrategies = async () => {
-  if (strategies.value.length > 0) return;
-  if (strategyLoadingPromise) return strategyLoadingPromise;
-
-  strategyLoadingPromise = (async () => {
-    try {
-      const response = await strategyApi.getStrategies();
-      strategies.value = Array.isArray(response.data.data) ? response.data.data : [];
-    } finally {
-      strategyLoadingPromise = null;
-    }
-  })();
-
-  return strategyLoadingPromise;
-};
-
-const openAssignStrategyDialog = async () => {
-  selectedStrategyId.value = null;
-  try {
-    await preloadStrategies();
-  } catch (error) {
-    ElMessage.error('Không thể tải danh sách chiến lược');
+const openAssignStrategyDialog = () => {
+  if (!selectionAgencyId.value) {
+    ElMessage.warning('Vui lòng chọn đại lý trước');
     return;
   }
+  if (selectedStations.value.length === 0) {
+    ElMessage.warning('Vui lòng chọn ít nhất một trạm');
+    return;
+  }
+  selectedStrategyId.value = null;
   assignStrategyDialogVisible.value = true;
 };
 
@@ -846,21 +974,52 @@ const handleDeleteBay = async (bay) => {
 </script>
 
 <style scoped>
-/* 1. Container & Layout */
+/* 1. Container & Layout - Optimized for Single Screen */
 .page-container {
-  padding: 24px;
-  background-color: var(--el-bg-color-page); /* Sử dụng màu nền trang tiêu chuẩn */
-  min-height: 100vh;
-}
-
-.header-card,
-.table-card {
-  border-radius: var(--el-border-radius-base);
-  border: 1px solid var(--el-border-color-light);
+  padding: 12px 16px;
+  background-color: var(--el-bg-color-page);
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  overflow: hidden;
+  box-sizing: border-box;
 }
 
 .header-card {
-  margin-bottom: 20px;
+  border-radius: 8px;
+  flex-shrink: 0;
+}
+:deep(.header-card .el-card__body) { padding: 10px 16px; }
+
+.table-card {
+  border-radius: 8px;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+:deep(.table-card .el-card__body) { 
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 10px;
+  overflow: hidden;
+}
+
+.table-main {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.pagination-wrapper {
+  margin-top: 8px;
+  display: flex;
+  justify-content: flex-end;
+  flex-shrink: 0;
 }
 
 /* 2. Header Content */
@@ -868,7 +1027,7 @@ const handleDeleteBay = async (bay) => {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 20px;
+  margin-bottom: 12px;
 }
 
 .header-actions {
@@ -1172,5 +1331,12 @@ const handleDeleteBay = async (bay) => {
   padding: 40px 0;
   color: var(--el-text-color-placeholder);
   font-size: 14px;
+}
+.mobile-card-list {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  overflow-y: auto;
 }
 </style>

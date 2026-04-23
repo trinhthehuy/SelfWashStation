@@ -72,12 +72,14 @@
     </el-card>
 
     <el-card shadow="never" class="table-card">
+      <div class="table-main">
         <!-- Desktop table -->
         <el-table
           v-if="!isMobile"
-          :data="filteredList" 
+          :data="visibleList" 
           v-loading="loading" 
           style="width: 100%"
+          height="100%"
           border
           stripe
           :header-cell-style="{ background: '#f5f7fa', color: '#606266' }"
@@ -91,7 +93,7 @@
               </div>
             </template>
           </el-table-column>
-
+  
           <el-table-column label="Tên chiến lược" min-width="180">
             <template #default="{ row }">
               <el-tag type="success" effect="light" class="bank-tag">
@@ -99,7 +101,7 @@
               </el-tag>
             </template>
           </el-table-column>
-
+  
           <el-table-column label="Thông số chiến lược"  min-width="200">
             <template #default="{ row }">
               <div class="strategy-info">
@@ -115,7 +117,7 @@
               </div>
             </template>
           </el-table-column>
-
+  
           <el-table-column label="Thao tác" width="120" fixed="right" align="center">
             <template #default="{ row }">
               <el-button 
@@ -129,10 +131,10 @@
             </template>
           </el-table-column>
         </el-table>
-
+  
         <!-- Mobile card list -->
         <div v-else class="mobile-card-list" v-loading="loading">
-          <div v-for="row in filteredList" :key="row.id" class="mobile-card">
+          <div v-for="row in visibleList" :key="row.id" class="mobile-card">
             <div class="mc-header">
               <div class="mc-title">
                 <span class="mc-name">{{ row.agency_name }}</span>
@@ -148,9 +150,22 @@
               Sửa chiến lược
             </el-button>
           </div>
-          <div v-if="!loading && filteredList.length === 0" class="mc-empty">Không có dữ liệu</div>
+          <div v-if="!loading && visibleList.length === 0" class="mc-empty">Không có dữ liệu</div>
+        </div>
+      </div>
+
+        <div class="pagination-footer" v-if="filteredList.length > pageSize">
+          <el-pagination
+            background
+            layout="total, prev, pager, next"
+            :total="filteredList.length"
+            :page-size="pageSize"
+            v-model:current-page="page"
+            @current-change="handlePageChange"
+          />
         </div>
     </el-card>
+
 
     <el-dialog  
       v-model="showModal" 
@@ -338,13 +353,16 @@ const agencyFilterOptions = computed(() => uniqueSortedBy((item) => item.agency_
 const strategyFilterOptions = computed(() => uniqueSortedBy((item) => item.strategy_name));
 const amountFilterOptions = computed(() => uniqueSortedBy((item) => Number(item.amount_per_unit) || 0));
 
+const page = ref(1);
+const pageSize = ref(15);
+
 const filteredList = computed(() => {
   const search = normalizeFilterValue(keyword.value);
   const agencyNameFilter = isSystemAdmin.value ? normalizeFilterValue(fieldFilters.agencyName) : '';
   const strategyNameFilter = isSystemAdmin.value ? normalizeFilterValue(fieldFilters.strategyName) : '';
   const amountPerUnitFilter = isSystemAdmin.value ? normalizeFilterValue(fieldFilters.amountPerUnit) : '';
 
-  return list.value.filter((item) => {
+  const filtered = list.value.filter((item) => {
     const matchesQuickSearch = !search || Object.values(item).some((val) => String(val).toLowerCase().includes(search));
     const matchesAgencyName = !agencyNameFilter || normalizeFilterValue(item.agency_name) === agencyNameFilter;
     const matchesStrategyName = !strategyNameFilter || normalizeFilterValue(item.strategy_name) === strategyNameFilter;
@@ -352,7 +370,20 @@ const filteredList = computed(() => {
 
     return matchesQuickSearch && matchesAgencyName && matchesStrategyName && matchesAmount;
   });
+  return filtered;
 });
+
+const visibleList = computed(() => {
+  const start = (page.value - 1) * pageSize.value;
+  const end = start + pageSize.value;
+  return filteredList.value.slice(start, end);
+});
+
+const handlePageChange = (p) => {
+  page.value = p;
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+};
+
 
 const resetFilters = () => {
   keyword.value = '';
@@ -521,23 +552,29 @@ onMounted(async () => {
 
 <style scoped>
 .page-container {
-  padding: 24px;
+  padding: 12px 16px;
   background: var(--bg-body);
-  min-height: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
   color: var(--text-main);
   transition: background 0.2s ease;
+  overflow: hidden;
+  box-sizing: border-box;
 }
 
 .header-card {
-  margin-bottom: 24px;
   border-radius: 8px;
+  flex-shrink: 0;
 }
+:deep(.header-card .el-card__body) { padding: 10px 16px; }
 
 .header-content {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 20px;
+  margin-bottom: 12px;
 }
 
 .page-title {
@@ -679,9 +716,39 @@ onMounted(async () => {
   font-size: 14px;
 }
 
-@media (max-width: 900px) {
-  .advanced-filter-row {
-    grid-template-columns: 1fr;
-  }
+.table-card {
+  border-radius: 8px;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+:deep(.table-card .el-card__body) { 
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 10px;
+  overflow: hidden;
+}
+
+.table-main {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+.pagination-footer {
+  margin-top: 8px;
+  display: flex;
+  justify-content: flex-end;
+  flex-shrink: 0;
+}
+.mobile-card-list {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  overflow-y: auto;
 }
 </style>

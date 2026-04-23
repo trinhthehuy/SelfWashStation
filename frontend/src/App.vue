@@ -24,8 +24,8 @@
 <script setup>
 import { computed } from 'vue'
 import { useRoute } from 'vue-router'
-import Sidebar from "./components/Sidebar.vue"
-import Header from "./components/Header.vue"
+import Sidebar from "./components/sidebar.vue"
+import Header from "./components/header.vue"
 import { layoutStore } from './stores/layout'
 
 const route = useRoute()
@@ -49,10 +49,11 @@ const showShell = computed(() => !route.meta.noShell)
 }
 
 .content {
-  padding: 10px;
   background: var(--bg-body);
   flex: 1;
-  overflow: auto;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
   transition: background 0.2s ease;
 }
 
@@ -72,11 +73,8 @@ const showShell = computed(() => !route.meta.noShell)
   }
 
   .content {
-    padding: 8px 10px 72px;
-    overflow-y: auto;
-    overflow-x: hidden;
-    -webkit-overflow-scrolling: touch;
-    scrollbar-width: none;
+    padding: 0 0 60px; /* Space for mobile bottom nav */
+    overflow: hidden;
   }
 
   .content::-webkit-scrollbar {
