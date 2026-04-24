@@ -19,10 +19,14 @@ export class WardController {
    */
   async getWards(req: Request, res: Response, next: NextFunction) {
     try {
-      // Lấy province_id từ query params
-      const { province_id } = req.query;    //province_id phải trùng với tên mà client gửi lên, nếu client gửi là provinceId thì phải là req.query.provinceId
+      // Lấy province_id, keyword, limit từ query params
+      const { province_id, keyword, limit } = req.query;
       // Gọi service xử lý logic
-      const wards = await wardService.getWardsByProvince(province_id as string);
+      const wards = await wardService.getWardsByProvince(
+        province_id as string,
+        keyword as string,
+        limit ? Number(limit) : undefined
+      );
       // Trả về dữ liệu dưới dạng object { data: [...] } để khớp với frontend của bạn
       res.json({
         success: true,

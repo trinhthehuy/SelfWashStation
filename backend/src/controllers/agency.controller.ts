@@ -47,13 +47,14 @@ export class AgencyController {
   async getAgencies(req: AuthRequest, res: Response, next: NextFunction) {
     try {
       // 1. Lấy các tham số lọc từ query string
-      const { ward_id, province_id } = req.query;
+      const { ward_id, province_id, keyword, limit } = req.query;
 
       // 2. Gọi service duy nhất với đối tượng filter
-      // Chúng ta ép kiểu (as) để phù hợp với định nghĩa tham số của Service
       const agencies = await agencyService.getAgencies({
         ward_id: ward_id as string,
-        province_id: province_id as string
+        province_id: province_id as string,
+        keyword: keyword as string,
+        limit: limit ? Number(limit) : 20
       }, getRequestScope(req));
 
       res.json({

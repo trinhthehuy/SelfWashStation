@@ -23,10 +23,10 @@ export class AgencyService {
    * Xử lý 3 trường hợp: Tất cả | Theo Tỉnh | Theo Xã
    */
   async getAgencies(
-    filters: { ward_id?: number | string; province_id?: number | string } = {},
+    filters: { ward_id?: number | string; province_id?: number | string; keyword?: string; limit?: number } = {},
     scope?: RequestScope | null
   ) {
-    const { ward_id, province_id } = filters;
+    const { ward_id, province_id, keyword, limit } = filters;
 
     // 1. Khởi tạo query với các Join cần thiết để lấy đầy đủ thông tin
     const query = db('agency as a')
@@ -60,6 +60,23 @@ export class AgencyService {
       } else if (province_id) {
         query.where('a.province_id', province_id);
       }
+    }
+
+    // 3. Lọc theo từ khóa (nếu có)
+    if (keyword && keyword.trim() !== '') {
+      const searchKey = `%${keyword.trim()}%`;
+      query.where(function() {
+        this.where('a.agency_name', 'like', searchKey)
+            .orWhere('a.identity_number', 'like', searchKey);
+      });
+    }
+    
+    // 4. Giới hạn số lượng (nếu có)
+    if (limit && limit > 0) {
+      query.limit(limit);
+    } else if (keyword && keyword.trim() !== '') {
+      // Nếu có search keyword mà không có limit, mặc định limit để tránh trả về quá nhiều
+      query.limit(20);
     }
 
     try {

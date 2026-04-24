@@ -1,5 +1,6 @@
 import db from '../db/index.js';
 import { mqttService } from './mqtt.service.js';
+import { aggregationService } from './aggregation.service.js';
 
 function normalizeText(value: string) {
   return String(value || '').toUpperCase().replace(/\s+/g, '');
@@ -231,6 +232,8 @@ export class BankTransferService {
       });
     } else {
       await db('transactions').insert(transactionPayload);
+      // Cập nhật summary ngay lập tức (Real-time)
+      await aggregationService.incrementSummary(transactionPayload);
     }
 
     await db('webhook_logs').insert({

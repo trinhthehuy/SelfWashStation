@@ -12,6 +12,7 @@
   /* Backgrounds */
   --bg-body:           #f0f2f5;
   --bg-card:           #ffffff;
+  --bg-card-rgb:       255, 255, 255;
   --bg-sidebar:        #ffffff;
   --bg-header:         #ffffff;
   --bg-surface:        #f4f6f9;
@@ -47,6 +48,7 @@
 [data-theme="dark"] {
   --bg-body:           #0a1120;
   --bg-card:           #13203a;
+  --bg-card-rgb:       19, 32, 58;
   --bg-sidebar:        #0d1829;
   --bg-header:         #0d1829;
   --bg-surface:        #1a2d48;

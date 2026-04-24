@@ -55,17 +55,25 @@ export class StationController {
    */
   async getStationsByFilters(req: AuthRequest, res: Response, next: NextFunction) {
   try {
-    // 1. Lấy thêm ward_id từ query string
-    const { province_id, ward_id, agency_id } = req.query;
+    // 1. Lấy thêm ward_id, keyword, limit từ query string
+    const { province_id, ward_id, agency_id, keyword, limit } = req.query;
     
     // 2. Ép kiểu sang số (number)
     const pId = province_id ? Number(province_id) : undefined;
-    const wId = ward_id ? Number(ward_id) : undefined; // Thêm biến wId
+    const wId = ward_id ? Number(ward_id) : undefined;
     const aId = agency_id ? Number(agency_id) : undefined;
+    const searchKeyword = keyword ? String(keyword) : undefined;
+    const limitNumber = limit ? Number(limit) : 20; // Mặc định 20 nếu dùng cho remote search
 
-    // 3. Gọi hàm service với thứ tự tham số mới: (provinceId, wardId, agencyId)
-    // Lưu ý: Bạn cần đảm bảo hàm getStationsByFilters trong stationService cũng đã được cập nhật nhận 3 tham số.
-    const stations = await stationService.getStationsByFilters(pId, wId, aId, getRequestScope(req));
+    // 3. Gọi hàm service với tham số mới
+    const stations = await stationService.getStationsByFilters(
+      pId, 
+      wId, 
+      aId, 
+      getRequestScope(req),
+      searchKeyword,
+      limitNumber
+    );
 
     // 4. Trả về kết quả
     res.json({

@@ -16,8 +16,8 @@ export const authApi = {
   getCurrentUser() {
     return apiClient.get('/auth/me')
   },
-  getUsers() {
-    return apiClient.get('/auth/users')
+  getUsers(params) {
+    return apiClient.get('/auth/users', { params })
   },
   createUser(data) {
     return apiClient.post('/auth/users', data)

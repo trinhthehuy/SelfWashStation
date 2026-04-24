@@ -31,10 +31,13 @@
       </div>
   </div>
 
-  <div v-if="loading" class="loading-wrap">
-    <span class="spinner"></span>
+  <!-- CHART AREA -->
+  <div class="chart-container">
+    <div v-if="loading" class="loading-overlay">
+      <span class="spinner"></span>
+    </div>
+    <v-chart ref="chartRef" class="chart" :option="option" autoresize />
   </div>
-  <v-chart v-else ref="chartRef" class="chart" :option="option" autoresize />
 
 </div>
 </template>
@@ -65,25 +68,17 @@ const isMobile = computed(() => windowWidth.value <= 768)
 
 function handleResize() {
   windowWidth.value = window.innerWidth
-  chartRef.value?.resize()
 }
 
-let ro = null
+const isMounted = ref(false)
 onMounted(async () => {
+  isMounted.value = true
   window.addEventListener('resize', handleResize)
   await nextTick()
-  const el = chartRef.value?.$el
-  if (el) {
-    ro = new ResizeObserver(() => {
-      windowWidth.value = window.innerWidth
-      chartRef.value?.resize()
-    })
-    ro.observe(el)
-  }
 })
 onUnmounted(() => {
+  isMounted.value = false
   window.removeEventListener('resize', handleResize)
-  ro?.disconnect()
 })
 
 /* ── STATE ── */
@@ -126,6 +121,7 @@ async function fetchData() {
     })
     const list = res.data?.data?.list || []
 
+    if (!isMounted.value) return
     // Dữ liệu đã được backend gộp theo mốc thời gian và sort tăng dần.
     const complete = list.slice(0, -1)
     revenueData.value = complete.map((row) => ({ x: row.Time, y: Number(row.revenue || 0) }))
@@ -408,12 +404,25 @@ const option = computed(() => {
   min-width: 0;
 }
 
-/* ── Loading ── */
-.loading-wrap {
+/* ── Chart & Loading ── */
+.chart-container {
   flex: 1;
+  min-height: 0;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+}
+
+.loading-overlay {
+  position: absolute;
+  inset: 0;
   display: flex;
   align-items: center;
   justify-content: center;
+  background: rgba(var(--bg-card-rgb, 30, 41, 59), 0.4);
+  backdrop-filter: blur(2px);
+  z-index: 5;
+  border-radius: 12px;
 }
 .spinner {
   display: block;

@@ -98,7 +98,14 @@ export class StationService {
     };
   }
 
-  async getStationsByFilters(provinceId?: number, wardId?: number, agencyId?: number, scope?: RequestScope | null) {
+  async getStationsByFilters(
+    provinceId?: number, 
+    wardId?: number, 
+    agencyId?: number, 
+    scope?: RequestScope | null,
+    keyword?: string,
+    limit?: number
+  ) {
     const query = db('stations as s')
       .select('s.id', 's.station_name')
       .orderBy('s.station_name', 'asc');
@@ -112,8 +119,13 @@ export class StationService {
     if (wardId) {
       query.where('s.ward_id', wardId);
     }
+    
+    // 3. Lọc theo từ khóa (nếu có)
+    if (keyword && keyword.trim() !== '') {
+      query.where('s.station_name', 'like', `%${keyword.trim()}%`);
+    }
 
-    // 3. Áp dụng scope bảo mật theo role
+    // 4. Áp dụng scope bảo mật theo role
     if (scope?.agencyId) {
       query.where('s.agency_id', scope.agencyId);
     } else if (scope?.provinceIds?.length) {
@@ -122,6 +134,11 @@ export class StationService {
       query.whereIn('s.id', scope.stationIds);
     } else if (agencyId) {
       query.where('s.agency_id', agencyId);
+    }
+    
+    // 5. Giới hạn số lượng (nếu có)
+    if (limit && limit > 0) {
+      query.limit(limit);
     }
 
     const stations = await query;

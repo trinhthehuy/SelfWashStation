@@ -83,11 +83,13 @@
             :disabled="['province','agency'].includes(filterForm.level)"
             filterable
             clearable
+            remote
+            :remote-method="remoteFetchWards"
             :loading="selectLoading.ward"
             @change="handleWardChange"
             @clear="handleWardChange(null)"
             class="desktop-filter-select"
-            placeholder="Chọn xã"
+            placeholder="Tìm xã..."
           >
             <el-option v-for="item in options.wards" :key="item.id" :label="item.name" :value="item.id" />
           </el-select>
@@ -100,14 +102,15 @@
             :disabled="['province','ward'].includes(filterForm.level) || isAgency"
             filterable
             clearable
-            :filter-method="handleAgencyFilter"
+            remote
+            :remote-method="remoteFetchAgencies"
             :loading="selectLoading.agency"
             @change="handleAgencyChange"
             @clear="handleAgencyChange(null)"
             class="desktop-filter-select"
-            placeholder="Chọn đại lý"
+            placeholder="Tìm đại lý..."
           >
-            <el-option v-for="item in filteredAgencyOptions" :key="item.id" :label="item.agency_name" :value="item.id">
+            <el-option v-for="item in options.agencies" :key="item.id" :label="item.agency_name" :value="item.id">
               <div class="agency-dual">
                 <div class="agency-dual-name">{{ item.agency_name }}</div>
                 <div class="agency-dual-id">ID: {{ item.identity_number || 'N/A' }}</div>
@@ -123,11 +126,13 @@
             :disabled="['province','ward','agency'].includes(filterForm.level)"
             filterable
             clearable
+            remote
+            :remote-method="remoteFetchStations"
             :loading="selectLoading.station"
             @change="handleStationChange"
             @clear="handleStationClear"
             class="desktop-filter-select"
-            placeholder="Chọn trạm"
+            placeholder="Tìm trạm..."
           >
             <el-option v-for="item in options.stations" :key="item.id" :label="item.name" :value="item.id" />
           </el-select>
@@ -174,8 +179,9 @@
             </button>
           </template>
           <el-select v-model="filterForm.ward_id" :disabled="['province','agency'].includes(filterForm.level)" filterable clearable
+            remote :remote-method="remoteFetchWards"
             :loading="selectLoading.ward" @change="handleWardChange" @clear="handleWardChange(null)"
-            style="width:100%" placeholder="Chọn xã">
+            style="width:100%" placeholder="Tìm xã...">
             <el-option v-for="item in options.wards" :key="item.id" :label="item.name" :value="item.id" />
           </el-select>
         </el-popover>
@@ -189,10 +195,10 @@
             </button>
           </template>
           <el-select v-model="filterForm.agency_id" :disabled="['province','ward'].includes(filterForm.level) || isAgency" filterable clearable
-            :filter-method="handleAgencyFilter"
+            remote :remote-method="remoteFetchAgencies"
             :loading="selectLoading.agency" @change="handleAgencyChange" @clear="handleAgencyChange(null)"
-            style="width:100%" placeholder="Chọn đại lý">
-            <el-option v-for="item in filteredAgencyOptions" :key="item.id" :label="item.agency_name" :value="item.id">
+            style="width:100%" placeholder="Tìm đại lý...">
+            <el-option v-for="item in options.agencies" :key="item.id" :label="item.agency_name" :value="item.id">
               <div class="agency-dual">
                 <div class="agency-dual-name">{{ item.agency_name }}</div>
                 <div class="agency-dual-id">ID: {{ item.identity_number || 'N/A' }}</div>
@@ -210,8 +216,9 @@
             </button>
           </template>
           <el-select v-model="filterForm.station_id" :disabled="['province','ward','agency'].includes(filterForm.level)" filterable clearable
+            remote :remote-method="remoteFetchStations"
             :loading="selectLoading.station" @change="handleStationChange" @clear="handleStationClear"
-            style="width:100%" placeholder="Chọn trạm">
+            style="width:100%" placeholder="Tìm trạm...">
             <el-option v-for="item in options.stations" :key="item.id" :label="item.name" :value="item.id" />
           </el-select>
         </el-popover>
@@ -507,14 +514,42 @@ const selectedAgencyName = computed(() =>
   filterForm.agency_id ? (options.agencies.find((a) => a.id === filterForm.agency_id)?.agency_name ?? null) : null
 )
 
-const normalizeSearchValue = (value) => String(value || '').toLowerCase().trim()
-const filteredAgencyOptions = computed(() => {
-  if (!agencySearchKeyword.value) return options.agencies
-  return options.agencies.filter((agency) => String(agency.searchText || '').includes(agencySearchKeyword.value))
+const lastSearch = reactive({
+  ward: '',
+  agency: '',
+  station: ''
 })
 
-const handleAgencyFilter = (query) => {
-  agencySearchKeyword.value = normalizeSearchValue(query)
+const normalizeSearchValue = (value) => String(value || '').toLowerCase().trim()
+
+let remoteWardTimer = null
+const remoteFetchWards = (query) => {
+  const q = normalizeSearchValue(query)
+  if (q === lastSearch.ward && options.wards.length > 0) return
+  if (remoteWardTimer) clearTimeout(remoteWardTimer)
+  remoteWardTimer = setTimeout(() => {
+    fetchWards(filterForm.province_id, q)
+  }, 300)
+}
+
+let remoteAgencyTimer = null
+const remoteFetchAgencies = (query) => {
+  const q = normalizeSearchValue(query)
+  if (q === lastSearch.agency && options.agencies.length > 0) return
+  if (remoteAgencyTimer) clearTimeout(remoteAgencyTimer)
+  remoteAgencyTimer = setTimeout(() => {
+    fetchAgencies(q)
+  }, 300)
+}
+
+let remoteStationTimer = null
+const remoteFetchStations = (query) => {
+  const q = normalizeSearchValue(query)
+  if (q === lastSearch.station && options.stations.length > 0) return
+  if (remoteStationTimer) clearTimeout(remoteStationTimer)
+  remoteStationTimer = setTimeout(() => {
+    fetchStations(filterForm.province_id, filterForm.ward_id, filterForm.agency_id, q)
+  }, 300)
 }
 
 const selectedStationName = computed(() =>
@@ -753,15 +788,17 @@ const toggleExpandedCard = (idx) => {
 
 const metadataStore = useMetadataStore()
 
-const fetchWards = async (provinceId) => {
+const fetchWards = async (provinceId, keyword = '') => {
+  const q = normalizeSearchValue(keyword)
   try {
     selectLoading.ward = true
-    const res = await wardApi.getWards(provinceId)
+    const res = await wardApi.getWards(provinceId, q)
     const data = res.data?.data || res.data || []
     options.wards = data.map((i) => ({
       id: i.id,
       name: i.ward_name
     }))
+    lastSearch.ward = q
   } catch (error) {
     console.error('Lỗi tải xã:', error)
     ElMessage.error('Lỗi tải thông tin xã / phường')
@@ -770,16 +807,21 @@ const fetchWards = async (provinceId) => {
   }
 }
 
-const fetchAgencies = async () => {
+const fetchAgencies = async (keyword = '') => {
+  const q = normalizeSearchValue(keyword)
   try {
     selectLoading.agency = true
-    await metadataStore.fetchAgencies()
-    options.agencies = metadataStore.agencies.map((i) => ({
+    const res = await agencyApi.getAgencies({
+      keyword: q,
+      limit: 20
+    })
+    const data = res.data?.data || res.data || []
+    options.agencies = data.map((i) => ({
       id: i.id,
       agency_name: i.agency_name,
-      identity_number: i.identity_number,
-      searchText: normalizeSearchValue(`${i.id || ''} ${i.agency_name || ''} ${i.identity_number || ''} ${i.phone || ''}`)
+      identity_number: i.identity_number
     }))
+    lastSearch.agency = q
   } catch (error) {
     console.error('Lỗi tải đại lý:', error)
     ElMessage.error('Lỗi tải thông tin đại lý')
@@ -803,13 +845,16 @@ const fetchProvinces = async () => {
   }
 }
 
-const fetchStations = async (provinceId, wardId, agencyId) => {
+const fetchStations = async (provinceId, wardId, agencyId, keyword = '') => {
+  const q = normalizeSearchValue(keyword)
   try {
     selectLoading.station = true
     const res = await stationApi.getFilterStations({
       province_id: provinceId,
       ward_id: wardId,
-      agency_id: agencyId
+      agency_id: agencyId,
+      keyword: q,
+      limit: 20
     })
 
     const data = res.data?.data || []
@@ -817,6 +862,7 @@ const fetchStations = async (provinceId, wardId, agencyId) => {
       id: i.id,
       name: i.station_name
     }))
+    lastSearch.station = q
   } catch (error) {
     console.error('Lỗi tải trạm:', error)
   } finally {

@@ -13,14 +13,10 @@ export class AggregationService {
         try {
             console.log(`>>> [Aggregation]: Bắt đầu tổng hợp dữ liệu cho ngày ${today}`);
 
-            // 1. Truy vấn dữ liệu tổng hợp từ bảng transactions
-            // Chỉ lấy các giao dịch có trạng thái 'processed'
-            // Tối ưu: dùng tran_date (generated column, có index) thay DATE(created_at)
-            // để MySQL dùng được Index Seek thay vì Full Table Scan
-
             const summaryData = await db('transactions')
                 .select(
                     db.raw('tran_date as summary_date'),
+                    db.raw('HOUR(COALESCE(transaction_time, created_at)) as hour'),
                     'station_id',
                     'bay_code'
                 )
@@ -28,19 +24,70 @@ export class AggregationService {
                 .count('id as total_transactions')
                 .sum('op as total_op_time')
                 .sum('foam as total_foam_time')
-                // Dùng tran_date (generated+indexed) thay DATE() function
                 .where('tran_date', today)
                 .where('status', 'processed')
-                .groupBy('tran_date', 'station_id', 'bay_code');
+                .groupBy('tran_date', 'hour', 'station_id', 'bay_code');
 
             if (!summaryData || summaryData.length === 0) {
                 console.log(`>>> [Aggregation]: Không có giao dịch nào để tổng hợp trong ngày ${today}`);
                 return { success: true, count: 0 };
             }
 
-            // 2. Thực hiện Upsert vào bảng daily_bay_summary
-            // Sử dụng Promise.all để tối ưu hiệu suất nếu có nhiều trụ/trạm
+            // Thực hiện Upsert vào bảng hourly_bay_summary
             await Promise.all(summaryData.map(row => {
+                return db('hourly_bay_summary')
+                    .insert({
+                        summary_date: row.summary_date,
+                        hour: row.hour,
+                        station_id: row.station_id,
+                        bay_code: row.bay_code || 'N/A',
+                        total_amount: row.total_amount || 0,
+                        total_transactions: Number(row.total_transactions || 0),
+                        total_op_time: row.total_op_time || 0,
+                        total_foam_time: row.total_foam_time || 0,
+                        last_updated_at: db.fn.now()
+                    })
+                    .onConflict(['summary_date', 'hour', 'station_id', 'bay_code'])
+                    .merge();
+            }));
+
+            console.log(`>>> [Aggregation]: Hoàn thành tổng hợp ${summaryData.length} bản ghi vào hourly_bay_summary.`);
+            
+            return {
+                success: true,
+                count: summaryData.length,
+                date: today
+            };
+
+        } catch (error) {
+            console.error(">>> [Aggregation Error]:", error);
+            throw error;
+        }
+    }
+
+    /**
+     * Tổng hợp dữ liệu từ hourly_bay_summary sang daily_bay_summary
+     */
+    async aggregateDailyData() {
+        const today = dayjs().format('YYYY-MM-DD');
+        try {
+            console.log(`>>> [Aggregation]: Bắt đầu tổng hợp dữ liệu Daily cho ngày ${today}`);
+
+            const hourlyData = await db('hourly_bay_summary')
+                .select('summary_date', 'station_id', 'bay_code')
+                .sum('total_amount as total_amount')
+                .sum('total_transactions as total_transactions')
+                .sum('total_op_time as total_op_time')
+                .sum('total_foam_time as total_foam_time')
+                .where('summary_date', today)
+                .groupBy('summary_date', 'station_id', 'bay_code');
+
+            if (!hourlyData || hourlyData.length === 0) {
+                console.log(`>>> [Aggregation]: Không có dữ liệu hourly để tổng hợp Daily.`);
+                return { success: true, count: 0 };
+            }
+
+            await Promise.all(hourlyData.map(row => {
                 return db('daily_bay_summary')
                     .insert({
                         summary_date: row.summary_date,
@@ -56,16 +103,10 @@ export class AggregationService {
                     .merge();
             }));
 
-            console.log(`>>> [Aggregation]: Hoàn thành tổng hợp ${summaryData.length} bản ghi.`);
-            
-            return {
-                success: true,
-                count: summaryData.length,
-                date: today
-            };
-
+            console.log(`>>> [Aggregation]: Hoàn thành tổng hợp ${hourlyData.length} bản ghi vào daily_bay_summary.`);
+            return { success: true, count: hourlyData.length };
         } catch (error) {
-            console.error(">>> [Aggregation Error]:", error);
+            console.error(">>> [Aggregation Daily Error]:", error);
             throw error;
         }
     }
@@ -74,11 +115,10 @@ export class AggregationService {
         try {
             console.log(`>>> [Sync]: Bắt đầu quét dữ liệu từ ${startDate} đến ${endDate}`);
 
-            // 1. Lấy dữ liệu tổng hợp theo từng ngày trong khoảng thời gian
-            // Tối ưu: dùng tran_date (generated column, có index) thay DATE(created_at)
             const historyData = await db('transactions')
                 .select(
                     db.raw('tran_date as summary_date'),
+                    db.raw('HOUR(COALESCE(transaction_time, created_at)) as hour'),
                     'station_id',
                     'bay_code'
                 )
@@ -86,20 +126,47 @@ export class AggregationService {
                 .count('id as total_transactions')
                 .sum('op as total_op_time')
                 .sum('foam as total_foam_time')
-                // tran_date có index → MySQL dùng Index Range Scan
                 .whereBetween('tran_date', [startDate, endDate])
                 .where('status', 'processed')
-                .groupBy('tran_date', 'station_id', 'bay_code');
+                .groupBy('tran_date', 'hour', 'station_id', 'bay_code');
 
             if (!historyData || historyData.length === 0) {
                 console.log(">>> [Sync]: Không tìm thấy dữ liệu cũ.");
                 return;
             }
 
-            // 2. Insert/Update vào bảng summary
-            for (const row of historyData) {
+            // Tối ưu: Dùng Batch Insert với onConflict
+            // Knex hỗ trợ truyền mảng vào insert
+            await db('hourly_bay_summary')
+                .insert(historyData.map(row => ({
+                    summary_date: row.summary_date,
+                    hour: row.hour,
+                    station_id: row.station_id,
+                    bay_code: row.bay_code || 'N/A',
+                    total_amount: row.total_amount || 0,
+                    total_transactions: Number(row.total_transactions || 0),
+                    total_op_time: row.total_op_time || 0,
+                    total_foam_time: row.total_foam_time || 0,
+                    last_updated_at: db.fn.now()
+                })))
+                .onConflict(['summary_date', 'hour', 'station_id', 'bay_code'])
+                .merge();
+
+            console.log(`>>> [Sync]: Đã đồng bộ xong ${historyData.length} bản ghi vào Hourly.`);
+
+            // Đồng bộ luôn sang Daily
+            const dailyHistory = await db('hourly_bay_summary')
+                .select('summary_date', 'station_id', 'bay_code')
+                .sum('total_amount as total_amount')
+                .sum('total_transactions as total_transactions')
+                .sum('total_op_time as total_op_time')
+                .sum('total_foam_time as total_foam_time')
+                .whereBetween('summary_date', [startDate, endDate])
+                .groupBy('summary_date', 'station_id', 'bay_code');
+
+            if (dailyHistory.length > 0) {
                 await db('daily_bay_summary')
-                    .insert({
+                    .insert(dailyHistory.map(row => ({
                         summary_date: row.summary_date,
                         station_id: row.station_id,
                         bay_code: row.bay_code,
@@ -108,12 +175,11 @@ export class AggregationService {
                         total_op_time: row.total_op_time || 0,
                         total_foam_time: row.total_foam_time || 0,
                         last_updated_at: db.fn.now()
-                    })
+                    })))
                     .onConflict(['summary_date', 'station_id', 'bay_code'])
                     .merge();
+                console.log(`>>> [Sync]: Đã đồng bộ xong ${dailyHistory.length} bản ghi vào Daily.`);
             }
-
-            console.log(`>>> [Sync]: Đã đồng bộ xong ${historyData.length} dòng dữ liệu lịch sử.`);
         } catch (error) {
             console.error(">>> [Sync Error]:", error);
         }
@@ -123,8 +189,6 @@ export class AggregationService {
         try {
             console.log(">>> [Auto-Sync]: Bắt đầu kiểm tra toàn diện dữ liệu...");
 
-            // 1. Lấy tất cả các ngày thực tế ĐANG CÓ giao dịch trong bảng transactions
-            // Tối ưu: dùng tran_date (generated column, có index) thay DATE(created_at)
             const distinctDaysInTrans = await db('transactions')
                 .distinct(db.raw('tran_date as date'))
                 .where('status', 'processed')
@@ -135,12 +199,10 @@ export class AggregationService {
                 return;
             }
 
-            // 2. Lấy tất cả các ngày ĐÃ ĐƯỢC tổng hợp trong bảng summary
-            const existingDaysInSummary = await db('daily_bay_summary')
+            const existingDaysInSummary = await db('hourly_bay_summary')
                 .distinct('summary_date')
                 .then(rows => rows.map(r => dayjs(r.summary_date).format('YYYY-MM-DD')));
 
-            // 3. Tìm các ngày có giao dịch nhưng chưa có trong summary (hoặc ngày hôm nay để cập nhật mới nhất)
             const today = dayjs().format('YYYY-MM-DD');
             const missingDays = distinctDaysInTrans
                 .map(r => dayjs(r.date).format('YYYY-MM-DD'))
@@ -148,18 +210,16 @@ export class AggregationService {
 
             if (missingDays.length > 0) {
                 console.log(`>>> [Auto-Sync]: Phát hiện ${missingDays.length} ngày cần đồng bộ:`, missingDays);
-
-                // 4. Chạy bù cho từng ngày còn thiếu
-                // Sử dụng for...of để tránh quá tải database nếu số lượng ngày thiếu quá lớn
                 for (const date of missingDays) {
-                    console.log(`>>> [Auto-Sync]: Đang xử lý ngày ${date}...`);
                     await this.syncHistoryData(date, date); 
                 }
-                
                 console.log(">>> [Auto-Sync]: Hoàn thành đồng bộ tất cả các ngày thiếu.");
             } else {
-                console.log(">>> [Auto-Sync]: Dữ liệu đã đầy đủ, không có ngày nào bị thiếu.");
+                console.log(">>> [Auto-Sync]: Dữ liệu đã đầy đủ.");
             }
+
+            // Đảm bảo daily_bay_summary luôn được cập nhật từ hourly_bay_summary cho hôm nay
+            await this.aggregateDailyData();
         } catch (error) {
             console.error(">>> [Auto-Sync Error]:", error);
         }
@@ -169,19 +229,14 @@ export class AggregationService {
         try {
             console.log(`>>> [Rebuild]: BẮT ĐẦU LÀM SẠCH VÀ TÍNH TOÁN LẠI TOÀN BỘ...`);
 
-            // 1. Xóa toàn bộ dữ liệu cũ
-            await db('daily_bay_summary').truncate();
-            console.log(">>> [Rebuild]: Đã xóa sạch bảng daily_bay_summary.");
+            await db('hourly_bay_summary').truncate();
 
-            // 2. Định nghĩa câu lệnh SQL thuần
-            // Chú ý: Group by phải có đầy đủ 3 thành phần: Ngày, Trạm, Cầu
-            // Tối ưu: dùng tran_date (generated column, có index) thay DATE(created_at)
-            // → MySQL dùng Index Scan trên tran_date thay vì Full Table Scan
             const fullSql = `
-                INSERT INTO daily_bay_summary 
-                (summary_date, station_id, bay_code, total_amount, total_transactions, total_op_time, total_foam_time, last_updated_at)
+                INSERT INTO hourly_bay_summary 
+                (summary_date, hour, station_id, bay_code, total_amount, total_transactions, total_op_time, total_foam_time, last_updated_at)
                 SELECT 
                     tran_date as summary_date, 
+                    HOUR(COALESCE(transaction_time, created_at)) as hour,
                     station_id, 
                     bay_code, 
                     SUM(amount) as total_amount, 
@@ -191,16 +246,95 @@ export class AggregationService {
                     NOW() as last_updated_at 
                 FROM transactions 
                 WHERE status = 'processed' 
-                GROUP BY tran_date, station_id, bay_code
+                GROUP BY tran_date, hour, station_id, bay_code
             `;
 
-            // 3. Thực thi
             await db.raw(fullSql);
+            console.log(`>>> [Rebuild]: Hoàn tất tính toán lại toàn bộ dữ liệu Hourly.`);
 
-            console.log(`>>> [Rebuild]: Hoàn tất tính toán lại toàn bộ dữ liệu thành công!`);
+            // Rebuild Daily từ Hourly
+            await db('daily_bay_summary').truncate();
+            const dailySql = `
+                INSERT INTO daily_bay_summary 
+                (summary_date, station_id, bay_code, total_amount, total_transactions, total_op_time, total_foam_time, last_updated_at)
+                SELECT 
+                    summary_date, 
+                    station_id, 
+                    bay_code, 
+                    SUM(total_amount) as total_amount, 
+                    SUM(total_transactions) as total_transactions, 
+                    SUM(total_op_time) as total_op_time, 
+                    SUM(total_foam_time) as total_foam_time, 
+                    NOW() as last_updated_at 
+                FROM hourly_bay_summary 
+                GROUP BY summary_date, station_id, bay_code
+            `;
+            await db.raw(dailySql);
+            console.log(`>>> [Rebuild]: Hoàn tất tính toán lại toàn bộ dữ liệu Daily!`);
 
         } catch (error) {
             console.error(">>> [Rebuild Error]:", error);
         }
     }
+
+    /**
+     * Cập nhật cộng dồn (incremental) cho bảng summary ngay khi có giao dịch mới
+     */
+    async incrementSummary(tx: any) {
+        try {
+            const txTime = tx.transaction_time || tx.created_at;
+            const date = dayjs(txTime).format('YYYY-MM-DD');
+            const hour = dayjs(txTime).hour();
+
+            if (!tx.station_id) return;
+
+            await db('hourly_bay_summary')
+                .insert({
+                    summary_date: date,
+                    hour: hour,
+                    station_id: tx.station_id,
+                    bay_code: tx.bay_code || 'N/A',
+                    total_transactions: 1,
+                    total_amount: tx.amount || 0,
+                    total_op_time: tx.op || 0,
+                    total_foam_time: tx.foam || 0,
+                    last_updated_at: db.fn.now()
+                })
+                .onConflict(['summary_date', 'hour', 'station_id', 'bay_code'])
+                .merge({
+                    total_transactions: db.raw('hourly_bay_summary.total_transactions + 1'),
+                    total_amount: db.raw('hourly_bay_summary.total_amount + ?', [tx.amount || 0]),
+                    total_op_time: db.raw('hourly_bay_summary.total_op_time + ?', [tx.op || 0]),
+                    total_foam_time: db.raw('hourly_bay_summary.total_foam_time + ?', [tx.foam || 0]),
+                    last_updated_at: db.fn.now()
+                });
+
+            // Đồng thời cập nhật Daily Summary
+            await db('daily_bay_summary')
+                .insert({
+                    summary_date: date,
+                    station_id: tx.station_id,
+                    bay_code: tx.bay_code || 'N/A',
+                    total_transactions: 1,
+                    total_amount: tx.amount || 0,
+                    total_op_time: tx.op || 0,
+                    total_foam_time: tx.foam || 0,
+                    last_updated_at: db.fn.now()
+                })
+                .onConflict(['summary_date', 'station_id', 'bay_code'])
+                .merge({
+                    total_transactions: db.raw('daily_bay_summary.total_transactions + 1'),
+                    total_amount: db.raw('daily_bay_summary.total_amount + ?', [tx.amount || 0]),
+                    total_op_time: db.raw('daily_bay_summary.total_op_time + ?', [tx.op || 0]),
+                    total_foam_time: db.raw('daily_bay_summary.total_foam_time + ?', [tx.foam || 0]),
+                    last_updated_at: db.fn.now()
+                });
+
+            console.log(`>>> [Aggregation]: Real-time update success (Hourly & Daily) for TX ${tx.transaction_id || 'manual'}`);
+        } catch (error) {
+            console.error(">>> [Aggregation Incremental Error]:", error);
+        }
+    }
 }
+
+export const aggregationService = new AggregationService();

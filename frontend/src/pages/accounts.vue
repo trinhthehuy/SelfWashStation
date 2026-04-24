@@ -17,12 +17,16 @@
               clearable
               :prefix-icon="Search"
               class="search-input"
+              autocomplete="off"
             />
-            <el-button v-if="isSa" type="primary" :icon="Plus" @click="handleAdd">Thêm tài khoản</el-button>
+            <el-button v-if="isSa" type="primary" :icon="Plus" @click="handleAdd" :circle="isMobile"></el-button>
           </div>
         </div>
       </template>
+      
+      <!-- Desktop Table -->
       <el-table 
+        v-if="!isMobile"
         ref="tableRef"
         :data="filteredUsers" 
         stripe 
@@ -64,12 +68,53 @@
         </el-table-column>
       </el-table>
 
+      <!-- Mobile List -->
+      <div v-else class="mobile-user-list" v-loading="loading">
+        <div v-for="u in filteredUsers" :key="u.id" class="mobile-user-card">
+          <div class="m-card-header">
+            <div class="m-card-title">
+              <strong>{{ u.username }}</strong>
+              <el-tag :type="roleTag(u.role)" size="small">{{ roleLabel(u.role) }}</el-tag>
+            </div>
+            <div class="m-card-actions" v-if="isSa">
+              <el-button type="primary" link :icon="Edit" @click="handleEdit(u)"></el-button>
+              <el-button type="warning" link :icon="Key" @click="handleResetPwd(u)"></el-button>
+              <el-button type="danger" link :icon="Delete" @click="handleDelete(u)" :disabled="u.username === 'sa' || u.id === currentUserId"></el-button>
+            </div>
+          </div>
+          <div class="m-card-body">
+            <div class="m-info-row">
+              <span class="m-label">Họ tên:</span>
+              <span class="m-val">{{ u.fullName }}</span>
+            </div>
+            <div class="m-info-row">
+              <span class="m-label">Email:</span>
+              <span class="m-val">{{ u.email || '-' }}</span>
+            </div>
+            <div class="m-info-row">
+              <span class="m-label">Liên kết:</span>
+              <span class="m-val">
+                <span v-if="u.role === 'agency'">{{ agencyById(u.agencyId)?.agency_name || `Đại lý #${u.agencyId}` }}</span>
+                <span v-else-if="u.role === 'regional_manager' && u._scope">{{ u._scope.provinceIds?.length || 0 }} tỉnh</span>
+                <span v-else-if="u.role === 'station_supervisor' && u._scope">{{ u._scope.stationIds?.length || 0 }} trạm</span>
+                <span v-else>-</span>
+              </span>
+            </div>
+            <div class="m-info-row">
+              <span class="m-label">Trạng thái:</span>
+              <el-tag :type="u.isActive ? 'success' : 'danger'" size="small">{{ u.isActive ? 'Bật' : 'Khóa' }}</el-tag>
+            </div>
+          </div>
+        </div>
+        <el-empty v-if="!loading && filteredUsers.length === 0" description="Không có dữ liệu" />
+      </div>
+
       <div class="pagination-wrap" v-if="total > 0">
         <el-pagination
           v-model:current-page="page"
           v-model:page-size="pageSize"
           :total="total"
-          layout="total, prev, pager, next"
+          :layout="isMobile ? 'prev, pager, next' : 'total, prev, pager, next'"
           @current-change="handlePageChange"
           size="small"
         />
@@ -82,18 +127,18 @@
       <el-form :model="pwdForm" label-position="top" class="pwd-form-inline" ref="pwdFormRef">
         <el-row :gutter="15">
           <el-col :span="6">
-            <el-form-item label="Mật khẩu hiện tại" prop="current" :rules="[{ required: true, message: 'Bắt buộc' }]">
-              <el-input v-model="pwdForm.current" type="password" show-password placeholder="Mật khẩu cũ" size="small" />
+            <el-form-item label="Mật khẩu hiện tại" prop="current" :rules="[{ required: true, message: 'Bắt buộc', trigger: 'blur' }]">
+              <el-input v-model="pwdForm.current" type="password" show-password placeholder="Mật khẩu cũ" size="small" autocomplete="current-password" />
             </el-form-item>
           </el-col>
           <el-col :span="6">
-            <el-form-item label="Mật khẩu mới" prop="newPwd" :rules="[{ required: true, min: 6, message: 'Tối thiểu 6 ký tự' }]">
-              <el-input v-model="pwdForm.newPwd" type="password" show-password placeholder="Mật khẩu mới" size="small" />
+            <el-form-item label="Mật khẩu mới" prop="newPwd" :rules="[{ required: true, min: 6, message: 'Tối thiểu 6 ký tự', trigger: 'blur' }]">
+              <el-input v-model="pwdForm.newPwd" type="password" show-password placeholder="Mật khẩu mới" size="small" autocomplete="new-password" />
             </el-form-item>
           </el-col>
           <el-col :span="6">
-            <el-form-item label="Xác nhận lại" prop="confirm" :rules="[{ required: true, message: 'Bắt buộc' }, { validator: validateConfirmPwd }]">
-              <el-input v-model="pwdForm.confirm" type="password" show-password placeholder="Xác nhận lại" size="small" />
+            <el-form-item label="Xác nhận lại" prop="confirm" :rules="[{ required: true, message: 'Bắt buộc', trigger: 'blur' }, { validator: validateConfirmPwd, trigger: 'blur' }]">
+              <el-input v-model="pwdForm.confirm" type="password" show-password placeholder="Xác nhận lại" size="small" autocomplete="new-password" />
             </el-form-item>
           </el-col>
           <el-col :span="6" style="display: flex; align-items: flex-end; padding-bottom: 18px;">
@@ -172,7 +217,7 @@
 </template>
 
 <script setup>
-import { onMounted, ref, computed, h } from 'vue'
+import { onMounted, onUnmounted, ref, computed, h } from 'vue'
 import { ElMessage } from 'element-plus'
 import { Plus, Edit, Delete, Key, Search } from '@element-plus/icons-vue'
 import { authApi } from '@/api/auth'
@@ -208,6 +253,11 @@ const formRef = ref()
 const resetFormRef = ref()
 const pwdFormRef = ref()
 
+const isMobile = ref(window.innerWidth < 768)
+const handleResize = () => {
+  isMobile.value = window.innerWidth < 768
+}
+
 const isSa = computed(() => authStore.hasAnyRole(['sa']))
 const currentUserId = computed(() => authStore.state.user?.id)
 
@@ -226,6 +276,7 @@ const resetForm = ref({ newPassword: '', confirm: '' })
 const pwdForm = ref({ current: '', newPwd: '', confirm: '' })
 
 const validateConfirmPwd = (_rule, value, cb) => {
+  if (!value || !pwdForm.value.newPwd) return cb()
   if (value !== pwdForm.value.newPwd) cb(new Error('Mật khẩu nhập lại không khớp'))
   else cb()
 }
@@ -441,10 +492,20 @@ const handleChangePwd = async () => {
 }
 
 onMounted(() => {
+  window.addEventListener('resize', handleResize)
   fetchUsers()
   fetchAgencies()
   metadataStore.fetchProvinces()
   metadataStore.fetchAllStations()
+  
+  // Clear any validation errors caused by browser autofill on load
+  setTimeout(() => {
+    pwdFormRef.value?.clearValidate()
+  }, 1000)
+})
+
+onUnmounted(() => {
+  window.removeEventListener('resize', handleResize)
 })
 </script>
 
@@ -482,8 +543,81 @@ onMounted(() => {
 .search-input { width: 220px; }
 .pagination-wrap { margin-top: 8px; display: flex; justify-content: flex-end; flex-shrink: 0; }
 
-.pwd-card { border-radius: 8px; }
+.pwd-card { border-radius: 8px; flex-shrink: 0; }
 :deep(.pwd-card .el-card__header) { padding: 8px 16px; }
 :deep(.pwd-card .el-card__body) { padding: 20px 16px 30px; }
 .pwd-form-inline .el-form-item { margin-bottom: 0; }
+
+/* Mobile styles */
+.mobile-user-list {
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 4px;
+}
+.mobile-user-card {
+  background: var(--el-fill-color-blank);
+  border: 1px solid var(--el-border-color-light);
+  border-radius: 8px;
+  padding: 12px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+}
+.m-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 10px;
+  padding-bottom: 8px;
+  border-bottom: 1px dashed var(--el-border-color-lighter);
+}
+.m-card-title {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.m-card-title strong {
+  font-size: 15px;
+  color: var(--el-text-color-primary);
+}
+.m-card-actions {
+  display: flex;
+  gap: 4px;
+}
+.m-info-row {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 6px;
+  font-size: 13px;
+}
+.m-label {
+  color: var(--el-text-color-secondary);
+}
+.m-val {
+  color: var(--el-text-color-primary);
+  font-weight: 500;
+  text-align: right;
+}
+
+@media (max-width: 768px) {
+  .accounts-page {
+    padding: 10px;
+    height: auto;
+    min-height: 100%;
+    overflow: auto;
+    display: block;
+  }
+  .settings-hero { margin-bottom: 10px; }
+  .user-list-card { 
+    margin-bottom: 10px; 
+    height: 500px; /* Fixed height for table container on mobile to allow internal scroll if needed, or use auto */
+    max-height: 70vh;
+  }
+  .search-input { width: 140px; }
+  .pwd-form-inline .el-col {
+    margin-bottom: 15px;
+  }
+  :deep(.pwd-card .el-card__body) { padding: 15px; }
+}
 </style>

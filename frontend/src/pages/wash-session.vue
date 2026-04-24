@@ -5,12 +5,15 @@
         <el-form-item class="fi-station" :label="isMobile ? '' : 'Trạm'">
           <el-select 
             v-model="filterForm.station" 
-            placeholder="Chọn trạm" 
+            placeholder="Tìm trạm..." 
             class="filter-select station-select"
             filterable 
+            remote
+            :remote-method="remoteFetchStations"
+            :loading="stationsLoading"
             clearable
             @change="handleStationChange"
-            @clear="handleStationChange"
+            @clear="handleStationClear"
           >
             <el-option 
               v-for="item in stationOptions" 
@@ -96,12 +99,13 @@
           </template>
         </el-table-column>
   
-        <el-table-column label="Vị trí">
+        <el-table-column label="Vị trí" min-width="180">
           <template #default="scope">
-            <el-tag effect="plain">{{ scope.row.mqtt_topic }}</el-tag>
-            <span style="margin-left: 8px; font-weight: bold">
-              {{ scope.row.bay_code }}
-            </span>
+            <div class="station-display">
+              <el-tag type="info" size="small">{{ scope.row.station_name }}</el-tag>
+              <span class="bay-display">{{ scope.row.bay_code }}</span>
+            </div>
+            <div v-if="scope.row.mqtt_topic" class="topic-display">{{ scope.row.mqtt_topic }}</div>
           </template>
         </el-table-column>
   
@@ -145,8 +149,11 @@
           <div class="mc-header">
             <span class="mc-stt">{{ (currentPage - 1) * pageSize + idx + 1 }}</span>
             <div class="mc-title">
-              <span class="mc-name">{{ row.bay_code }}</span>
-              <span class="mc-sub">{{ row.mqtt_topic }}</span>
+              <div class="mc-station-row">
+                <el-tag type="info" size="small">{{ row.station_name }}</el-tag>
+                <span class="mc-name">{{ row.bay_code }}</span>
+              </div>
+              <span class="mc-sub" v-if="row.mqtt_topic">{{ row.mqtt_topic }}</span>
             </div>
             <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 6px;">
               <el-tag :type="statusType(row.status)" size="small">
@@ -223,12 +230,13 @@ onUnmounted(() => window.removeEventListener('resize', _onResize))
 const isAdmin = computed(() => authStore.state.user?.role === 'sa');
 
 const loading = ref(false)
+const stationsLoading = ref(false)
 const tableRef = ref(null)
-const tableData = ref([]); // Biến chứa dữ liệu phiên rửa để hiển thị trong Table
+const tableData = ref([])
 const currentPage = ref(1)
 const pageSize = ref(20)
-const total = ref(100)
-const stationOptions = ref([]) // Biến chứa danh sách trạm để hiển thị trong Dropdown (Select)
+const total = ref(0)
+const stationOptions = ref([]) 
 const bayOptions = ref([])
 const filterForm = reactive({
   station: '',
@@ -241,14 +249,23 @@ const filterForm = reactive({
 
 const metadataStore = useMetadataStore();
 
-// Hàm gọi API lấy danh sách trạm
-const fetchStations = async () => {
+let stationSearchTimer = null;
+const remoteFetchStations = (query) => {
+  if (stationSearchTimer) clearTimeout(stationSearchTimer);
+  stationSearchTimer = setTimeout(() => {
+    fetchStations(query);
+  }, 300);
+}
+
+const fetchStations = async (keyword = '') => {
   try {    
-    await metadataStore.fetchAllStations()
-    stationOptions.value = metadataStore.allStations
+    stationsLoading.value = true;
+    const res = await stationApi.getFilterStations({ keyword, limit: 20 });
+    stationOptions.value = res.data.data || [];
   } catch (error) {
     console.error('Lỗi khi lấy danh sách trạm:', error)
-    ElMessage.error('Không thể tải danh sách trạm')
+  } finally {
+    stationsLoading.value = false;
   }
 }
 
@@ -303,7 +320,18 @@ const handleDateRangeChange = (val) => {
 
 const handleStationChange = async (stationId) => {
   filterForm.bayCode = ''
-  await fetchBays(stationId)
+  if (stationId) {
+    await fetchBays(stationId)
+  } else {
+    bayOptions.value = []
+  }
+  handleFilter()
+}
+
+const handleStationClear = () => {
+  filterForm.station = ''
+  filterForm.bayCode = ''
+  bayOptions.value = []
   handleFilter()
 }
 
@@ -652,6 +680,30 @@ watch([pageSize], () => {
   padding: 40px 0;
   color: var(--text-sub, #9ca3af);
   font-size: 14px;
+}
+
+.station-display {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.bay-display {
+  font-weight: 700;
+  color: var(--report-accent, #53a8ff);
+}
+
+.topic-display {
+  font-size: 11px;
+  color: var(--text-sub, #9ca3af);
+  margin-top: 2px;
+}
+
+.mc-station-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
 }
 
 /* ── Landscape ──────────────────────────────────── */

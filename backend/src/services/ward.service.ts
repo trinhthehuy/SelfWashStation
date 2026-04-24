@@ -8,7 +8,7 @@ export class WardService {
   /**
    * Lấy danh sách huyện/xã dựa trên province_id
    */
-  async getWardsByProvince(provinceId?: number | string) {
+  async getWardsByProvince(provinceId?: number | string, keyword?: string, limit?: number) {
     console.log(`[WARD SERVICE] 🔍 Bắt đầu truy vấn Wards. Tham số đầu vào provinceId:`, provinceId);
     const query = db('wards as w')
       .select(
@@ -16,10 +16,19 @@ export class WardService {
         'w.ward_name'
       );
 
-    // Nếu có truyền provinceId thì mới lọc, tránh load thừa dữ liệu
+    // Nếu có truyền provinceId thì mới lọc
     if (provinceId) {
-      console.log("provinceId =", provinceId);
       query.where('w.province_id', provinceId);
+    }
+    
+    // Lọc theo từ khóa (nếu có)
+    if (keyword && keyword.trim() !== '') {
+      query.where('w.ward_name', 'like', `%${keyword.trim()}%`);
+    }
+
+    // Giới hạn số lượng (nếu có)
+    if (limit && limit > 0) {
+      query.limit(limit);
     }
     
     const wards = await query;

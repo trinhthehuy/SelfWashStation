@@ -663,6 +663,8 @@ const handleForceChangeExit = () => {
 @media (max-width: 900px) {
   .login-page {
     grid-template-columns: 1fr;
+    height: 100dvh;
+    overflow: hidden;
   }
 
   .brand-panel {
@@ -670,9 +672,59 @@ const handleForceChangeExit = () => {
   }
 
   .form-panel {
-    min-height: 100vh;
+    height: 100%;
     background: #ffffff;
     border-left: none;
+    padding: 16px;
+  }
+
+  .form-inner {
+    padding: 20px;
+    box-shadow: none;
+    border: none;
+    max-height: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+  }
+
+  .form-logo-mark {
+    width: 56px;
+    height: 56px;
+    margin-bottom: 16px;
+    margin-top: 0;
+  }
+
+  .form-title {
+    font-size: 22px;
+  }
+
+  .form-subtitle {
+    margin-bottom: 20px;
+  }
+}
+
+/* Extra small devices */
+@media (max-height: 600px) and (max-width: 900px) {
+  .form-inner {
+    padding: 10px 20px;
+  }
+  .form-logo-mark {
+    width: 44px;
+    height: 44px;
+    margin-bottom: 12px;
+  }
+  .form-subtitle {
+    margin-bottom: 12px;
+  }
+  :deep(.el-form-item) {
+    margin-bottom: 12px;
+  }
+  .login-options {
+    margin-bottom: 10px;
+  }
+  .form-security-note {
+    margin-top: 12px;
   }
 }
 </style>

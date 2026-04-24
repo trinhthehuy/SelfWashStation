@@ -30,11 +30,13 @@
           <el-form-item label="Xã">
             <el-select
               v-model="filterForm.ward_id"
-              filterable clearable
+              filterable remote clearable
+              :remote-method="remoteFetchWards"
               :loading="selectLoading.ward"
               @change="handleWardChange"
               @clear="handleWardClear"
               style="width: 150px"
+              placeholder="Tìm xã..."
             >
               <el-option v-for="item in options.wards" :key="item.id" :label="item.ward_name" :value="item.id" />
             </el-select>
@@ -43,14 +45,15 @@
           <el-form-item label="Đại lý">
             <el-select
               v-model="filterForm.agency_id"
-              filterable clearable
-              :filter-method="handleAgencyFilter"
+              filterable remote clearable
+              :remote-method="remoteFetchAgencies"
               :loading="selectLoading.agency"
               @change="handleAgencyChange"
               @clear="handleAgencyClear"
               style="width: 180px"
+              placeholder="Tìm đại lý..."
             >
-              <el-option v-for="item in filteredAgencyOptions" :key="item.id" :label="item.agency_name" :value="item.id">
+              <el-option v-for="item in options.agencies" :key="item.id" :label="item.agency_name" :value="item.id">
                 <div class="agency-dual">
                   <div class="agency-dual-name">{{ item.agency_name }}</div>
                   <div class="agency-dual-id">ID: {{ item.identity_number || 'N/A' }}</div>
@@ -62,12 +65,13 @@
           <el-form-item label="Mã trạm">
             <el-select
               v-model="filterForm.station_id"
-              filterable clearable
+              filterable remote clearable
+              :remote-method="remoteFetchStations"
               :loading="selectLoading.station"
-              @visible-change="handleStationDropdownVisible"
               @change="handleStationChange"
               @clear="handleStationClear"
               style="width: 180px"
+              placeholder="Tìm trạm..."
             >
               <el-option v-for="item in options.stations" :key="item.id" :label="item.station_name" :value="item.id" />
             </el-select>
@@ -324,13 +328,14 @@
       </p>
       <el-select
         v-model="selectionAgencyId"
-        placeholder="Chọn đại lý…"
-        filterable
-        :filter-method="handleSelectionAgencyFilter"
+        placeholder="Tìm đại lý…"
+        filterable remote
+        :remote-method="remoteFetchSelectionAgencies"
+        :loading="selectLoading.agency"
         style="width: 100%"
       >
         <el-option
-          v-for="item in filteredSelectionAgencyOptions"
+          v-for="item in options.agencies"
           :key="item.id"
           :label="item.agency_name"
           :value="item.id"
@@ -496,16 +501,46 @@ const filterForm = reactive({
 });
 
 const amountFormatter = new Intl.NumberFormat('vi-VN', { maximumFractionDigits: 0 });
-const normalizeSearchValue = (value) => String(value || '').toLowerCase().trim();
-const filteredAgencyOptions = computed(() => {
-  if (!agencySearchKeyword.value) return options.agencies;
-  return options.agencies.filter((agency) =>
-    String(agency.search_text || '').includes(agencySearchKeyword.value)
-  );
+const lastSearch = reactive({
+  ward: '',
+  agency: '',
+  station: ''
 });
 
-const handleAgencyFilter = (query) => {
-  agencySearchKeyword.value = normalizeSearchValue(query);
+const normalizeSearchValue = (value) => String(value || '').toLowerCase().trim();
+
+let remoteAgencyTimer = null;
+const remoteFetchAgencies = (query) => {
+  const q = normalizeSearchValue(query);
+  if (q === lastSearch.agency && options.agencies.length > 0) return;
+  if (remoteAgencyTimer) clearTimeout(remoteAgencyTimer);
+  remoteAgencyTimer = setTimeout(() => {
+    fetchAgencies(q);
+  }, 300);
+};
+
+let remoteStationTimer = null;
+const remoteFetchStations = (query) => {
+  const q = normalizeSearchValue(query);
+  if (q === lastSearch.station && options.stations.length > 0) return;
+  if (remoteStationTimer) clearTimeout(remoteStationTimer);
+  remoteStationTimer = setTimeout(() => {
+    fetchStations(q);
+  }, 300);
+};
+
+const remoteFetchSelectionAgencies = (query) => {
+  remoteFetchAgencies(query);
+};
+
+let remoteWardTimer = null;
+const remoteFetchWards = (query) => {
+  const q = normalizeSearchValue(query);
+  if (q === lastSearch.ward && options.wards.length > 0) return;
+  if (remoteWardTimer) clearTimeout(remoteWardTimer);
+  remoteWardTimer = setTimeout(() => {
+    fetchWards(filterForm.province_id, q);
+  }, 300);
 };
 
 const handleAddNew = () => {
@@ -650,11 +685,13 @@ const handleStationDropdownVisible = async (visible) => {
   await fetchStations();
 };
 
-const fetchWards = async (provinceId) => {
+const fetchWards = async (provinceId, keyword = '') => {
+  const q = normalizeSearchValue(keyword);
   selectLoading.ward = true;
   try {
-    const response = await wardApi.getWards(provinceId);
+    const response = await wardApi.getWards(provinceId, q);
     options.wards = response.data.data;
+    lastSearch.ward = q;
   } catch (error) {
     console.error("Lỗi khi lấy danh sách xã:", error);
   } finally {
@@ -664,14 +701,16 @@ const fetchWards = async (provinceId) => {
 
 const metadataStore = useMetadataStore()
 
-const fetchAgencies = async () => {
+const fetchAgencies = async (keyword = '') => {
+  const q = normalizeSearchValue(keyword);
   selectLoading.agency = true;
   try {
-    await metadataStore.fetchAgencies();
-    options.agencies = metadataStore.agencies.map((agency) => ({
+    const res = await agencyApi.getAgencies({ keyword: q, limit: 20 });
+    options.agencies = (res.data?.data || res.data || []).map((agency) => ({
       ...agency,
       search_text: normalizeSearchValue(`${agency.id || ''} ${agency.agency_name || ''} ${agency.identity_number || ''} ${agency.phone || ''}`)
     }));
+    lastSearch.agency = q;
   } catch (error) {
     console.error("Lỗi khi lấy danh sách đại lý:", error);
   } finally {
@@ -694,16 +733,18 @@ const fetchProvinces = async () => {
   }
 };
 
-const fetchStations = async () => {
+const fetchStations = async (keyword = '') => {
+  const q = normalizeSearchValue(keyword);
   selectLoading.station = true;
   try {
-    const params = {};
+    const params = { keyword: q, limit: 20 };
     if (filterForm.province_id) params.province_id = filterForm.province_id;
     if (filterForm.ward_id) params.ward_id = filterForm.ward_id;
     if (filterForm.agency_id) params.agency_id = filterForm.agency_id;
     const response = await stationApi.getFilterStations(params);
     options.stations = response.data.data;
     stationOptionsLoaded.value = true;
+    lastSearch.station = q;
   } catch (error) {
     console.error("Lỗi khi lấy danh sách trạm:", error);
     stationOptionsLoaded.value = false;
