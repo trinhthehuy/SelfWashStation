@@ -132,7 +132,7 @@ router.post('/settings/mqtt', authorizeRoles(['sa', 'engineer']), async (req, re
     const { mqttBroker, mqttUser, mqttPass } = req.body;
     await mqttService.initialize({
       brokerUrl: mqttBroker,
-      email: mqttUser,
+      username: mqttUser,
       password: mqttPass
     });
     res.json({ success: true });

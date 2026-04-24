@@ -31,7 +31,7 @@ const routes = [
   { path: '/wash-session', name: 'wash-session', component: washSession, meta: { roles: ['sa', 'engineer', 'agency'] } },
   { path: '/revenue', name: 'revenue', component: revenue, meta: { roles: ['sa', 'agency'] } },
   { path: '/notifications', name: 'notifications', component: notifications, meta: { roles: ['sa', 'engineer', 'agency', 'regional_manager', 'station_supervisor'] } },
-  { path: '/feedback', name: 'feedback', component: feedback, meta: { roles: ['sa', 'engineer', 'agency', 'regional_manager', 'station_supervisor'] } },
+  { path: '/feedback', name: 'feedback', component: feedback, alias: '/gop-y', meta: { roles: ['sa', 'engineer', 'agency', 'regional_manager', 'station_supervisor'] } },
   { path: '/configuration', name: 'configuration', component: configuration, meta: { roles: ['sa', 'engineer'] } },
   { path: '/accounts', name: 'accounts', component: accounts, meta: { roles: ['sa'] } },
   { path: '/audit-log', name: 'audit-log', component: auditLog, meta: { roles: ['sa'] } },

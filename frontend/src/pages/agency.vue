@@ -1,12 +1,12 @@
 <template>
   <div class="page">
 
-    <div class="page-header">
+    <div class="page-header" :class="{ 'is-mobile': isMobile }">
       <div class="header-title">
-        <el-icon :size="20" color="#409eff"><Shop /></el-icon>
+        <el-icon v-if="!isMobile" :size="20" color="#409eff"><Shop /></el-icon>
         <h2 class="page-title">{{ pageTitle }}</h2>
       </div>
-      <el-button v-if="isSaOnly" type="primary" :icon="Plus" @click="handleAdd" class="mobile-add-btn">
+      <el-button v-if="isSaOnly" type="primary" :icon="Plus" @click="handleAdd" class="mobile-add-btn" :size="isMobile ? 'small' : 'default'">
         Thêm mới
       </el-button>
     </div>
@@ -21,7 +21,7 @@
       />
     </div>
 
-    <div class="grid-wrapper">
+    <div class="grid-wrapper" :class="{ 'is-mobile': isMobile }">
       <div v-if="loading" class="loading-state">
         <el-skeleton :rows="5" animated />
       </div>
@@ -30,90 +30,158 @@
         <el-empty description="Không tìm thấy đại lý nào phù hợp" />
       </div>
 
-      <div class="grid" v-else>
-        <el-card 
-          v-for="item in visibleList" 
-          :key="item.id" 
-          class="agency-card" 
-          shadow="hover"
-        >
-          <div class="card-header-custom">
-            <el-avatar 
-              :size="52" 
-              :src="item.avatar || defaultAvatar" 
-              shape="square"
-              class="agency-avatar"
-            />
-            <div class="header-info">
-              <div class="agency-name">{{ item.agency_name }}</div>
-              <div class="agency-id">
-                <el-tag size="small" type="info" effect="plain">ID: {{ item.identity_number }}</el-tag>
+      <template v-else>
+        <!-- Desktop Grid -->
+        <div class="grid" v-if="!isMobile" :class="{ 'single-mode': isAgencyOnly }">
+          <el-card 
+            v-for="item in visibleList" 
+            :key="item.id" 
+            class="agency-card" 
+            shadow="hover"
+          >
+            <div class="card-header-custom">
+              <el-avatar 
+                :size="52" 
+                :src="item.avatar || defaultAvatar" 
+                shape="square"
+                class="agency-avatar"
+              />
+              <div class="header-info">
+                <div class="agency-name">{{ item.agency_name }}</div>
+                <div class="agency-id">
+                  <el-tag size="small" type="info" effect="plain">ID: {{ item.identity_number }}</el-tag>
+                </div>
               </div>
             </div>
+
+            <div class="card-body">
+              <div class="info-line">
+                <span class="label">
+                  <el-icon><Location /></el-icon> Khu vực
+                </span>
+                <span class="value">{{ item.ward_name }}, {{ item.province_name }}</span>
+              </div>
+              
+              <div class="info-line">
+                <span class="label">
+                  <el-icon><House /></el-icon> Địa chỉ
+                </span>
+                <span class="value">{{ item.address }}</span>
+              </div>
+
+              <div class="info-line">
+                <span class="label">
+                  <el-icon><Phone /></el-icon> Điện thoại
+                </span>
+                <span class="value">{{ item.phone }}</span>
+              </div>
+
+              <div class="info-line">
+                <span class="label">
+                  <el-icon><Message /></el-icon> Email
+                </span>
+                <span class="value">{{ item.email }}</span>
+              </div>
+
+              <div class="info-line" v-if="item.tax_code">
+                <span class="label">
+                  <el-icon><CreditCard /></el-icon> MST
+                </span>
+                <span class="value">{{ item.tax_code }}</span>
+              </div>
+            </div>
+
+            <template #footer>
+              <div class="button-group">
+                <el-button 
+                  v-if="canEditAgency"
+                  type="info" 
+                  plain 
+                  :icon="Edit" 
+                  class="flex-1" 
+                  @click="handleEdit(item)"
+                >
+                  Sửa
+                </el-button>
+              </div>
+            </template>
+          </el-card>
+        </div>
+
+        <!-- Mobile Card List -->
+        <div class="mobile-card-list" v-else :class="{ 'single-mode': isAgencyOnly }">
+          <div 
+            v-for="item in visibleList" 
+            :key="item.id" 
+            class="mobile-card"
+            @click="toggleExpandedCard(item.id)"
+          >
+            <div class="mc-top-content">
+              <div class="mc-header">
+                <el-avatar 
+                  :size="40" 
+                  :src="item.avatar || defaultAvatar" 
+                  shape="square"
+                  class="mc-avatar"
+                />
+                <div class="mc-title">
+                  <span class="mc-name">{{ item.agency_name }}</span>
+                  <span class="mc-sub">ID: {{ item.identity_number }}</span>
+                </div>
+                <div class="mc-right-meta" v-if="!isAgencyOnly">
+                  <el-icon class="mc-expand-icon" :class="{ 'is-active': expandedCard === item.id }">
+                    <ArrowDown />
+                  </el-icon>
+                </div>
+              </div>
+
+              <div class="mc-brief" v-if="!isAgencyOnly">
+                <span class="mc-brief-item">
+                  <el-icon><Phone /></el-icon> {{ item.phone }}
+                </span>
+                <span class="mc-brief-item">
+                  <el-icon><Location /></el-icon> {{ item.province_name }}
+                </span>
+              </div>
+            </div>
+
+            <transition name="expand">
+              <div class="mc-detail" v-if="isAgencyOnly || expandedCard === item.id">
+                <div class="mc-detail-row">
+                  <span>Khu vực</span><span>{{ item.ward_name }}, {{ item.province_name }}</span>
+                </div>
+                <div class="mc-detail-row">
+                  <span>Địa chỉ</span><span>{{ item.address }}</span>
+                </div>
+                <div class="mc-detail-row">
+                  <span>Điện thoại</span><span>{{ item.phone }}</span>
+                </div>
+                <div class="mc-detail-row">
+                  <span>Email</span><span>{{ item.email }}</span>
+                </div>
+                <div class="mc-detail-row" v-if="item.tax_code">
+                  <span>Mã số thuế</span><span>{{ item.tax_code }}</span>
+                </div>
+              </div>
+            </transition>
+
+            <div class="mc-actions" @click.stop v-if="canEditAgency">
+              <el-button type="primary" size="small" plain :icon="Edit" @click="handleEdit(item)">Chỉnh sửa</el-button>
+            </div>
           </div>
+        </div>
+      </template>
 
-          <div class="card-body">
-            <div class="info-line">
-              <span class="label">
-                <el-icon><Location /></el-icon> Khu vực
-              </span>
-              <span class="value">{{ item.ward_name }}, {{ item.province_name }}</span>
-            </div>
-            
-            <div class="info-line">
-              <span class="label">
-                <el-icon><House /></el-icon> Địa chỉ
-              </span>
-              <span class="value">{{ item.address }}</span>
-            </div>
-
-            <div class="info-line">
-              <span class="label">
-                <el-icon><Phone /></el-icon> Điện thoại
-              </span>
-              <span class="value">{{ item.phone }}</span>
-            </div>
-
-            <div class="info-line">
-              <span class="label">
-                <el-icon><Message /></el-icon> Email
-              </span>
-              <span class="value">{{ item.email }}</span>
-            </div>
-
-            <div class="info-line" v-if="item.tax_code">
-              <span class="label">
-                <el-icon><CreditCard /></el-icon> MST
-              </span>
-              <span class="value">{{ item.tax_code }}</span>
-            </div>
-          </div>
-
-          <template #footer>
-            <div class="button-group">
-              <el-button 
-                v-if="canEditAgency"
-                type="info" 
-                plain 
-                :icon="Edit" 
-                class="flex-1" 
-                @click="handleEdit(item)"
-              >
-                Sửa
-              </el-button>
-            </div>
-          </template>
-        </el-card>
-      </div>
-
-      <div class="pagination-footer" v-if="filteredList.length > pageSize">
+      <div class="pagination-footer" :class="{ 'mobile-pagination': isMobile }" v-if="filteredList.length > pageSize">
         <el-pagination
           background
-          layout="prev, pager, next"
+          :layout="isMobile ? 'prev, pager, next' : 'prev, pager, next'"
           :total="filteredList.length"
           :page-size="pageSize"
           v-model:current-page="page"
+          :pager-count="isMobile ? 5 : 7"
           @current-change="handlePageChange"
+          :size="isMobile ? 'small' : 'default'"
         />
       </div>
     </div>
@@ -121,9 +189,10 @@
     <el-dialog
       v-model="showModal"
       :title="isEdit ? 'Chỉnh sửa đại lý' : 'Thêm đại lý mới'"
-      width="550px"
+      :width="isMobile ? '95%' : '550px'"
       destroy-on-close
       border-radius="8px"
+      class="responsive-dialog"
     >
       <el-form :model="formData" label-position="top" class="custom-form">
         <el-form-item label="Tên đại lý" required>
@@ -243,28 +312,42 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, watch, onUnmounted } from 'vue'
 import { wardApi } from "@/api/ward"; 
 import { agencyApi } from "@/api/agency"; 
 import { strategyApi } from "@/api/strategy"; 
 import { Shop, CreditCard, Plus,   Search,   Edit,   Delete,   
-         Location,   Phone,   Message,   House } from '@element-plus/icons-vue';
+         Location,   Phone,   Message,   House, ArrowDown } from '@element-plus/icons-vue';
 import { authStore } from '@/stores/auth';
 import { useRouter } from 'vue-router';
 import { ElMessage } from 'element-plus';
 import { confirmPopup } from '@/utils/popup';
+
+const isMobile = ref(window.innerWidth < 768)
+const onResize = () => { isMobile.value = window.innerWidth < 768 }
+onMounted(() => window.addEventListener('resize', onResize))
+onUnmounted(() => window.removeEventListener('resize', onResize))
 
 const router = useRouter();
 
 const isSaOnly = computed(() => authStore.hasAnyRole(['sa']));
 const isAgencyOnly = computed(() => authStore.hasAnyRole(['agency']) && !isSaOnly.value);
 const canEditAgency = computed(() => authStore.hasAnyRole(['sa', 'agency']));
-const pageTitle = computed(() => (isAgencyOnly.value ? 'Thông tin đại lý' : 'Quản lý đại lý'));
+const pageTitle = computed(() => (isAgencyOnly.value ? 'Thông tin đại lý' : 'Danh sách đại lý'));
 
 const keyword = ref('')
 const loading = ref(true)
 const list = ref([]) // Dữ liệu từ API
 const defaultAvatar = 'https://i.pravatar.cc/100?img=3'
+const expandedCard = ref(null)
+
+const toggleExpandedCard = (id) => {
+  if (expandedCard.value === id) {
+    expandedCard.value = null
+  } else {
+    expandedCard.value = id
+  }
+}
 
 const page = ref(1)
 const pageSize = ref(8)
@@ -651,6 +734,12 @@ const handleDelete = async () => {
   flex-shrink: 0;
 }
 
+.header-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
 .filter-section {
   margin-bottom: 16px;
   flex-shrink: 0;
@@ -676,6 +765,115 @@ const handleDelete = async () => {
   flex: 1;
   overflow-y: auto;
   padding-right: 4px; /* Space for scrollbar */
+}
+
+/* ── SINGLE CARD MODE ── */
+.grid.single-mode {
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding-top: 20px;
+}
+
+.grid.single-mode .agency-card {
+  width: 100%;
+  max-width: 600px;
+  animation: slideUp 0.5s ease-out;
+  border: 1px solid var(--el-color-primary-light-7);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.15);
+}
+
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.grid.single-mode .card-header-custom {
+  padding: 24px;
+  background: linear-gradient(135deg, var(--el-color-primary-light-9), transparent);
+  border-radius: 8px 8px 0 0;
+  margin: -16px -16px 20px -16px;
+}
+
+.grid.single-mode .card-body {
+  padding: 0 12px 12px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+}
+
+.grid.single-mode .info-line {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  border-bottom: 1px solid var(--el-border-color-lighter);
+  padding-bottom: 12px;
+}
+
+.grid.single-mode .value {
+  text-align: left;
+  font-size: 14px;
+}
+
+/* Mobile Single Mode */
+.mobile-card-list.single-mode {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding-top: 20px;
+}
+
+.mobile-card-list.single-mode .mobile-card {
+  width: 100%;
+  max-width: 500px;
+  border: 1px solid var(--el-color-primary-light-5);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  padding: 16px;
+}
+
+.mobile-card-list.single-mode .mc-name {
+  font-size: 16px;
+}
+
+.mobile-card-list.single-mode .mc-detail {
+  display: block;
+  opacity: 1;
+  border-top: 1px solid var(--el-border-color-lighter);
+  margin-top: 12px;
+  padding-top: 12px;
+}
+
+.mobile-card-list.single-mode .mc-detail-row {
+  font-size: 13px;
+  margin-bottom: 8px;
+}
+
+.mobile-card-list.single-mode .mc-actions {
+  margin-top: 16px;
+}
+
+.mobile-card-list.single-mode .mc-actions :deep(.el-button) {
+  height: 42px;
+  font-size: 14px;
+  font-weight: 600;
+  border-radius: 8px;
+  width: 100%;
+}
+
+.mobile-card-list.single-mode .mc-avatar {
+  width: 56px !important;
+  height: 56px !important;
+  border: 2px solid var(--el-color-primary-light-7);
+}
+
+.mobile-card-list.single-mode .mc-detail-row span:first-child {
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+.mobile-card-list.single-mode .mc-detail-row span:last-child {
+  color: var(--text-main);
+  font-weight: 600;
 }
 
 .agency-card {
@@ -734,6 +932,17 @@ const handleDelete = async () => {
   flex: 1;
 }
 
+.grid.single-mode .button-group {
+  justify-content: center;
+  padding-top: 8px;
+}
+
+.agency-card {
+  --el-card-padding: 16px;
+  border-radius: 12px;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
 .pagination-footer {
   margin-top: auto;
   padding-top: 10px;
@@ -762,6 +971,14 @@ const handleDelete = async () => {
     padding: 8px;
   }
 
+  .page-header {
+    margin-bottom: 12px;
+  }
+
+  .page-header.is-mobile .page-title {
+    font-size: 18px;
+  }
+
   .filter-section {
     margin-bottom: 12px;
   }
@@ -777,27 +994,153 @@ const handleDelete = async () => {
     gap: 10px;
   }
 
-  .agency-card {
-    --el-card-padding: 12px;
+  .mobile-card-list {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    overflow-y: auto;
   }
 
-  .card-header-custom {
-    padding-bottom: 8px;
-    margin-bottom: 10px;
+  .mobile-card {
+    background: var(--bg-card, #fff);
+    border-radius: 8px;
+    padding: 10px 12px;
+    border: 1px solid var(--border-subtle, #eee);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    transition: all 0.2s ease;
   }
 
-  .agency-name {
+  .mobile-card:active {
+    transform: scale(0.98);
+    border-color: var(--el-color-primary);
+  }
+
+  .mc-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 8px;
+  }
+
+  .mc-avatar {
+    border: 1px solid var(--border-subtle);
+  }
+
+  .mc-title {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-width: 0;
+  }
+
+  .mc-name {
+    font-weight: 600;
     font-size: 14px;
+    color: var(--el-color-primary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 
-  .button-group {
-    flex-wrap: wrap;
-  }
-
-  .button-group :deep(.el-button) {
-    flex: 1 1 auto;
+  .mc-sub {
     font-size: 11px;
-    padding: 6px 10px;
+    color: var(--text-faint);
+  }
+
+  .mc-right-meta {
+    display: flex;
+    align-items: center;
+  }
+
+  .mc-expand-icon {
+    transition: transform 0.3s ease;
+    color: var(--text-placeholder);
+    font-size: 16px;
+  }
+
+  .mc-expand-icon.is-active {
+    transform: rotate(180deg);
+    color: var(--el-color-primary);
+  }
+
+  .mc-brief {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 4px;
+  }
+
+  .mc-brief-item {
+    font-size: 11px;
+    color: var(--text-muted);
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+
+  .mc-detail {
+    padding: 8px 0;
+    border-top: 1px dashed var(--el-border-color-lighter);
+    margin-top: 6px;
+  }
+
+  .mc-detail-row {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    font-size: 11px;
+    line-height: 1.8;
+  }
+
+  .mc-detail-row span:first-child {
+    color: var(--text-faint);
+    flex-shrink: 0;
+  }
+
+  .mc-detail-row span:last-child {
+    color: var(--text-main);
+    font-weight: 500;
+    text-align: right;
+  }
+
+  .mc-actions {
+    display: flex;
+    gap: 8px;
+    border-top: 1px solid var(--el-border-color-lighter);
+    padding-top: 8px;
+    margin-top: 6px;
+  }
+
+  .mc-actions :deep(.el-button) {
+    flex: 1;
+    height: 28px;
+    font-size: 11px;
+  }
+
+  .grid-wrapper.is-mobile {
+    gap: 2px;
+  }
+
+  .mobile-pagination {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin-top: 0;
+    margin-bottom: 2px;
+  }
+
+  /* Transition for expand */
+  .expand-enter-active,
+  .expand-leave-active {
+    transition: all 0.3s ease-in-out;
+    overflow: hidden;
+    max-height: 200px;
+  }
+
+  .expand-enter-from,
+  .expand-leave-to {
+    max-height: 0;
+    opacity: 0;
   }
 }
 

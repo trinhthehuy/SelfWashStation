@@ -64,7 +64,7 @@ export class BayController {
 
       auditService.log({
         userId: req.user?.id,
-        email: req.user?.username || 'system',
+        email: req.user?.email || 'system',
         role: req.user?.role || 'unknown',
         action: 'BAY_UPDATE',
         entityType: 'bay',
@@ -86,7 +86,7 @@ export class BayController {
       
       auditService.log({
         userId: req.user?.id,
-        email: req.user?.username || 'system',
+        email: req.user?.email || 'system',
         role: req.user?.role || 'unknown',
         action: 'BAY_DELETE',
         entityType: 'bay',

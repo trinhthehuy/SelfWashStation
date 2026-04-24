@@ -1,6 +1,6 @@
 export interface User {
   id: number;
-  username: string;
+  email: string;
   password_hash: string;
   role_id: number;
 }
@@ -35,7 +35,7 @@ export interface Payment {
 export interface AuthRequest extends Request {
   user?: {
     id: number;
-    username: string;
+    email: string;
     roleId: number;
   };
 }

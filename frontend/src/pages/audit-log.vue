@@ -12,8 +12,8 @@
 
     <!-- Filters -->
     <el-card shadow="never" class="filter-card">
-      <el-row :gutter="12" align="middle">
-        <el-col :span="7">
+      <div class="filter-grid-container">
+        <div class="filter-date-col">
           <el-date-picker
             v-model="dateRange"
             type="daterange"
@@ -25,53 +25,53 @@
             class="w-full"
             @change="fetchLogs({ resetPage: true })"
           />
-        </el-col>
-        <el-col :span="5">
-          <el-select v-model="filterAction" placeholder="Tất cả hành động" clearable class="w-full" @change="fetchLogs({ resetPage: true })">
-            <el-option-group label="Xác thực">
-              <el-option label="Đăng nhập thành công" value="LOGIN_SUCCESS" />
-              <el-option label="Đăng nhập thất bại" value="LOGIN_FAILED" />
-            </el-option-group>
-            <el-option-group label="Người dùng">
-              <el-option label="Tạo tài khoản" value="USER_CREATE" />
-              <el-option label="Sửa tài khoản" value="USER_UPDATE" />
-              <el-option label="Xóa tài khoản" value="USER_DELETE" />
-              <el-option label="Reset mật khẩu" value="USER_RESET_PASSWORD" />
-              <el-option label="Cập nhật phạm vi" value="USER_SCOPE_UPDATE" />
-            </el-option-group>
-            <el-option-group label="Đại lý">
-              <el-option label="Tạo đại lý" value="AGENCY_CREATE" />
-              <el-option label="Sửa đại lý" value="AGENCY_UPDATE" />
-              <el-option label="Xóa đại lý" value="AGENCY_DELETE" />
-            </el-option-group>
-            <el-option-group label="Trạm">
-              <el-option label="Tạo trạm" value="STATION_CREATE" />
-              <el-option label="Sửa trạm" value="STATION_UPDATE" />
-              <el-option label="Xóa trạm" value="STATION_DELETE" />
-            </el-option-group>
-            <el-option-group label="Chiến lược">
-              <el-option label="Tạo chiến lược" value="STRATEGY_CREATE" />
-              <el-option label="Sửa chiến lược" value="STRATEGY_UPDATE" />
-              <el-option label="Xóa chiến lược" value="STRATEGY_DELETE" />
-            </el-option-group>
-            <el-option-group label="Khác">
-              <el-option label="Xóa phiên rửa" value="TRANSACTION_DELETE" />
-            </el-option-group>
-          </el-select>
-        </el-col>
-        <el-col :span="5">
-          <el-select v-model="filterEntityType" placeholder="Tất cả đối tượng" clearable class="w-full" @change="fetchLogs({ resetPage: true })">
-            <el-option label="Tài khoản hệ thống" value="system_user" />
-            <el-option label="Đại lý" value="agency" />
-            <el-option label="Trạm" value="station" />
-            <el-option label="Chiến lược" value="strategy" />
-            <el-option label="Phiên rửa" value="transaction" />
-          </el-select>
-        </el-col>
-        <el-col :span="7">
-          <el-button @click="resetFilters" plain>Xóa bộ lọc</el-button>
-        </el-col>
-      </el-row>
+        </div>
+        <div class="filter-actions-col">
+          <div class="filter-actions-group">
+            <el-select v-model="filterAction" placeholder="Chọn hành động" clearable class="filter-select" size="small" style="width: 100%" @change="fetchLogs({ resetPage: true })">
+              <el-option-group label="Xác thực">
+                <el-option label="Đăng nhập thành công" value="LOGIN_SUCCESS" />
+                <el-option label="Đăng nhập thất bại" value="LOGIN_FAILED" />
+              </el-option-group>
+              <el-option-group label="Người dùng">
+                <el-option label="Tạo tài khoản" value="USER_CREATE" />
+                <el-option label="Sửa tài khoản" value="USER_UPDATE" />
+                <el-option label="Xóa tài khoản" value="USER_DELETE" />
+                <el-option label="Reset mật khẩu" value="USER_RESET_PASSWORD" />
+                <el-option label="Cập nhật phạm vi" value="USER_SCOPE_UPDATE" />
+              </el-option-group>
+              <el-option-group label="Đại lý">
+                <el-option label="Tạo đại lý" value="AGENCY_CREATE" />
+                <el-option label="Sửa đại lý" value="AGENCY_UPDATE" />
+                <el-option label="Xóa đại lý" value="AGENCY_DELETE" />
+              </el-option-group>
+              <el-option-group label="Trạm">
+                <el-option label="Tạo trạm" value="STATION_CREATE" />
+                <el-option label="Sửa trạm" value="STATION_UPDATE" />
+                <el-option label="Xóa trạm" value="STATION_DELETE" />
+              </el-option-group>
+              <el-option-group label="Chiến lược">
+                <el-option label="Tạo chiến lược" value="STRATEGY_CREATE" />
+                <el-option label="Sửa chiến lược" value="STRATEGY_UPDATE" />
+                <el-option label="Xóa chiến lược" value="STRATEGY_DELETE" />
+              </el-option-group>
+              <el-option-group label="Khác">
+                <el-option label="Xóa phiên rửa" value="TRANSACTION_DELETE" />
+              </el-option-group>
+            </el-select>
+            <el-select v-model="filterEntityType" placeholder="Chọn đối tượng" clearable class="filter-select" size="small" style="width: 100%" @change="fetchLogs({ resetPage: true })">
+              <el-option label="Tài khoản hệ thống" value="system_user" />
+              <el-option label="Đại lý" value="agency" />
+              <el-option label="Trạm" value="station" />
+              <el-option label="Chiến lược" value="strategy" />
+              <el-option label="Phiên rửa" value="transaction" />
+            </el-select>
+            <el-button @click="resetFilters" plain class="reset-btn" size="small" :icon="Refresh">
+              <span v-if="!isMobile">Xóa bộ lọc</span>
+            </el-button>
+          </div>
+        </div>
+      </div>
     </el-card>
 
     <!-- Table -->
@@ -97,7 +97,7 @@
           <el-table-column label="Tài khoản" width="200">
             <template #default="{ row }">
               <div class="user-cell">
-                <span class="username">{{ row.username }}</span>
+                <span class="user-email">{{ row.email }}</span>
                 <el-tag :type="roleTagType(row.role)" size="small" effect="plain">{{ roleLabel(row.role) }}</el-tag>
               </div>
             </template>
@@ -139,7 +139,7 @@
           <div v-for="(row, idx) in logs" :key="idx" class="mobile-card">
             <div class="mc-header">
               <div class="mc-title">
-                <span class="mc-name">{{ row.username }}</span>
+                <span class="mc-name">{{ row.email }}</span>
                 <span class="mc-sub mono">{{ formatDate(row.created_at) }}</span>
               </div>
               <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px">
@@ -187,14 +187,15 @@
 
 <script setup>
 import { ref, onMounted, onUnmounted } from 'vue'
+import { Refresh } from '@element-plus/icons-vue'
+import { ElMessage } from 'element-plus'
+import { auditApi } from '@/api/audit.js'
+import dayjs from 'dayjs'
 
 const isMobile = ref(window.innerWidth < 768)
 const _onResize = () => { isMobile.value = window.innerWidth < 768 }
 onMounted(() => window.addEventListener('resize', _onResize))
 onUnmounted(() => window.removeEventListener('resize', _onResize))
-import { ElMessage } from 'element-plus'
-import { auditApi } from '@/api/audit.js'
-import dayjs from 'dayjs'
 
 const loading = ref(false)
 const tableRef = ref(null)
@@ -378,8 +379,10 @@ const entityTypeLabel = (type) => ENTITY_LABELS[type] || type
 
 <style scoped>
 .page-container {
-  padding: 12px 16px;
-  background-color: var(--el-bg-color-page, var(--bg-body));
+  --report-border: rgba(144, 169, 204, 0.24);
+  --report-card-radius: 10px;
+  padding: 12px 14px;
+  background-color: var(--bg-body);
   height: 100%;
   display: flex;
   flex-direction: column;
@@ -389,8 +392,8 @@ const entityTypeLabel = (type) => ENTITY_LABELS[type] || type
 }
 
 .header-card {
-  border: 1px solid var(--el-border-color-light);
-  border-radius: var(--el-border-radius-base);
+  border: 1px solid var(--report-border);
+  border-radius: var(--report-card-radius);
   flex-shrink: 0;
 }
 :deep(.header-card .el-card__body) { padding: 8px 16px; }
@@ -423,15 +426,15 @@ const entityTypeLabel = (type) => ENTITY_LABELS[type] || type
 }
 
 .filter-card {
-  border: 1px solid var(--el-border-color-light);
-  border-radius: var(--el-border-radius-base);
+  border: 1px solid var(--report-border);
+  border-radius: var(--report-card-radius);
   flex-shrink: 0;
 }
 :deep(.filter-card .el-card__body) { padding: 10px 16px; }
 
 .table-card {
-  border: 1px solid var(--el-border-color-light);
-  border-radius: var(--el-border-radius-base);
+  border: 1px solid var(--report-border);
+  border-radius: var(--report-card-radius);
   flex: 1;
   min-height: 0;
   display: flex;
@@ -453,6 +456,35 @@ const entityTypeLabel = (type) => ENTITY_LABELS[type] || type
   flex-direction: column;
 }
 
+.filter-grid-container {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.filter-date-col {
+  width: 250px;
+  flex-shrink: 0;
+}
+
+.filter-actions-col {
+  flex: 1;
+}
+
+.filter-actions-group {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.filter-select {
+  flex: 1;
+}
+
+.reset-btn {
+  flex-shrink: 0;
+}
+
 .w-full {
   width: 100%;
 }
@@ -472,7 +504,7 @@ const entityTypeLabel = (type) => ENTITY_LABELS[type] || type
   gap: 4px;
 }
 
-.username {
+.user-email {
   font-weight: 600;
   font-size: 13px;
 }
@@ -513,14 +545,18 @@ const entityTypeLabel = (type) => ENTITY_LABELS[type] || type
   flex: 1; 
   display: flex; 
   flex-direction: column; 
-  gap: 8px; 
+  gap: 10px; 
   overflow-y: auto; 
 }
 .mobile-card {
-  background: var(--el-bg-color);
-  border-radius: 8px;
+  background: var(--bg-card);
+  border-radius: var(--report-card-radius);
   padding: 10px 12px;
-  border: 1px solid var(--el-border-color-light);
+  border: 1px solid var(--report-border);
+  transition: border-color 0.2s;
+}
+.mobile-card:active {
+  border-color: var(--el-color-primary);
 }
 .mc-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; margin-bottom: 6px; }
 .mc-title { display: flex; flex-direction: column; gap: 2px; flex: 1; overflow: hidden; }
@@ -533,9 +569,46 @@ const entityTypeLabel = (type) => ENTITY_LABELS[type] || type
 .mc-empty { text-align: center; padding: 40px 0; color: var(--el-text-color-placeholder); font-size: 14px; }
 
 @media (max-width: 768px) {
-  .page-container { padding: 8px; gap: 10px; }
-  :deep(.el-row) { flex-direction: column; }
-  :deep(.el-col) { max-width: 100%; width: 100%; }
+  .page-container { padding: 8px 4px; gap: 8px; }
+  :deep(.filter-card .el-card__body) { padding: 8px 4px !important; }
+  .filter-grid-container {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+  }
+  .filter-date-col {
+    width: 100%;
+  }
+  .filter-actions-col {
+    width: 100%;
+  }
+  .filter-actions-group {
+    display: grid;
+    grid-template-columns: 1fr 1fr auto;
+    gap: 4px;
+    width: 100%;
+    align-items: center;
+  }
+  .filter-select,
+  .filter-select :deep(.el-select),
+  .filter-select :deep(.el-select__wrapper) {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+  }
+  .reset-btn {
+    width: auto;
+    padding: 0 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .reset-btn :deep(span) {
+    display: none;
+  }
+  .reset-btn :deep(i) {
+    margin: 0 !important;
+  }
   .pagination-wrap { justify-content: center; }
 }
 </style>

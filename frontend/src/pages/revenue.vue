@@ -1,10 +1,5 @@
 <template>
   <div class="revenue-report-container">
-    <el-card shadow="never" class="header-card title-only-card">
-      <div class="header-content">
-        <h2 class="page-title">Báo cáo doanh thu</h2>
-      </div>
-    </el-card>
     <el-card shadow="never" class="filter-card">
       <div class="filter-row top-filter-row">
         <div class="filter-item level-filter-item">
@@ -570,7 +565,15 @@ const activeFilterCount = computed(() => {
   return count
 })
 
-const normalizeSearchValue = (value) => String(value || '').toLowerCase().trim()
+const normalizeSearchValue = (value) => {
+  return String(value || '')
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/đ/g, "d")
+    .trim();
+};
+
 
 let remoteWardTimer = null
 const remoteFetchWards = (query) => {

@@ -23,6 +23,10 @@ export type AuditAction =
   | 'BAY_CREATE'
   | 'BAY_UPDATE'
   | 'BAY_DELETE'
+  | 'BANK_ACCOUNT_CREATE'
+  | 'BANK_ACCOUNT_UPDATE'
+  | 'BANK_ACCOUNT_DELETE'
+  | 'TRANSACTION_DELETE'
   | 'USER_SCOPE_UPDATE'
   | 'FEEDBACK_CREATE'
   | 'FEEDBACK_REPLY';
@@ -182,7 +186,7 @@ class AuditLogService {
 
     const dataPromise = query.clone()
       .select('*')
-      .select('email as username') // Alias for frontend compatibility
+      .select('email')
       .limit(Number(limit))
       .offset(offset);
     let totalPromise = null;

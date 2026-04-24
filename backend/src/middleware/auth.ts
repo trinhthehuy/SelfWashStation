@@ -29,6 +29,7 @@ export interface ScopeContext {
  * Exactly one field will be non-null for scoped roles; all null for sa/engineer.
  */
 export interface RequestScope {
+  role?: UserRole;
   agencyId?: number | null;
   provinceIds?: number[] | null;
   stationIds?: number[] | null;
@@ -99,18 +100,16 @@ export function getAgencyScope(req: AuthRequest, fallbackAgencyId?: number | nul
  * Controllers pass this to service methods instead of just agencyId.
  */
 export function getRequestScope(req: AuthRequest, fallbackAgencyId?: number | null): RequestScope {
-  const role = req.user?.role;
-  if (role === 'agency') {
-    return { agencyId: req.user?.agencyId ?? null };
-  }
-  if (role === 'regional_manager') {
-    return { provinceIds: req.scope?.provinceIds ?? null };
-  }
-  if (role === 'station_supervisor') {
-    return { stationIds: req.scope?.stationIds ?? null };
-  }
-  // sa / engineer — optionally scoped by caller-supplied agencyId
-  return { agencyId: fallbackAgencyId ?? null };
+  const user = req.user;
+  const role = user?.role || 'unknown';
+  const scope = req.scope;
+
+  return {
+    role,
+    agencyId: (role === 'agency') ? (user?.agencyId ?? null) : (fallbackAgencyId ?? null),
+    provinceIds: (role === 'regional_manager') ? (scope?.provinceIds ?? []) : [],
+    stationIds: (role === 'station_supervisor') ? (scope?.stationIds ?? []) : []
+  };
 }
 
 /**
@@ -119,19 +118,24 @@ export function getRequestScope(req: AuthRequest, fallbackAgencyId?: number | nu
  * Imported lazily to avoid circular deps with scope.service.
  */
 export const attachScope = async (req: AuthRequest, _res: Response, next: NextFunction) => {
-  if (!req.user) return next();
+  try {
+    if (!req.user) return next();
 
-  const { role, id } = req.user;
+    const { role, id } = req.user;
 
-  if (role === 'regional_manager') {
-    const { ScopeService } = await import('../services/scope.service.js');
-    req.scope = { provinceIds: await ScopeService.getProvinceScope(id) };
-  } else if (role === 'station_supervisor') {
-    const { ScopeService } = await import('../services/scope.service.js');
-    req.scope = { stationIds: await ScopeService.getStationScope(id) };
-  } else {
-    req.scope = {};
+    if (role === 'regional_manager') {
+      const { ScopeService } = await import('../services/scope.service.js');
+      req.scope = { provinceIds: await ScopeService.getProvinceScope(id) };
+    } else if (role === 'station_supervisor') {
+      const { ScopeService } = await import('../services/scope.service.js');
+      req.scope = { stationIds: await ScopeService.getStationScope(id) };
+    } else {
+      req.scope = {};
+    }
+
+    next();
+  } catch (error) {
+    console.error('Error in attachScope middleware:', error);
+    next(error);
   }
-
-  next();
 };

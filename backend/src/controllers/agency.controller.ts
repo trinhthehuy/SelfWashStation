@@ -54,7 +54,7 @@ export class AgencyController {
         ward_id: ward_id as string,
         province_id: province_id as string,
         keyword: keyword as string,
-        limit: limit ? Number(limit) : 20
+        limit: limit ? Number(limit) : 1000
       }, getRequestScope(req));
 
       res.json({

@@ -11,66 +11,83 @@
       </div>
 
       <div class="filter-section">
-        <el-input
-          v-model="keyword"
-          placeholder="Tìm nhanh toàn bộ dữ liệu..."
-          :prefix-icon="Search"
-          clearable
-          class="search-input"
-        />
-
-        <div v-if="isSystemAdmin" class="advanced-filter-row">
-          <el-select
-            v-model="fieldFilters.agencyName"
-            placeholder="Lọc theo Đại lý"
+        <div class="search-row" :class="{ 'is-mobile': isMobile }">
+          <el-input
+            v-model="keyword"
+            placeholder="Tìm nhanh..."
+            :prefix-icon="Search"
             clearable
-            filterable
-            class="filter-item"
-          >
-            <el-option
-              v-for="item in agencyFilterOptions"
-              :key="item"
-              :label="item"
-              :value="item"
-            />
-          </el-select>
+            class="search-input"
+          />
 
-          <el-select
-            v-model="fieldFilters.strategyName"
-            placeholder="Lọc theo Tên chiến lược"
-            clearable
-            filterable
-            class="filter-item"
+          <el-button 
+            v-if="isMobile && isSystemAdmin" 
+            type="primary" 
+            plain 
+            size="default"
+            :icon="Filter" 
+            @click="showMobileFilter = !showMobileFilter"
+            class="filter-toggle-btn"
           >
-            <el-option
-              v-for="item in strategyFilterOptions"
-              :key="item"
-              :label="item"
-              :value="item"
-            />
-          </el-select>
-
-          <el-select
-            v-model="fieldFilters.amountPerUnit"
-            placeholder="Lọc theo số tiền"
-            clearable
-            filterable
-            class="filter-item"
-          >
-            <el-option
-              v-for="item in amountFilterOptions"
-              :key="item"
-              :label="new Intl.NumberFormat('vi-VN', { maximumFractionDigits: 0 }).format(item) + ' VNĐ'"
-              :value="String(item)"
-            />
-          </el-select>
-
-          <el-button class="clear-filter-btn" @click="resetFilters">Xóa bộ lọc</el-button>
+            {{ showMobileFilter ? 'Đóng' : 'Bộ lọc' }} 
+            <span v-if="activeFilterCount > 0" class="filter-count-mini">{{ activeFilterCount }}</span>
+          </el-button>
         </div>
+
+        <transition name="expand">
+          <div v-if="isSystemAdmin && (!isMobile || showMobileFilter)" class="advanced-filter-row" :class="{ 'is-mobile-filters': isMobile }">
+            <el-select
+              v-model="fieldFilters.agencyName"
+              placeholder="Đại lý"
+              clearable
+              filterable
+              class="filter-item"
+            >
+              <el-option
+                v-for="item in agencyFilterOptions"
+                :key="item"
+                :label="item"
+                :value="item"
+              />
+            </el-select>
+
+            <el-select
+              v-model="fieldFilters.strategyName"
+              placeholder="Tên chiến lược"
+              clearable
+              filterable
+              class="filter-item"
+            >
+              <el-option
+                v-for="item in strategyFilterOptions"
+                :key="item"
+                :label="item"
+                :value="item"
+              />
+            </el-select>
+
+            <el-select
+              v-model="fieldFilters.amountPerUnit"
+              placeholder="Số tiền"
+              clearable
+              filterable
+              class="filter-item"
+            >
+              <el-option
+                v-for="item in amountFilterOptions"
+                :key="item"
+                :label="new Intl.NumberFormat('vi-VN', { maximumFractionDigits: 0 }).format(item) + ' VNĐ'"
+                :value="String(item)"
+              />
+            </el-select>
+
+            <el-button class="clear-filter-btn" @click="resetFilters" :icon="Refresh">Xóa</el-button>
+          </div>
+        </transition>
       </div>
     </el-card>
 
-    <el-card shadow="never" class="table-card">
+    <div class="table-card" :class="{ 'is-mobile-card': isMobile }">
       <div class="table-main">
         <!-- Desktop table -->
         <el-table
@@ -161,9 +178,10 @@
             :page-size="pageSize"
             v-model:current-page="page"
             @current-change="handlePageChange"
+            :size="isMobile ? 'small' : 'default'"
           />
         </div>
-    </el-card>
+    </div>
 
 
     <el-dialog  
@@ -286,13 +304,14 @@
 
 <script setup>
 
-import { ref, computed, onMounted, onUnmounted, reactive } from "vue";
+import { ref, computed, onMounted, onUnmounted, reactive, watch } from "vue";
 
 const isMobile = ref(window.innerWidth < 768)
+const showMobileFilter = ref(false)
 const _onResize = () => { isMobile.value = window.innerWidth < 768 }
 onMounted(() => window.addEventListener('resize', _onResize))
 onUnmounted(() => window.removeEventListener('resize', _onResize))
-import { Plus, Edit, Search, Delete, Postcard } from "@element-plus/icons-vue";
+import { Plus, Edit, Search, Delete, Postcard, Filter, Refresh } from "@element-plus/icons-vue";
 import { ElMessage } from "element-plus";
 import { strategyApi } from "@/api/strategy"; 
 import { agencyApi } from "@/api/agency";
@@ -337,7 +356,15 @@ const rules = reactive({
 });
 
 // Computed
-const normalizeFilterValue = (value) => String(value || '').toLowerCase().trim();
+const normalizeFilterValue = (value) => {
+  return String(value || '')
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/đ/g, "d")
+    .trim();
+};
+
 const uniqueSortedBy = (selector) => {
   return Array.from(
     new Set(
@@ -352,8 +379,22 @@ const agencyFilterOptions = computed(() => uniqueSortedBy((item) => item.agency_
 const strategyFilterOptions = computed(() => uniqueSortedBy((item) => item.strategy_name));
 const amountFilterOptions = computed(() => uniqueSortedBy((item) => Number(item.amount_per_unit) || 0));
 
+const activeFilterCount = computed(() => {
+  let count = 0;
+  if (fieldFilters.agencyName) count++;
+  if (fieldFilters.strategyName) count++;
+  if (fieldFilters.amountPerUnit) count++;
+  return count;
+});
+
 const page = ref(1);
 const pageSize = ref(15);
+
+// Reset page to 1 when filters change to avoid "empty list" bug on later pages
+watch([keyword, fieldFilters], () => {
+  page.value = 1;
+}, { deep: true });
+
 
 const filteredList = computed(() => {
   const search = normalizeFilterValue(keyword.value);
@@ -362,7 +403,15 @@ const filteredList = computed(() => {
   const amountPerUnitFilter = isSystemAdmin.value ? normalizeFilterValue(fieldFilters.amountPerUnit) : '';
 
   const filtered = list.value.filter((item) => {
-    const matchesQuickSearch = !search || Object.values(item).some((val) => String(val).toLowerCase().includes(search));
+    // Search in relevant fields only for better accuracy
+    const searchFields = [
+      item.agency_name,
+      item.strategy_name,
+      item.amount_per_unit,
+      item.id
+    ];
+    const matchesQuickSearch = !search || searchFields.some((val) => normalizeFilterValue(val).includes(search));
+    
     const matchesAgencyName = !agencyNameFilter || normalizeFilterValue(item.agency_name) === agencyNameFilter;
     const matchesStrategyName = !strategyNameFilter || normalizeFilterValue(item.strategy_name) === strategyNameFilter;
     const matchesAmount = !amountPerUnitFilter || String(Number(item.amount_per_unit) || 0) === amountPerUnitFilter;
@@ -371,6 +420,7 @@ const filteredList = computed(() => {
   });
   return filtered;
 });
+
 
 const visibleList = computed(() => {
   const start = (page.value - 1) * pageSize.value;
@@ -406,12 +456,13 @@ const fetchData = async () => {
 
 const fetchAgencies = async () => {
   try {
-    const response = await agencyApi.getAgencies(); 
+    const response = await agencyApi.getAgencies({ limit: 1000 }); 
     agencyList.value = Array.isArray(response.data?.data) ? response.data.data : [];
   } catch (error) {
     console.error("Lỗi khi lấy DS đại lý:", error);
   }
 };
+
 
 const normalizeSearchValue = (value) => String(value || '').toLowerCase().trim();
 const agencySearchText = (agency) => normalizeSearchValue(`${agency?.id || ''} ${agency?.agency_name || ''} ${agency?.identity_number || ''} ${agency?.phone || ''}`);
@@ -667,15 +718,15 @@ onMounted(async () => {
 .mobile-card-list {
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  padding: 4px 0;
+  gap: 6px;
+  padding: 2px 0;
 }
 .mobile-card {
-  background: #fff;
-  border: 1px solid #e4e7ed;
+  background: var(--bg-card, #fff);
+  border: 1px solid var(--border-subtle, #e4e7ed);
   border-radius: 8px;
   padding: 12px;
-  box-shadow: 0 1px 4px rgba(0,0,0,.06);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
 }
 .mc-header {
   display: flex;
@@ -692,21 +743,21 @@ onMounted(async () => {
 }
 .mc-name {
   font-weight: 600;
-  font-size: 15px;
-  color: #303133;
+  font-size: 14px;
+  color: var(--el-color-primary);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 .mc-sub {
-  font-size: 12px;
-  color: #909399;
+  font-size: 11px;
+  color: var(--text-faint, #909399);
 }
 .mc-strategy {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
-  margin-bottom: 6px;
+  gap: 4px;
+  margin-bottom: 4px;
 }
 .mc-empty {
   text-align: center;
@@ -716,19 +767,23 @@ onMounted(async () => {
 }
 
 .table-card {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  background-color: var(--el-bg-color-overlay);
+  border: 1px solid var(--el-border-color-light);
   border-radius: 8px;
-  flex: 1;
-  min-height: 0;
-  display: flex;
-  flex-direction: column;
+  padding: 12px;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.05);
 }
-:deep(.table-card .el-card__body) { 
-  flex: 1;
-  min-height: 0;
-  display: flex;
-  flex-direction: column;
-  padding: 10px;
-  overflow: hidden;
+
+.table-card.is-mobile-card {
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  padding: 0;
+  overflow: visible;
 }
 
 .table-main {
@@ -750,4 +805,66 @@ onMounted(async () => {
   gap: 10px;
   overflow-y: auto;
 }
-</style>
+
+@media (max-width: 768px) {
+  .page-container {
+    padding: 6px 8px;
+    gap: 6px;
+  }
+
+  .header-content {
+    margin-bottom: 8px;
+  }
+
+  .page-title {
+    font-size: 18px;
+  }
+
+  .search-row.is-mobile {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  }
+
+  .filter-toggle-btn {
+    flex-shrink: 0;
+    height: 32px;
+  }
+
+  .filter-count-mini {
+    background: var(--el-color-primary);
+    color: #fff;
+    padding: 0 5px;
+    border-radius: 6px;
+    font-size: 10px;
+    margin-left: 4px;
+    line-height: 1.4;
+  }
+
+  .is-mobile-filters {
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 8px !important;
+    margin-top: 8px !important;
+  }
+
+  .advanced-filter-row {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px !important;
+  }
+}
+
+/* Transitions for expand */
+.expand-enter-active,
+.expand-leave-active {
+  transition: all 0.3s ease-in-out;
+  overflow: hidden;
+  max-height: 200px;
+}
+
+.expand-enter-from,
+.expand-leave-to {
+  max-height: 0;
+  opacity: 0;
+}
+</style>

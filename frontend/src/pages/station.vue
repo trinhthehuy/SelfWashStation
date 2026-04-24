@@ -12,7 +12,7 @@
         </div>
       </div>
 
-      <div class="action-row" :class="{ 'is-mobile-row': isMobile }">
+      <div class="action-row" v-if="isMobile" :class="{ 'is-mobile-row': isMobile }">
         <div class="strategy-actions">
           <template v-if="isSelectionMode">
             <span class="selection-info" v-if="!isMobile">
@@ -22,6 +22,15 @@
               </template>
               <template v-else>Chọn trạm cần áp dụng</template>
             </span>
+            <el-button
+              type="success"
+              plain
+              :icon="Finished"
+              @click="handleSelectAll"
+              size="small"
+            >
+              {{ isMobile ? 'Tất cả' : 'Chọn tất cả' }}
+            </el-button>
             <el-button
               type="primary"
               :icon="MagicStick"
@@ -35,7 +44,14 @@
             <el-button @click="exitSelectionMode" size="small">Hủy</el-button>
           </template>
           <template v-else>
-            <el-button :icon="MagicStick" @click="openPickAgencyDialog" size="small">
+            <el-button 
+              type="primary" 
+              plain 
+              :icon="MagicStick" 
+              @click="openPickAgencyDialog" 
+              :size="isMobile ? 'default' : 'small'"
+              class="strategy-toggle-btn"
+            >
               Thay đổi chiến lược
             </el-button>
           </template>
@@ -58,77 +74,122 @@
 
       <div class="filter-section" v-if="!isMobile || showMobileFilter">
         <transition name="expand">
-          <el-form 
-            v-if="!isMobile || showMobileFilter" 
-            :inline="true" 
-            :model="filterForm" 
-            class="demo-form-inline filter-layout"
-            :class="{ 'is-mobile-filters': isMobile }"
-          >
-            <el-form-item :label="isMobile ? '' : 'Tỉnh'" :class="{ 'no-label': isMobile }">
-              <el-select
-                v-model="filterForm.province_id"
-                filterable remote clearable
-                :loading="selectLoading.province"
-                @change="handleProvinceChange"
-                @clear="handleProvinceClear"
-                :placeholder="isMobile ? 'Chọn tỉnh ...' : 'Chọn tỉnh'"
-                class="filter-select"
-              >
-                <el-option v-for="item in options.provinces" :key="item.id" :label="item.name" :value="item.id" />
-              </el-select>
-            </el-form-item>
+          <div class="filter-container-desktop" v-if="!isMobile || showMobileFilter">
+            <el-form 
+              :inline="true" 
+              :model="filterForm" 
+              class="demo-form-inline filter-layout"
+              :class="{ 'is-mobile-filters': isMobile }"
+            >
+              <el-form-item :label="isMobile ? '' : 'Tỉnh'" :class="{ 'no-label': isMobile }">
+                <el-select
+                  v-model="filterForm.province_id"
+                  filterable remote clearable
+                  :loading="selectLoading.province"
+                  @change="handleProvinceChange"
+                  @clear="handleProvinceClear"
+                  :placeholder="isMobile ? 'Chọn tỉnh ...' : 'Chọn tỉnh'"
+                  class="filter-select"
+                >
+                  <el-option v-for="item in options.provinces" :key="item.id" :label="item.name" :value="item.id" />
+                </el-select>
+              </el-form-item>
 
-            <el-form-item :label="isMobile ? '' : 'Xã'" :class="{ 'no-label': isMobile }">
-              <el-select
-                v-model="filterForm.ward_id"
-                filterable remote clearable
-                :remote-method="remoteFetchWards"
-                :loading="selectLoading.ward"
-                @change="handleWardChange"
-                @clear="handleWardClear"
-                :placeholder="isMobile ? 'Chọn xã ...' : 'Chọn xã'"
-                class="filter-select"
-              >
-                <el-option v-for="item in options.wards" :key="item.id" :label="item.ward_name" :value="item.id" />
-              </el-select>
-            </el-form-item>
+              <el-form-item :label="isMobile ? '' : 'Xã'" :class="{ 'no-label': isMobile }">
+                <el-select
+                  v-model="filterForm.ward_id"
+                  filterable remote clearable
+                  :remote-method="remoteFetchWards"
+                  :loading="selectLoading.ward"
+                  @change="handleWardChange"
+                  @clear="handleWardClear"
+                  :placeholder="isMobile ? 'Chọn xã ...' : 'Chọn xã'"
+                  class="filter-select"
+                >
+                  <el-option v-for="item in options.wards" :key="item.id" :label="item.ward_name" :value="item.id" />
+                </el-select>
+              </el-form-item>
 
-            <el-form-item :label="isMobile ? '' : 'Đại lý'" :class="{ 'no-label': isMobile }">
-              <el-select
-                v-model="filterForm.agency_id"
-                filterable remote clearable
-                :remote-method="remoteFetchAgencies"
-                :loading="selectLoading.agency"
-                @change="handleAgencyChange"
-                @clear="handleAgencyClear"
-                :placeholder="isMobile ? 'Chọn đại lý ...' : 'Chọn đại lý'"
-                class="filter-select"
-              >
-                <el-option v-for="item in options.agencies" :key="item.id" :label="item.agency_name" :value="item.id">
-                  <div class="agency-dual">
-                    <div class="agency-dual-name">{{ item.agency_name }}</div>
-                    <div class="agency-dual-id">ID: {{ item.identity_number || 'N/A' }}</div>
-                  </div>
-                </el-option>
-              </el-select>
-            </el-form-item>
+              <el-form-item :label="isMobile ? '' : 'Đại lý'" :class="{ 'no-label': isMobile }">
+                <el-select
+                  v-model="filterForm.agency_id"
+                  filterable remote clearable
+                  :remote-method="remoteFetchAgencies"
+                  :loading="selectLoading.agency"
+                  @change="handleAgencyChange"
+                  @clear="handleAgencyClear"
+                  :placeholder="isMobile ? 'Chọn đại lý ...' : 'Chọn đại lý'"
+                  class="filter-select"
+                >
+                  <el-option v-for="item in options.agencies" :key="item.id" :label="item.agency_name" :value="item.id">
+                    <div class="agency-dual">
+                      <div class="agency-dual-name">{{ item.agency_name }}</div>
+                      <div class="agency-dual-id">ID: {{ item.identity_number || 'N/A' }}</div>
+                    </div>
+                  </el-option>
+                </el-select>
+              </el-form-item>
 
-            <el-form-item :label="isMobile ? '' : 'Mã trạm'" :class="{ 'no-label': isMobile }">
-              <el-select
-                v-model="filterForm.station_id"
-                filterable remote clearable
-                :remote-method="remoteFetchStations"
-                :loading="selectLoading.station"
-                @change="handleStationChange"
-                @clear="handleStationClear"
-                :placeholder="isMobile ? 'Chọn trạm ...' : 'Chọn trạm'"
-                class="filter-select"
-              >
-                <el-option v-for="item in options.stations" :key="item.id" :label="item.station_name" :value="item.id" />
-              </el-select>
-            </el-form-item>
-          </el-form>
+              <el-form-item :label="isMobile ? '' : 'Mã trạm'" :class="{ 'no-label': isMobile }">
+                <el-select
+                  v-model="filterForm.station_id"
+                  filterable remote clearable
+                  :remote-method="remoteFetchStations"
+                  :loading="selectLoading.station"
+                  @change="handleStationChange"
+                  @clear="handleStationClear"
+                  :placeholder="isMobile ? 'Chọn trạm ...' : 'Chọn trạm'"
+                  class="filter-select"
+                >
+                  <el-option v-for="item in options.stations" :key="item.id" :label="item.station_name" :value="item.id" />
+                </el-select>
+              </el-form-item>
+            </el-form>
+
+            <!-- Strategy actions for desktop -->
+            <div class="strategy-actions desktop-actions" v-if="!isMobile">
+              <template v-if="isSelectionMode">
+                <span class="selection-info">
+                  <el-tag type="warning" size="small" style="margin-right:6px">{{ selectionAgencyName }}</el-tag>
+                  <template v-if="selectedStations.length > 0">
+                    Đã chọn <strong>{{ selectedStations.length }}</strong> trạm
+                  </template>
+                  <template v-else>Chọn trạm cần áp dụng</template>
+                </span>
+                <el-button
+                  type="success"
+                  plain
+                  :icon="Finished"
+                  @click="handleSelectAll"
+                  size="small"
+                >
+                  Chọn tất cả
+                </el-button>
+                <el-button
+                  type="primary"
+                  :icon="MagicStick"
+                  :disabled="selectedStations.length === 0"
+                  @click="openAssignStrategyDialog"
+                  size="small"
+                >
+                  Chọn chiến lược
+                </el-button>
+                <el-button @click="exitSelectionMode" size="small">Hủy</el-button>
+              </template>
+              <template v-else>
+                <el-button 
+                  type="primary" 
+                  plain 
+                  :icon="MagicStick" 
+                  @click="openPickAgencyDialog" 
+                  size="small"
+                  class="strategy-toggle-btn"
+                >
+                  Thay đổi chiến lược
+                </el-button>
+              </template>
+            </div>
+          </div>
         </transition>
       </div>
     </el-card>
@@ -149,7 +210,7 @@
             highlight-current-row
             @selection-change="handleSelectionChange"
           >
-            <el-table-column type="selection" width="48" align="center" class-name="selection-column" />
+            <el-table-column type="selection" width="48" align="center" class-name="selection-column" :reserve-selection="true" />
             <el-table-column prop="id" label="ID" min-width="50" align="right" header-align="right" />
             
             <el-table-column label="Thông tin trạm" min-width="120">
@@ -390,13 +451,10 @@
     <!-- Dialog bước 1: Chọn đại lý trước khi thay chiến lược -->
     <el-dialog
       v-model="pickAgencyDialogVisible"
-      title="Bước 1 — Chọn đại lý"
+      title="Chọn đại lý"
       width="420px"
       :close-on-click-modal="false"
     >
-      <p style="margin-bottom:14px; color: var(--el-text-color-regular); font-size:13px;">
-        Chọn đại lý để lọc danh sách trạm và chiến lược tương ứng. Chỉ chiến lược thuộc đại lý đã chọn mới được áp dụng.
-      </p>
       <el-select
         v-model="selectionAgencyId"
         placeholder="Tìm đại lý…"
@@ -428,21 +486,13 @@
     <!-- Dialog bước 2: Chọn chiến lược (đã lọc theo đại lý) -->
     <el-dialog
       v-model="assignStrategyDialogVisible"
-      title="Bước 2 — Áp dụng chiến lược vận hành"
+      title="Áp dụng chiến lược"
       width="500px"
       :close-on-click-modal="false"
     >
       <div>
-        <el-alert
-          type="info"
-          :closable="false"
-          style="margin-bottom:14px;"
-          :title="`Chiến lược thuộc đại lý: ${selectionAgencyName}`"
-          description="Chỉ những chiến lược của đại lý này mới được hiển thị để tránh áp dụng nhầm."
-          show-icon
-        />
         <p style="margin-bottom: 10px; color: var(--el-text-color-regular); font-size:13px;">
-          Áp dụng cho <strong>{{ selectedStations.length }}</strong> trạm đã chọn:
+          Đã chọn <strong>{{ selectedStations.length }}</strong> trạm:
         </p>
         <div class="selected-stations-tags">
           <el-tag
@@ -488,14 +538,14 @@
 </template>
 
 <script setup>
-import { ref, computed, reactive, onMounted, onUnmounted } from "vue";
+import { ref, computed, reactive, onMounted, onUnmounted, nextTick } from "vue";
 
 const isMobile = ref(window.innerWidth < 768)
 const showMobileFilter = ref(false)
 const _onResize = () => { isMobile.value = window.innerWidth < 768 }
 onMounted(() => window.addEventListener('resize', _onResize))
 onUnmounted(() => window.removeEventListener('resize', _onResize))
-import { Plus, Edit, Search, View, Delete, MagicStick, Filter, ArrowDown } from "@element-plus/icons-vue";
+import { Plus, Edit, Search, View, Delete, MagicStick, Filter, ArrowDown, Finished } from "@element-plus/icons-vue";
 import { ElMessage } from 'element-plus';
 import { stationApi } from "@/api/station"; 
 import { strategyApi } from "@/api/strategy";
@@ -539,6 +589,7 @@ const selectedStrategyId = ref(null);
 const strategies = ref([]);
 const loadingAssign = ref(false);
 const loadingStrategies = ref(false);
+const isInternalAction = ref(false);
 
 // Đại lý được chọn trong luồng thay chiến lược
 const selectionAgencyId = ref(null);
@@ -676,7 +727,18 @@ const fetchData = async ({ resetPage = false } = {}) => {
       pagination.page = Number(payload?.page ?? pagination.page);
       pagination.limit = Number(payload?.limit ?? pagination.limit);
     }
-    clearSelection();
+    if (!isSelectionMode.value) {
+      clearSelection();
+    } else if (!isMobile.value && tableRef.value) {
+      // Nếu đang trong mode chọn, đảm bảo các dòng mới load về được tick nếu đã được chọn trước đó
+      nextTick(() => {
+        list.value.forEach(row => {
+          if (selectedStationIds.value.has(row.id)) {
+            tableRef.value.toggleRowSelection(row, true);
+          }
+        });
+      });
+    }
 
     // Tự động cuộn về đầu
     if (!isMobile.value && tableRef.value) {
@@ -795,7 +857,8 @@ const fetchAgencies = async (keyword = '') => {
   const q = normalizeSearchValue(keyword);
   selectLoading.agency = true;
   try {
-    const res = await agencyApi.getAgencies({ keyword: q, limit: 20 });
+    const res = await agencyApi.getAgencies({ keyword: q, limit: 1000 });
+
     options.agencies = (res.data?.data || res.data || []).map((agency) => ({
       ...agency,
       search_text: normalizeSearchValue(`${agency.id || ''} ${agency.agency_name || ''} ${agency.identity_number || ''} ${agency.phone || ''}`)
@@ -827,7 +890,8 @@ const fetchStations = async (keyword = '') => {
   const q = normalizeSearchValue(keyword);
   selectLoading.station = true;
   try {
-    const params = { keyword: q, limit: 20 };
+    const params = { keyword: q, limit: 1000 };
+
     if (filterForm.province_id) params.province_id = filterForm.province_id;
     if (filterForm.ward_id) params.ward_id = filterForm.ward_id;
     if (filterForm.agency_id) params.agency_id = filterForm.agency_id;
@@ -864,7 +928,65 @@ const handlePageSizeChange = async (size) => {
 
 // --- Bulk assign strategy handlers ---
 const handleSelectionChange = (selection) => {
-  selectedStations.value = selection;
+  if (isInternalAction.value) return;
+  
+  // Đối với desktop, ta cần thủ công giữ lại selection của các trang khác 
+  // vì el-table mặc định chỉ trả về selection của trang hiện tại (nếu không dùng reserve-selection phức tạp)
+  // Lấy danh sách ID đang hiển thị ở trang hiện tại
+  const currentIds = new Set(list.value.map(s => s.id));
+  
+  // Giữ lại những trạm đã chọn ở các trang KHÁC
+  const otherPageStations = selectedStations.value.filter(s => !currentIds.has(s.id));
+  
+  // Hợp nhất với những trạm được chọn ở trang HIỆN TẠI
+  selectedStations.value = [...otherPageStations, ...selection];
+};
+
+const handleSelectAll = async () => {
+  if (!selectionAgencyId.value) {
+    ElMessage.warning('Vui lòng chọn đại lý trước');
+    return;
+  }
+  
+  loading.value = true;
+  try {
+    const res = await stationApi.getStations({
+      agency_id: selectionAgencyId.value,
+      limit: 1000 // Lấy tất cả trạm của đại lý này
+    });
+    
+    const allStations = Array.isArray(res.data) ? res.data : (res.data?.data || []);
+    
+    if (allStations.length === 0) {
+      ElMessage.info('Đại lý này chưa có trạm nào');
+      return;
+    }
+
+    // Cập nhật danh sách chọn
+    isInternalAction.value = true;
+    selectedStations.value = allStations;
+
+    // Đồng bộ UI cho Table (Desktop)
+    if (!isMobile.value && tableRef.value) {
+      allStations.forEach(row => {
+        const match = list.value.find(item => item.id === row.id);
+        if (match) {
+          tableRef.value.toggleRowSelection(match, true);
+        }
+      });
+    }
+    
+    setTimeout(() => {
+      isInternalAction.value = false;
+    }, 200);
+    
+    ElMessage.success(`Đã chọn tất cả ${allStations.length} trạm của đại lý ${selectionAgencyName.value}`);
+  } catch (error) {
+    console.error("Lỗi khi chọn tất cả:", error);
+    ElMessage.error('Không thể lấy danh sách trạm để chọn tất cả');
+  } finally {
+    loading.value = false;
+  }
 };
 
 // Mở dialog bước 1 - chọn đại lý (bỏ qua nếu user là agency vì đại lý đã fixed)
@@ -906,7 +1028,8 @@ const loadStrategiesForAgency = async (agencyId) => {
   strategies.value = [];
   strategyLoadingPromise = null;
   try {
-    const response = await strategyApi.getStrategies(agencyId);
+    const response = await strategyApi.getStrategies({ agency_id: agencyId, limit: 1000 });
+
     strategies.value = Array.isArray(response.data.data) ? response.data.data : [];
   } catch {
     ElMessage.error('Không thể tải danh sách chiến lược');
@@ -1161,11 +1284,23 @@ const handleDeleteBay = async (bay) => {
   width: 150px;
 }
 
+.filter-container-desktop {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+}
+
+.desktop-actions {
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
 .action-row {
   display: flex;
   align-items: center;
   gap: 12px;
-  margin-bottom: 16px;
+  margin-bottom: 8px;
 }
 
 .strategy-actions {
@@ -1329,8 +1464,15 @@ const handleDeleteBay = async (bay) => {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 0;
+    margin-bottom: 4px;
     gap: 8px;
+  }
+
+  .strategy-toggle-btn {
+    height: 32px;
+    padding: 0 12px;
+    font-weight: 600;
+    border-radius: 8px;
   }
 
   .strategy-actions {

@@ -79,8 +79,8 @@ export class FeedbackController {
         recipientUserIds: saUsers.map((u) => Number(u.id)),
         type: 'FEEDBACK_NEW',
         title: 'Có góp ý mới cần xử lý',
-        message: `${req.user!.fullName || req.user!.username} vừa gửi góp ý: ${String(title).trim()}`,
-        actionUrl: `/gop-y?feedbackId=${feedback.id}`,
+        message: `${req.user!.fullName || req.user!.email} vừa gửi góp ý: ${String(title).trim()}`,
+        actionUrl: `/feedback?feedbackId=${feedback.id}`,
         relatedFeedbackId: feedback.id,
       });
 
@@ -128,7 +128,7 @@ export class FeedbackController {
         type: 'FEEDBACK_REPLIED',
         title: 'Góp ý của bạn đã được phản hồi',
         message: `Phản hồi cho góp ý: ${updated.title}`,
-        actionUrl: `/gop-y?feedbackId=${updated.id}`,
+        actionUrl: `/feedback?feedbackId=${updated.id}`,
         relatedFeedbackId: updated.id,
       });
 

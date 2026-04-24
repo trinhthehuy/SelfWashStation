@@ -46,15 +46,18 @@ export class AgencyService {
       .leftJoin('provinces as p', 'a.province_id', 'p.id')
       .leftJoin('wards as w', 'a.ward_id', 'w.id');
 
-    // 2. Áp dụng scope theo role trước, sau đó mới xét filter UI
-    if (scope?.agencyId) {
-      query.where('a.id', scope.agencyId);
-    } else if (scope?.provinceIds?.length) {
+    // 2. Áp dụng scope bảo mật theo role
+    if (scope?.role === 'agency') {
+      // Bắt buộc chỉ xem đúng đại lý của mình, kể cả khi agencyId là null (thì sẽ không thấy gì)
+      query.where('a.id', scope.agencyId || 0);
+    } else if (scope?.role === 'regional_manager' && (scope?.provinceIds?.length || 0) > 0) {
       query.whereIn('a.province_id', scope.provinceIds);
-      // Vẫn cho phép lọc thêm theo ward trong phạm vi province đã được scope
       if (ward_id) query.andWhere('a.ward_id', ward_id);
+    } else if (scope?.agencyId) {
+      // Trường hợp sa/engineer chọn xem một đại lý cụ thể qua UI filter hoặc tham số
+      query.where('a.id', scope.agencyId);
     } else {
-      // sa / engineer — lọc theo UI filter bình thường
+      // sa / engineer / default — lọc theo UI filter bình thường (tất cả)
       if (ward_id) {
         query.where('a.ward_id', ward_id);
       } else if (province_id) {
@@ -95,7 +98,7 @@ export class AgencyService {
    * Nếu accountData được cung cấp ({ password }), tạo tài khoản system_users kèm theo
    * trong cùng một transaction. Rollback toàn bộ nếu email đã tồn tại.
    */
-  async createAgency(data: any, accountData?: { password: string; username?: string } | null) {
+  async createAgency(data: any, accountData?: { password: string } | null) {
     // Kiểm tra CCCD trước khi tạo
     if (data.identity_number) {
       const existingAgency = await db('agency').where('identity_number', data.identity_number).first();
@@ -124,7 +127,6 @@ export class AgencyService {
       const passwordHash = await bcrypt.hash(accountData.password, 10);
       await trx('system_users').insert({
         email: agencyEmail,
-        email: accountData.username || agencyEmail?.split('@')[0],
         password_hash: passwordHash,
         full_name: data.agency_name,
         role: 'agency',
@@ -155,10 +157,12 @@ export class AgencyService {
       await db.transaction(async (trx) => {
         const query = trx('agency').where('id', id);
 
-        if (scope?.agencyId) {
-          query.andWhere('id', scope.agencyId);
+        if (scope?.role === 'agency') {
+          query.andWhere('id', scope.agencyId || 0);
         } else if (scope?.provinceIds?.length) {
           query.whereIn('province_id', scope.provinceIds);
+        } else if (scope?.agencyId) {
+          query.andWhere('id', scope.agencyId);
         }
 
         await query.update({
@@ -186,10 +190,12 @@ export class AgencyService {
   async deleteAgency(id: number, scope?: RequestScope | null) {
     // 1. Kiểm tra đại lý có tồn tại không trước khi xóa
     const agencyQuery = db('agency').where('id', id);
-    if (scope?.agencyId) {
-      agencyQuery.andWhere('id', scope.agencyId);
+    if (scope?.role === 'agency') {
+      agencyQuery.andWhere('id', scope.agencyId || 0);
     } else if (scope?.provinceIds?.length) {
       agencyQuery.whereIn('province_id', scope.provinceIds);
+    } else if (scope?.agencyId) {
+      agencyQuery.andWhere('id', scope.agencyId);
     }
 
     const agency = await agencyQuery.first();

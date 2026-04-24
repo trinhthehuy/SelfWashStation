@@ -62,7 +62,7 @@ export class BankAccountController {
   
       auditService.log({
         userId: req.user?.id,
-        email: req.user?.username || 'system',
+        email: req.user?.email || 'system',
         role: req.user?.role || 'unknown',
         action: 'BANK_ACCOUNT_UPDATE',
         entityType: 'bank_account',
@@ -85,7 +85,7 @@ export class BankAccountController {
       
       auditService.log({
         userId: req.user?.id,
-        email: req.user?.username || 'system',
+        email: req.user?.email || 'system',
         role: req.user?.role || 'unknown',
         action: 'BANK_ACCOUNT_DELETE',
         entityType: 'bank_account',

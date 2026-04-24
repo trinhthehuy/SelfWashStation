@@ -3,7 +3,7 @@
     <el-card shadow="never" class="header-card">
       <div class="header-content">
         <div class="title-group">
-          <h2 class="page-title">Quản lý Tài khoản Ngân hàng</h2>
+          <h2 class="page-title">Tài khoản Ngân hàng</h2>
         </div>
         <el-button type="primary" :icon="Plus" @click="handleAddNew" class="mobile-add-btn">
           Thêm mới
@@ -11,83 +11,101 @@
       </div>
 
       <div class="filter-section">
-        <el-input
-          v-model="keyword"
-          placeholder="Tìm nhanh toàn bộ dữ liệu..."
-          :prefix-icon="Search"
-          clearable
-          class="search-input"
-        />
-
-        <div v-if="isSystemAdmin" class="advanced-filter-row">
-          <el-select
-            v-model="fieldFilters.agencyName"
-            placeholder="Lọc theo Đại lý"
+        <div class="search-row" :class="{ 'is-mobile': isMobile }">
+          <el-input
+            v-model="keyword"
+            placeholder="Tìm nhanh..."
+            :prefix-icon="Search"
             clearable
-            filterable
-            class="filter-item"
-          >
-            <el-option
-              v-for="item in agencyFilterOptions"
-              :key="item"
-              :label="item"
-              :value="item"
-            />
-          </el-select>
+            class="search-input"
+          />
 
-          <el-select
-            v-model="fieldFilters.accountNumber"
-            placeholder="Lọc theo Số tài khoản"
-            clearable
-            filterable
-            class="filter-item"
+          <el-button 
+            v-if="isMobile && isSystemAdmin" 
+            type="primary" 
+            plain 
+            size="default"
+            :icon="Filter" 
+            @click="showMobileFilter = !showMobileFilter"
+            class="filter-toggle-btn"
           >
-            <el-option
-              v-for="item in accountNumberFilterOptions"
-              :key="item"
-              :label="item"
-              :value="item"
-            />
-          </el-select>
-
-          <el-select
-            v-model="fieldFilters.accountName"
-            placeholder="Lọc theo Tên tài khoản"
-            clearable
-            filterable
-            class="filter-item"
-          >
-            <el-option
-              v-for="item in accountNameFilterOptions"
-              :key="item"
-              :label="item"
-              :value="item"
-            />
-          </el-select>
-
-          <el-select
-            v-model="fieldFilters.bankName"
-            placeholder="Lọc theo Ngân hàng"
-            clearable
-            filterable
-            class="filter-item"
-          >
-            <el-option
-              v-for="item in bankFilterOptions"
-              :key="item"
-              :label="item"
-              :value="item"
-            />
-          </el-select>
-
-          <el-button class="clear-filter-btn" @click="resetFilters">Xóa bộ lọc</el-button>
+            {{ showMobileFilter ? 'Đóng' : 'Bộ lọc' }} 
+            <span v-if="activeFilterCount > 0" class="filter-count-mini">{{ activeFilterCount }}</span>
+          </el-button>
         </div>
+
+        <transition name="expand">
+          <div v-if="isSystemAdmin && (!isMobile || showMobileFilter)" class="advanced-filter-row" :class="{ 'is-mobile-filters': isMobile }">
+            <el-select
+              v-model="fieldFilters.agencyName"
+              placeholder="Đại lý"
+              clearable
+              filterable
+              class="filter-item"
+            >
+              <el-option
+                v-for="item in agencyFilterOptions"
+                :key="item"
+                :label="item"
+                :value="item"
+              />
+            </el-select>
+
+            <el-select
+              v-model="fieldFilters.accountNumber"
+              placeholder="Số tài khoản"
+              clearable
+              filterable
+              class="filter-item"
+            >
+              <el-option
+                v-for="item in accountNumberFilterOptions"
+                :key="item"
+                :label="item"
+                :value="item"
+              />
+            </el-select>
+
+            <el-select
+              v-model="fieldFilters.accountName"
+              placeholder="Tên tài khoản"
+              clearable
+              filterable
+              class="filter-item"
+            >
+              <el-option
+                v-for="item in accountNameFilterOptions"
+                :key="item"
+                :label="item"
+                :value="item"
+              />
+            </el-select>
+
+            <el-select
+              v-model="fieldFilters.bankName"
+              placeholder="Ngân hàng"
+              clearable
+              filterable
+              class="filter-item"
+            >
+              <el-option
+                v-for="item in bankFilterOptions"
+                :key="item"
+                :label="item"
+                :value="item"
+              />
+            </el-select>
+
+            <el-button class="clear-filter-btn" @click="resetFilters" :icon="Refresh">Xóa</el-button>
+          </div>
+        </transition>
       </div>
     </el-card>
 
-    <el-card shadow="never" class="table-card">
+    <div class="table-card" :class="{ 'is-mobile-card': isMobile }">
       <div class="table-main">
         <el-table
+          v-if="!isMobile"
           :data="visibleList"
           v-loading="loading"
           style="width: 100%"
@@ -125,7 +143,7 @@
   
           <el-table-column label="Thao tác" width="170" fixed="right" align="center">
             <template #default="{ row }">
-              <div class="action-buttons">
+              <div class="action-buttons-table">
                 <el-button
                   type="primary"
                   link
@@ -146,19 +164,69 @@
             </template>
           </el-table-column>
         </el-table>
+
+        <div v-else class="mobile-card-list">
+          <div v-if="loading" class="loading-state">
+            <el-skeleton :rows="3" animated />
+          </div>
+          <div v-else-if="visibleList.length === 0" class="empty-state">
+            <el-empty description="Không có tài khoản nào" />
+          </div>
+          <div v-else v-for="row in visibleList" :key="row.id" class="mobile-card" @click="toggleExpandedCard(row.id)">
+            <div class="mc-header">
+              <el-avatar :size="36" class="mc-avatar">{{ row.bank_name?.charAt(0) }}</el-avatar>
+              <div class="mc-title">
+                <div class="mc-name">{{ row.agency_name }}</div>
+                <div class="mc-sub">ID: {{ row.id }}</div>
+              </div>
+              <div class="mc-right-meta">
+                <el-icon class="mc-expand-icon" :class="{ 'is-active': expandedCard === row.id }"><ArrowDown /></el-icon>
+              </div>
+            </div>
+
+            <div class="mc-brief">
+              <div class="mc-brief-item">
+                <el-tag size="small" type="success" effect="plain">{{ row.bank_name }}</el-tag>
+              </div>
+              <div class="mc-brief-item">
+                <el-icon><Postcard /></el-icon>
+                <span>{{ row.account_number }}</span>
+              </div>
+            </div>
+
+            <transition name="expand">
+              <div v-if="expandedCard === row.id" class="mc-detail">
+                <div class="mc-detail-row">
+                  <span>Chủ tài khoản:</span>
+                  <span>{{ row.account_name }}</span>
+                </div>
+                <div class="mc-detail-row">
+                  <span>Số tài khoản:</span>
+                  <span>{{ row.account_number }}</span>
+                </div>
+                <div class="mc-actions" @click.stop>
+                  <el-button type="primary" plain :icon="Edit" @click="handleEdit(row)">Sửa</el-button>
+                  <el-button type="primary" :icon="Grid" @click="openQrModal(row)">Mã QR</el-button>
+                </div>
+              </div>
+            </transition>
+          </div>
+        </div>
       </div>
 
-      <div class="pagination-footer" v-if="filteredList.length > pageSize">
+      <div class="pagination-footer" :class="{ 'mobile-pagination': isMobile }" v-if="filteredList.length > pageSize">
         <el-pagination
           background
-          layout="total, prev, pager, next"
+          :layout="isMobile ? 'prev, pager, next' : 'prev, pager, next'"
           :total="filteredList.length"
           :page-size="pageSize"
           v-model:current-page="page"
+          :pager-count="isMobile ? 5 : 7"
           @current-change="handlePageChange"
+          :size="isMobile ? 'small' : 'default'"
         />
       </div>
-    </el-card>
+    </div>
 
     <el-dialog
       v-model="showModal"
@@ -338,8 +406,8 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, reactive, watch } from "vue";
-import { Plus, Edit, Search, Delete, Postcard, Grid } from "@element-plus/icons-vue";
+import { ref, computed, onMounted, reactive, watch, onUnmounted } from "vue";
+import { Plus, Edit, Search, Delete, Postcard, Grid, Filter, Refresh, ArrowDown } from "@element-plus/icons-vue";
 import { ElMessage } from "element-plus";
 import { bankaccountApi } from "@/api/bank-account";
 import { agencyApi } from "@/api/agency";
@@ -350,6 +418,12 @@ import { confirmPopup } from '@/utils/popup'
 const route = useRoute();
 const router = useRouter();
 const isSystemAdmin = computed(() => authStore.hasAnyRole(['sa']));
+
+const isMobile = ref(window.innerWidth < 768)
+const showMobileFilter = ref(false)
+const onResize = () => { isMobile.value = window.innerWidth < 768 }
+onMounted(() => window.addEventListener('resize', onResize))
+onUnmounted(() => window.removeEventListener('resize', onResize))
 
 const keyword = ref("");
 const fieldFilters = reactive({
@@ -373,6 +447,15 @@ const loadingBanks = ref(false);
 const generatedQrUrl = ref('');
 const rawQrPayload = ref('');
 const qrReady = ref(false);
+const expandedCard = ref(null);
+
+const toggleExpandedCard = (id) => {
+  if (expandedCard.value === id) {
+    expandedCard.value = null
+  } else {
+    expandedCard.value = id
+  }
+}
 
 const formData = ref({
   id: null,
@@ -401,7 +484,15 @@ const rules = reactive({
   account_name: [{ required: true, message: 'Vui lòng nhập tên chủ tài khoản', trigger: 'blur' }]
 });
 
-const normalizeFilterValue = (value) => String(value || '').toLowerCase().trim();
+const normalizeFilterValue = (value) => {
+  return String(value || '')
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/đ/g, "d")
+    .trim();
+};
+
 const uniqueSortedBy = (selector) => {
   return Array.from(
     new Set(
@@ -417,8 +508,23 @@ const accountNumberFilterOptions = computed(() => uniqueSortedBy((item) => item.
 const accountNameFilterOptions = computed(() => uniqueSortedBy((item) => item.account_name));
 const bankFilterOptions = computed(() => uniqueSortedBy((item) => item.bank_name));
 
+const activeFilterCount = computed(() => {
+  let count = 0;
+  if (fieldFilters.agencyName) count++;
+  if (fieldFilters.accountNumber) count++;
+  if (fieldFilters.accountName) count++;
+  if (fieldFilters.bankName) count++;
+  return count;
+});
+
 const page = ref(1);
 const pageSize = ref(15);
+
+// Reset page to 1 when filters change to avoid "empty list" bug on later pages
+watch([keyword, fieldFilters], () => {
+  page.value = 1;
+}, { deep: true });
+
 
 const filteredList = computed(() => {
   const search = normalizeFilterValue(keyword.value);
@@ -428,7 +534,16 @@ const filteredList = computed(() => {
   const bankNameFilter = isSystemAdmin.value ? normalizeFilterValue(fieldFilters.bankName) : '';
 
   const filtered = list.value.filter((item) => {
-    const matchesQuickSearch = !search || Object.values(item).some((val) => String(val).toLowerCase().includes(search));
+    // Search in relevant fields only for better performance and accuracy
+    const searchFields = [
+      item.agency_name,
+      item.bank_name,
+      item.account_number,
+      item.account_name,
+      item.id
+    ];
+    const matchesQuickSearch = !search || searchFields.some((val) => normalizeFilterValue(val).includes(search));
+    
     const matchesAgencyName = !agencyNameFilter || normalizeFilterValue(item.agency_name) === agencyNameFilter;
     const matchesAccountNumber = !accountNumberFilter || normalizeFilterValue(item.account_number) === accountNumberFilter;
     const matchesAccountName = !accountNameFilter || normalizeFilterValue(item.account_name) === accountNameFilter;
@@ -438,6 +553,7 @@ const filteredList = computed(() => {
   });
   return filtered;
 });
+
 
 const visibleList = computed(() => {
   const start = (page.value - 1) * pageSize.value;
@@ -473,12 +589,13 @@ const fetchData = async () => {
 
 const fetchAgencies = async () => {
   try {
-    const response = await agencyApi.getAgencies();
+    const response = await agencyApi.getAgencies({ limit: 1000 });
     agencyList.value = Array.isArray(response.data?.data) ? response.data.data : [];
   } catch (error) {
     console.error("Lỗi khi lấy DS đại lý:", error);
   }
 };
+
 
 const normalizeSearchValue = (value) => String(value || '').toLowerCase().trim();
 const agencySearchText = (agency) => normalizeSearchValue(`${agency?.id || ''} ${agency?.agency_name || ''} ${agency?.identity_number || ''} ${agency?.phone || ''}`);
@@ -838,10 +955,9 @@ onMounted(async () => {
   color: var(--text-faint);
 }
 
-.action-buttons {
+.action-buttons-table {
   display: flex;
-  flex-direction: column;
-  align-items: center;
+  justify-content: center;
   gap: 8px;
 }
 
@@ -995,8 +1111,169 @@ onMounted(async () => {
 }
 
 @media (max-width: 900px) {
+  .header-content {
+    margin-bottom: 12px;
+  }
+
+  .page-title {
+    font-size: 18px;
+  }
+
+  .search-row.is-mobile {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    margin-bottom: 0;
+  }
+
+  .filter-toggle-btn {
+    flex-shrink: 0;
+    height: 32px;
+  }
+
+  .filter-count-mini {
+    background: var(--el-color-primary);
+    color: #fff;
+    padding: 0 5px;
+    border-radius: 6px;
+    font-size: 10px;
+    margin-left: 4px;
+    line-height: 1.4;
+  }
+
+  .mobile-card-list {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    overflow-y: auto;
+    padding-top: 2px;
+  }
+
+  .mobile-card {
+    background: var(--bg-card, #fff);
+    border-radius: 8px;
+    padding: 10px 12px;
+    border: 1px solid var(--border-subtle, #eee);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    transition: all 0.2s ease;
+  }
+
+  .mobile-card:active {
+    transform: scale(0.98);
+    border-color: var(--el-color-primary);
+  }
+
+  .mc-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 6px;
+  }
+
+  .mc-avatar {
+    background-color: var(--el-color-primary-light-9);
+    color: var(--el-color-primary);
+    font-weight: bold;
+    border: 1px solid var(--border-subtle);
+  }
+
+  .mc-title {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-width: 0;
+  }
+
+  .mc-name {
+    font-weight: 600;
+    font-size: 14px;
+    color: var(--el-color-primary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .mc-sub {
+    font-size: 11px;
+    color: var(--text-faint);
+  }
+
+  .mc-expand-icon {
+    transition: transform 0.3s ease;
+    color: var(--text-placeholder);
+    font-size: 16px;
+  }
+
+  .mc-expand-icon.is-active {
+    transform: rotate(180deg);
+    color: var(--el-color-primary);
+  }
+
+  .mc-brief {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 4px;
+    align-items: center;
+  }
+
+  .mc-brief-item {
+    font-size: 11px;
+    color: var(--text-muted);
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+
+  .mc-detail {
+    padding: 8px 0;
+    border-top: 1px dashed var(--el-border-color-lighter);
+    margin-top: 6px;
+  }
+
+  .mc-detail-row {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    font-size: 11px;
+    line-height: 1.8;
+  }
+
+  .mc-detail-row span:first-child {
+    color: var(--text-faint);
+    flex-shrink: 0;
+  }
+
+  .mc-detail-row span:last-child {
+    color: var(--text-main);
+    font-weight: 500;
+    text-align: right;
+  }
+
+  .mc-actions {
+    display: flex;
+    gap: 8px;
+    border-top: 1px solid var(--el-border-color-lighter);
+    padding-top: 8px;
+    margin-top: 8px;
+  }
+
+  .mc-actions :deep(.el-button) {
+    flex: 1;
+    height: 28px;
+    font-size: 11px;
+  }
+
+  .mobile-pagination {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin-top: 4px;
+    margin-bottom: 2px;
+  }
+
   .advanced-filter-row {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(2, 1fr);
   }
 
   .qr-layout {
@@ -1027,15 +1304,19 @@ onMounted(async () => {
   min-height: 0;
   display: flex;
   flex-direction: column;
+  background-color: var(--el-bg-color-overlay);
+  border: 1px solid var(--el-border-color-light);
   border-radius: 8px;
+  padding: 12px;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.05);
 }
-:deep(.table-card .el-card__body) { 
-  flex: 1;
-  min-height: 0;
-  display: flex;
-  flex-direction: column;
-  padding: 10px;
-  overflow: hidden;
+
+.table-card.is-mobile-card {
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  padding: 0;
+  overflow: visible;
 }
 
 .table-main {
@@ -1049,5 +1330,19 @@ onMounted(async () => {
   display: flex;
   justify-content: flex-end;
   flex-shrink: 0;
+}
+
+/* Transitions for expand */
+.expand-enter-active,
+.expand-leave-active {
+  transition: all 0.3s ease-in-out;
+  overflow: hidden;
+  max-height: 500px;
+}
+
+.expand-enter-from,
+.expand-leave-to {
+  max-height: 0;
+  opacity: 0;
 }
 </style>

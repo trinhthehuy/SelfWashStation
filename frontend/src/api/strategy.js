@@ -2,10 +2,16 @@ import apiClient from './client';
 
 export const strategyApi = {
   // Lấy danh sách chiến lược
-  getStrategies(agencyId = null) {
-    const config = agencyId ? { params: { agency_id: agencyId } } : {};
-    return apiClient.get('/strategies', config);
+  getStrategies(paramsOrAgencyId = null) {
+    let params = {};
+    if (typeof paramsOrAgencyId === 'object' && paramsOrAgencyId !== null) {
+      params = paramsOrAgencyId;
+    } else if (paramsOrAgencyId) {
+      params.agency_id = paramsOrAgencyId;
+    }
+    return apiClient.get('/strategies', { params });
   },
+
   
  // thêm chiến lược
   createStrategies(data) {

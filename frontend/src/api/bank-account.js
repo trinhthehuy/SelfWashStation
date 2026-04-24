@@ -1,10 +1,16 @@
 import apiClient from './client';
 
 export const bankaccountApi = {
-  getBankAccounts(agencyId = null) {
-    const config = agencyId ? { params: { agency_id: agencyId } } : {};
-    return apiClient.get('/bank-accounts', config);
+  getBankAccounts(paramsOrAgencyId = null) {
+    let params = {};
+    if (typeof paramsOrAgencyId === 'object' && paramsOrAgencyId !== null) {
+      params = paramsOrAgencyId;
+    } else if (paramsOrAgencyId) {
+      params.agency_id = paramsOrAgencyId;
+    }
+    return apiClient.get('/bank-accounts', { params });
   },
+
 
  // thêm tài khoản ngân hàng
   createBankAccounts(data) {

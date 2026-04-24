@@ -210,7 +210,15 @@ const agencySearchKeyword = ref('');
 const bankaccounts = ref([]);
 const strategies = ref([]);
 
-const normalizeSearchValue = (value) => String(value || '').toLowerCase().trim();
+const normalizeSearchValue = (value) => {
+  return String(value || '')
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/đ/g, "d")
+    .trim();
+};
+
 const formatVnNumber = (value) => Number(value || 0).toLocaleString('vi-VN');
 const filteredAgencyOptions = computed(() => {
   if (!agencySearchKeyword.value) return agencies.value;
@@ -258,8 +266,9 @@ const handleProvinceChange = async (val) => {
     loadingWards.value = true;
     const [wardRes, agencyRes] = await Promise.all([
       wardApi.getWards(val),
-      agencyApi.getAgencies()
+      agencyApi.getAgencies({ limit: 1000 })
     ]);
+
     
     wards.value = (wardRes.data.data || []).map(i => ({ id: i.id, name: i.ward_name }));
     agencies.value = (agencyRes.data.data || []).map(i => ({
@@ -280,9 +289,10 @@ const handleAgencyChange = async (val) => {
   form.strategy_id = null;
   try {
     const [bankRes, stratRes] = await Promise.all([
-      bankaccountApi.getBankAccounts(val),
-      strategyApi.getStrategies(val)
+      bankaccountApi.getBankAccounts({ agency_id: val, limit: 1000 }),
+      strategyApi.getStrategies({ agency_id: val, limit: 1000 })
     ]);
+
     bankaccounts.value = bankRes.data.data.map(i => ({
       id: i.id, name: `${i.bank_name} - ${i.account_number}`
     }));

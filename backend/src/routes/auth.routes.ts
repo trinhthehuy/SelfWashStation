@@ -36,7 +36,7 @@ router.post('/login', loginRateLimit, async (req, res) => {
     registerLoginFailure(req);
     auditService.log({
       userId: null,
-      email: String(req.body?.email || req.body?.username || 'unknown'),
+      email: String(req.body?.email || 'unknown'),
       role: 'unknown',
       action: 'LOGIN_FAILED',
       details: { reason: error.message },
@@ -47,7 +47,7 @@ router.post('/login', loginRateLimit, async (req, res) => {
 });
 
 router.post('/forgot-password', async (req, res) => {
-  const email = String(req.body?.email || req.body?.username || '').trim();
+  const email = String(req.body?.email || '').trim();
   if (!email) {
     res.status(400).json({ message: 'Vui lòng nhập email tài khoản' });
     return;
@@ -208,7 +208,7 @@ router.post('/users', authenticateToken, authorizeRoles(['sa', 'regional_manager
     });
     res.status(201).json({ data: user });
   } catch (error: any) {
-    if (error.message === 'Tên đăng nhập đã tồn tại') {
+    if (error.message === 'Email này đã được sử dụng') {
       res.status(409).json({ message: error.message });
       return;
     }

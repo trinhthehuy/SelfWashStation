@@ -119,7 +119,11 @@ const openNotification = async (item) => {
   }
 
   if (item.action_url) {
-    router.push(item.action_url)
+    let targetUrl = item.action_url
+    if (targetUrl.startsWith('/gop-y')) {
+      targetUrl = targetUrl.replace('/gop-y', '/feedback')
+    }
+    router.push(targetUrl)
     return
   }
 

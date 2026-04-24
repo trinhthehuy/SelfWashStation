@@ -536,8 +536,10 @@ onUnmounted(() => {
 
 <style scoped>
 .accounts-page {
-  padding: 12px 16px;
-  background-color: var(--el-bg-color-page);
+  --report-border: rgba(144, 169, 204, 0.24);
+  --report-card-radius: 10px;
+  padding: 12px 14px;
+  background-color: var(--bg-body);
   height: 100%;
   display: flex;
   flex-direction: column;
@@ -545,7 +547,10 @@ onUnmounted(() => {
   box-sizing: border-box;
   overflow: hidden;
 }
-.settings-hero { border-radius: 8px; }
+.settings-hero { 
+  border-radius: var(--report-card-radius); 
+  border: 1px solid var(--report-border);
+}
 :deep(.settings-hero .el-card__body) { padding: 8px 16px; }
 .page-title { margin: 0; font-size: 18px; font-weight: 600; color: var(--el-text-color-primary); }
 .page-desc { margin: 0; color: var(--el-text-color-secondary); font-size: 12px; }
@@ -555,6 +560,8 @@ onUnmounted(() => {
   min-height: 0; 
   display: flex; 
   flex-direction: column; 
+  border-radius: var(--report-card-radius);
+  border: 1px solid var(--report-border);
 }
 :deep(.user-list-card .el-card__body) { 
   flex: 1; 
@@ -568,7 +575,11 @@ onUnmounted(() => {
 .search-input { width: 220px; }
 .pagination-wrap { margin-top: 8px; display: flex; justify-content: flex-end; flex-shrink: 0; }
 
-.pwd-card { border-radius: 8px; flex-shrink: 0; }
+.pwd-card { 
+  border-radius: var(--report-card-radius); 
+  border: 1px solid var(--report-border);
+  flex-shrink: 0; 
+}
 :deep(.pwd-card .el-card__header) { padding: 8px 16px; }
 :deep(.pwd-card .el-card__body) { padding: 20px 16px 30px; }
 .pwd-form-inline .el-form-item { margin-bottom: 0; }
@@ -579,15 +590,18 @@ onUnmounted(() => {
   overflow-y: auto;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 10px;
   padding: 4px;
 }
 .mobile-user-card {
-  background: var(--el-fill-color-blank);
-  border: 1px solid var(--el-border-color-light);
-  border-radius: 8px;
+  background: var(--bg-card);
+  border: 1px solid var(--report-border);
+  border-radius: var(--report-card-radius);
   padding: 12px;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+  transition: border-color 0.2s;
+}
+.mobile-user-card:active {
+  border-color: var(--el-color-primary);
 }
 .m-card-header {
   display: flex;

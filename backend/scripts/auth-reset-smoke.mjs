@@ -14,7 +14,7 @@ function parseArgs(argv) {
 }
 
 function printUsage() {
-  console.log('Usage: node scripts/auth-reset-smoke.mjs --username <username> --newPassword <newPassword> [--baseUrl <url>]');
+  console.log('Usage: node scripts/auth-reset-smoke.mjs --email <email> --newPassword <newPassword> [--baseUrl <url>]');
   console.log('Default baseUrl: http://localhost:3000/api');
 }
 
@@ -44,10 +44,10 @@ async function main() {
   }
 
   const baseUrl = String(args.baseUrl || 'http://localhost:3000/api').replace(/\/$/, '');
-  const username = String(args.username || '').trim();
+  const email = String(args.email || args.username || '').trim();
   const newPassword = String(args.newPassword || '').trim();
 
-  if (!username || !newPassword) {
+  if (!email || !newPassword) {
     printUsage();
     process.exit(1);
   }
@@ -56,7 +56,7 @@ async function main() {
   const forgotRes = await requestJson(`${baseUrl}/auth/forgot-password`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ username }),
+    body: JSON.stringify({ email }),
   });
   console.log(`  status=${forgotRes.status}`);
   console.log(`  message=${forgotRes.data?.message || ''}`);

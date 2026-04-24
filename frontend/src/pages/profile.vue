@@ -24,7 +24,7 @@
         </div>
         <div class="profile-meta">
           <div class="profile-fullname">{{ authStore.state.user?.fullName }}</div>
-          <div class="profile-username">{{ authStore.state.user?.email }}</div>
+          <div class="profile-email">{{ authStore.state.user?.email }}</div>
           <div class="role-badge" :class="roleClass">{{ roleLabel }}</div>
         </div>
       </div>
@@ -396,14 +396,14 @@ const userInitials = computed(() => {
   color: var(--text-main);
 }
 
-.profile-username {
+.profile-email {
   font-size: 13px;
   color: var(--text-faint);
 }
 
 @media (max-width: 768px) {
   .profile-fullname { font-size: 16px; }
-  .profile-username { font-size: 12px; }
+  .profile-email { font-size: 12px; }
 }
 
 

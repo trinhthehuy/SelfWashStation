@@ -102,7 +102,6 @@ const getDefaultSystemAccounts = (): SeedSystemAccount[] => {
   return [
     {
       email: getRequiredEnv('SEED_SA_EMAIL'),
-      email: 'sa',
       password: getRequiredEnv('SEED_SA_PASSWORD'),
       fullName: 'Super Admin',
       role: 'sa',
@@ -110,7 +109,6 @@ const getDefaultSystemAccounts = (): SeedSystemAccount[] => {
     },
     {
       email: getRequiredEnv('SEED_ENGINEER_EMAIL'),
-      email: 'engineer',
       password: getRequiredEnv('SEED_ENGINEER_PASSWORD'),
       fullName: 'System Engineer',
       role: 'engineer',
@@ -385,7 +383,6 @@ export class SystemAuthService {
     return {
       id: user!.id,
       email: user!.email,
-      email: user!.username || user!.email.split('@')[0],
       fullName: user!.full_name,
       role: user!.role,
       agencyId: user!.agency_id,

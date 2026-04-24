@@ -416,9 +416,9 @@ function toggleCollapse() {
     z-index: 50;
     transform: translateX(-100%);
     transition: transform 0.27s ease, background 0.3s ease !important;
-    width: 260px !important;
-    min-width: 260px !important;
-    max-width: 260px !important;
+    width: 220px !important;
+    min-width: 220px !important;
+    max-width: 220px !important;
     box-shadow: 4px 0 24px rgba(0, 0, 0, 0.2);
   }
 
@@ -428,9 +428,9 @@ function toggleCollapse() {
 
   /* On mobile, always show full labels (never collapsed) */
   .sidebar.collapsed {
-    width: 260px !important;
-    min-width: 260px !important;
-    max-width: 260px !important;
+    width: 220px !important;
+    min-width: 220px !important;
+    max-width: 220px !important;
     padding: 16px !important;
   }
 

@@ -26,12 +26,12 @@ function getClientIp(req: Request): string {
 }
 
 function getAttemptKey(req: Request): string {
-  const email = normalizeEmail(req.body?.email || req.body?.username) || '__unknown__';
+  const email = normalizeEmail(req.body?.email) || '__unknown__';
   return `${getClientIp(req)}:${email}`;
 }
 
 function getRequestEmail(req: Request): string {
-  return normalizeEmail(req.body?.email || req.body?.username);
+  return normalizeEmail(req.body?.email);
 }
 
 function resetWindowIfNeeded(state: AttemptState, now: number): AttemptState {

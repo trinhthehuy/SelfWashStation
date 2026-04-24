@@ -49,7 +49,7 @@ async function startServer() {
 
     // 3. Lắng nghe trên 0.0.0.0
     const PORT = config.port;
-    app.listen(PORT, '0.0.0.0', () => {
+    const server = app.listen(PORT, '0.0.0.0', () => {
       const isStaging = config.nodeEnv === 'staging';
       
       // LOGIC HIỂN THỊ LOG THÔNG MINH
@@ -78,6 +78,13 @@ async function startServer() {
       console.log(`🌍 Env:     ${config.nodeEnv.toUpperCase()}`);
       console.log(`📂 Static:  ${distPath}`);
       console.log('---');
+    });
+
+    server.on('clientError', (err: any, socket: any) => {
+      if (err.code === 'HPE_HEADER_OVERFLOW') {
+        console.error('⚠️  Header Overflow detected (431). Increase --max-http-header-size.');
+      }
+      socket.end('HTTP/1.1 431 Request Header Fields Too Large\r\n\r\n');
     });
 
   } catch (error) {

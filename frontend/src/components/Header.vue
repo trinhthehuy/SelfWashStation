@@ -116,8 +116,11 @@ import { layoutStore } from '@/stores/layout'
 import { Sun, Moon, Bell, ChevronRight, ChevronDown, Menu } from 'lucide-vue-next'
 import { notificationApi } from '@/api/notification'
 
+import { useMetadataStore } from '@/stores/metadata'
+
 const router = useRouter()
 const route  = useRoute()
+const metadataStore = useMetadataStore()
 // ─── Page breadcrumb ──────────────────────────────────────────────
 const PAGE_LABELS = {
   'dashboard':       'Tổng quan',
@@ -241,6 +244,7 @@ const goToAccounts = () => {
 }
 
 const logout = () => {
+  metadataStore.clearCache()
   authStore.clearSession()
   router.replace('/login')
 }

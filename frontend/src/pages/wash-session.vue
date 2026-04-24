@@ -2,86 +2,90 @@
   <div class="wash-session-container">
     <el-card shadow="never" class="header-card title-only-card">
       <div class="header-content">
-        <h2 class="page-title">Lịch sử rửa xe</h2>
+        <h2 class="page-title">Lịch sử phiên rửa</h2>
       </div>
     </el-card>
-    <el-card shadow="never" class="filter-card">
-      <el-form :inline="false" :model="filterForm" class="session-filter-form">
-        <el-form-item class="fi-station" :label="isMobile ? '' : 'Trạm'">
-          <el-select 
-            v-model="filterForm.station" 
-            placeholder="Tìm trạm..." 
-            class="filter-select station-select"
-            filterable 
-            remote
-            :remote-method="remoteFetchStations"
-            :loading="stationsLoading"
-            clearable
-            @change="handleStationChange"
-            @clear="handleStationClear"
-          >
-            <el-option 
-              v-for="item in stationOptions" 
-              :key="item.id" 
-              :label="item.station_name" 
-              :value="item.id" 
+    <div class="filter-section" :class="{ 'is-mobile': isMobile }">
+      <el-card shadow="never" class="filter-card mobile-filter-card">
+
+        <el-form :inline="false" :model="filterForm" class="session-filter-form">
+          <el-form-item class="fi-station" :label="isMobile ? '' : 'Trạm'">
+            <el-select 
+              v-model="filterForm.station" 
+              placeholder="Trạm" 
+              class="filter-select station-select"
+              filterable 
+              remote
+              :remote-method="remoteFetchStations"
+              :loading="stationsLoading"
+              clearable
+              @change="handleStationChange"
+              @clear="handleStationClear"
+            >
+              <el-option 
+                v-for="item in stationOptions" 
+                :key="item.id" 
+                :label="item.station_name" 
+                :value="item.id" 
+              />
+            </el-select>
+          </el-form-item>
+
+          <el-form-item class="fi-bay" :label="isMobile ? '' : 'Trụ'">
+            <el-select
+              v-model="filterForm.bayCode"
+              placeholder="Trụ"
+              class="filter-select bay-select"
+              filterable
+              clearable
+              :disabled="!filterForm.station"
+              @change="handleFilter"
+              @clear="handleFilter"
+            >
+              <el-option
+                v-for="item in bayOptions"
+                :key="item.id"
+                :label="item.bay_code"
+                :value="item.bay_code"
+              />
+            </el-select>
+          </el-form-item>
+
+          <el-form-item class="fi-time" :label="isMobile ? '' : 'Thời gian'">
+            <el-select 
+              v-model="filterForm.timeRange" 
+              placeholder="TG" 
+              class="filter-select timerange-select"
+              @change="handleTimeRangeChange"
+            >
+              <el-option label="Hôm nay" :value="1" />
+              <el-option label="7 ngày qua" :value="7" />
+              <el-option label="30 ngày qua" :value="30" />
+              <el-option label="Tùy chỉnh" :value="0" /> 
+            </el-select>
+          </el-form-item>
+
+          <el-form-item class="fi-date" v-if="filterForm.timeRange === 0 || !isMobile" :label="isMobile ? '' : 'Chọn ngày'">
+            <el-date-picker
+              v-model="filterForm.dateRange"
+              class="date-range-picker"
+              type="daterange"
+              range-separator="-"
+              start-placeholder="Từ"
+              end-placeholder="Đến"
+              format="YYYY-MM-DD"
+              value-format="YYYY-MM-DD"
+              @change="handleDateRangeChange"
             />
-          </el-select>
-        </el-form-item>
+          </el-form-item>
 
-        <el-form-item class="fi-bay" :label="isMobile ? '' : 'Trụ'">
-          <el-select
-            v-model="filterForm.bayCode"
-            placeholder="Chọn trụ"
-            class="filter-select bay-select"
-            filterable
-            clearable
-            :disabled="!filterForm.station"
-            @change="handleFilter"
-            @clear="handleFilter"
-          >
-            <el-option
-              v-for="item in bayOptions"
-              :key="item.id"
-              :label="item.bay_code"
-              :value="item.bay_code"
-            />
-          </el-select>
-        </el-form-item>
+          <el-form-item class="fi-action" v-if="!isMobile">
+            <el-button type="primary" @click="handleFilter" style="width: 100%">Tìm kiếm</el-button>
+          </el-form-item>
+        </el-form>
+      </el-card>
+    </div>
 
-        <el-form-item class="fi-time" :label="isMobile ? '' : 'Khoảng thời gian'">
-          <el-select 
-            v-model="filterForm.timeRange" 
-            placeholder="Chọn nhanh" 
-            class="filter-select timerange-select"
-            @change="handleTimeRangeChange"
-          >
-            <el-option label="Hôm nay" :value="1" />
-            <el-option label="7 ngày qua" :value="7" />
-            <el-option label="30 ngày qua" :value="30" />
-            <el-option label="Tùy chỉnh" :value="0" /> 
-          </el-select>
-        </el-form-item>
-
-        <el-form-item class="fi-date" :label="isMobile ? '' : 'Chọn ngày cụ thể'">
-          <el-date-picker
-            v-model="filterForm.dateRange"
-            class="date-range-picker"
-            type="daterange"
-            range-separator="->"
-            start-placeholder="Từ ngày"
-            end-placeholder="Đến ngày"
-            format="YYYY-MM-DD"
-            value-format="YYYY-MM-DD"
-            @change="handleDateRangeChange"
-          />
-        </el-form-item>
-
-        <el-form-item class="fi-action">
-          <el-button type="primary" @click="handleFilter">Tìm kiếm</el-button>
-        </el-form-item>
-      </el-form>
-    </el-card>
 
     <div class="table-main">
       <!-- Desktop table -->
@@ -160,14 +164,15 @@
               </div>
               <span class="mc-sub" v-if="row.mqtt_topic">{{ row.mqtt_topic }}</span>
             </div>
-            <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 6px;">
+            <div class="mc-right-meta">
               <el-tag :type="statusType(row.status)" size="small">
                 {{ row.status ? row.status.toUpperCase() : 'N/A' }}
               </el-tag>
-              <el-button v-if="isAdmin" type="danger" size="small" circle @click.stop="handleDelete(row)">
-                <el-icon><Delete /></el-icon>
-              </el-button>
+              <el-icon v-if="isAdmin" class="mc-delete-icon" @click.stop="handleDelete(row)">
+                <Delete />
+              </el-icon>
             </div>
+
           </div>
           <div class="mc-amount">{{ formatMoney(row.amount) }}</div>
           <div class="mc-stats">
@@ -199,8 +204,8 @@
         layout="total, sizes, prev, pager, next"
         @current-change="fetchData"
         @size-change="handleFilter"
-        background
       />
+
       <el-pagination
         v-else
         v-model:current-page="currentPage"
@@ -210,8 +215,8 @@
         :pager-count="5"
         size="small"
         @current-change="fetchData"
-        background
       />
+
     </div>
   </div>
 </template>
@@ -219,7 +224,7 @@
 <script setup>
 import { ref, reactive, onMounted, onUnmounted, computed, watch } from 'vue'
 import dayjs from 'dayjs'
-import { Timer, Delete } from '@element-plus/icons-vue'
+import { Timer, Delete, Search, Filter } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { transactionApi } from '@/api/transaction'
 import { stationApi } from '@/api/station'
@@ -228,6 +233,7 @@ import { authStore } from '@/stores/auth'
 import { useMetadataStore } from '@/stores/metadata'
 
 const isMobile = ref(window.innerWidth < 768)
+const showMobileFilter = ref(false)
 const _onResize = () => { isMobile.value = window.innerWidth < 768 }
 onMounted(() => window.addEventListener('resize', _onResize))
 onUnmounted(() => window.removeEventListener('resize', _onResize))
@@ -245,11 +251,20 @@ const stationOptions = ref([])
 const bayOptions = ref([])
 const filterForm = reactive({
   station: '',
+  stationKeyword: '',
   bayCode: '',
-  timeRange: 30, // Mặc định 1 ngày
+  timeRange: 30, // Mặc định 30 ngày
   dateRange: [], // Lưu [from, to]
   status: ''
 })
+
+const activeFilterCount = computed(() => {
+  let count = 0;
+  if (filterForm.station) count++;
+  if (filterForm.bayCode) count++;
+  if (filterForm.timeRange !== 30) count++;
+  return count;
+});
 
 
 const metadataStore = useMetadataStore();
@@ -470,6 +485,33 @@ watch([pageSize], () => {
   box-sizing: border-box;
 }
 
+.filter-section.is-mobile {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.search-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.filter-toggle-btn {
+  flex-shrink: 0;
+  height: 32px;
+}
+
+.filter-count-mini {
+  background: var(--el-color-primary);
+  color: #fff;
+  padding: 0 5px;
+  border-radius: 6px;
+  font-size: 10px;
+  margin-left: 4px;
+  line-height: 1.4;
+}
+
 .filter-card {
   border-radius: 8px;
   flex-shrink: 0;
@@ -477,11 +519,12 @@ watch([pageSize], () => {
 :deep(.filter-card .el-card__body) { padding: 10px 16px; }
 
 .pagination-container {
-  margin-top: 8px;
+  margin-top: 10px;
   display: flex;
   justify-content: flex-end;
   flex-shrink: 0;
 }
+
 
 .table-main {
   flex: 1;
@@ -523,104 +566,134 @@ watch([pageSize], () => {
 /* ── Mobile ─────────────────────────────────────── */
 @media (max-width: 768px) {
   .wash-session-container {
-    padding: 8px;
+    padding: 4px;
+    gap: 4px;
   }
 
-  .filter-card {
-    margin-bottom: 8px;
+
+  .header-card {
+    margin-bottom: 0;
+  }
+
+  .page-title {
+    font-size: 18px;
+  }
+
+  .filter-card.is-mobile-filters {
+    margin: 0;
+    padding: 10px;
+    background: var(--bg-card);
+    border: 1px solid var(--border-subtle);
+  }
+
+  .title-only-card :deep(.el-card__body) {
+    padding: 8px 12px !important;
   }
 
   :deep(.session-filter-form) {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 10px;
-    align-items: stretch;
+    display: grid !important;
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+    gap: 8px !important;
+    padding: 0 4px;
   }
 
   :deep(.session-filter-form .el-form-item) {
     margin: 0 !important;
-    min-width: 0;
   }
 
-  :deep(.session-filter-form .fi-station),
-  :deep(.session-filter-form .fi-bay) {
-    grid-column: span 1;
-    order: 1;
+  :deep(.session-filter-form .fi-station) { grid-column: span 1 !important; }
+  :deep(.session-filter-form .fi-bay) { grid-column: span 1 !important; }
+  :deep(.session-filter-form .fi-time) { grid-column: span 1 !important; }
+  :deep(.session-filter-form .fi-date) { grid-column: 1 / -1 !important; margin-top: 4px !important; }
+
+  .mobile-filter-card {
+    margin: 4px 0 10px 0;
+    border-radius: 12px;
+    background: var(--bg-card, #1a1a1a);
+    border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.08));
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
   }
 
-  :deep(.session-filter-form .fi-date) {
-    grid-column: 1 / -1;
-    order: 2;
+  .mobile-filter-card :deep(.el-card__body) {
+    padding: 10px !important;
   }
 
-  :deep(.session-filter-form .fi-time) {
-    grid-column: 1 / -1;
-    order: 3;
+  :deep(.el-select__wrapper) {
+    padding: 0 8px !important;
+    font-size: 13px !important;
+    height: 38px !important;
+    background-color: rgba(255, 255, 255, 0.03) !important;
+    box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.1) inset !important;
+    border-radius: 8px !important;
+    transition: all 0.2s ease;
+  }
+  
+  :deep(.el-select__wrapper.is-focus) {
+    background-color: rgba(64, 158, 255, 0.08) !important;
+    box-shadow: 0 0 0 1px var(--el-color-primary) inset !important;
   }
 
-  :deep(.session-filter-form .fi-action) {
-    grid-column: 1 / -1;
-    order: 4;
-  }
-
-  :deep(.session-filter-form .fi-action .el-form-item__content) {
-    justify-content: stretch;
-  }
-
-  :deep(.session-filter-form .fi-action .el-button) {
-    width: 100%;
-    min-height: 36px;
-  }
-
-  :deep(.session-filter-form .filter-select) {
-    width: 100%;
-  }
-
-  :deep(.session-filter-form .el-date-editor) {
-    width: 100%;
-  }
-
-  :deep(.session-filter-form .el-range-input) {
-    min-width: 0;
-  }
-
-  :deep(.session-filter-form .el-range-separator) {
-    width: 18px;
-    color: var(--text-muted);
-    font-weight: 600;
-  }
-
-  :deep(.el-form-item__label) {
-    display: none !important;
+  :deep(.date-range-picker.el-range-editor) {
+    background-color: rgba(255, 255, 255, 0.03) !important;
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+    height: 38px !important;
+    border-radius: 8px !important;
   }
 
   .pagination-container {
     justify-content: center;
-    margin-top: 8px;
+    margin-top: 4px;
+    margin-bottom: 2px;
   }
+
 }
+
 
 /* ── Mobile card list ────────────────────────────── */
 .mobile-card-list {
-  margin-top: 10px;
+  margin-top: 4px;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 6px;
+  overflow-y: auto;
 }
 
 .mobile-card {
   background: var(--bg-card);
-  border-radius: 10px;
-  padding: 12px 14px;
-  border: 1px solid transparent;
+  border-radius: 8px;
+  padding: 6px 8px;
+  border: 1px solid var(--border-subtle, #eee);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.08);
 }
+
 
 .mc-header {
   display: flex;
   align-items: flex-start;
   gap: 8px;
-  margin-bottom: 6px;
+  margin-bottom: 4px;
 }
+
+.mc-right-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.mc-delete-icon {
+  color: var(--el-color-danger);
+  cursor: pointer;
+  font-size: 16px;
+  padding: 4px;
+  border-radius: 4px;
+  transition: background 0.2s;
+}
+
+.mc-delete-icon:active {
+  background: rgba(245, 108, 108, 0.2);
+}
+
+
 
 .mc-stt {
   font-size: 11px;
@@ -640,7 +713,7 @@ watch([pageSize], () => {
 .mc-name {
   font-size: 14px;
   font-weight: 600;
-  color: var(--text-main, #e5e7eb);
+  color: var(--el-color-primary);
 }
 
 .mc-sub {
@@ -649,11 +722,12 @@ watch([pageSize], () => {
 }
 
 .mc-amount {
-  font-size: 18px;
+  font-size: 16px;
   font-weight: 700;
   color: #f56c6c;
-  margin-bottom: 8px;
+  margin-bottom: 4px;
 }
+
 
 .mc-stats {
   display: flex;
@@ -716,5 +790,16 @@ watch([pageSize], () => {
   .filter-card {
     margin-bottom: 4px;
   }
+}
+
+/* Expand animation */
+.expand-enter-active, .expand-leave-active {
+  transition: all 0.3s ease-in-out;
+  overflow: hidden;
+  max-height: 500px;
+}
+.expand-enter-from, .expand-leave-to {
+  opacity: 0;
+  max-height: 0;
 }
 </style>
