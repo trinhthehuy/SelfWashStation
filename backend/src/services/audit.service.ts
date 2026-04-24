@@ -29,7 +29,7 @@ export type AuditAction =
 
 export interface AuditLogParams {
   userId?: number | null;
-  username: string;
+  email: string;
   role: string;
   action: AuditAction;
   entityType?: string;
@@ -122,7 +122,7 @@ class AuditLogService {
 
       const logEntry = {
         user_id: params.userId ?? null,
-        username: params.username,
+        email: params.email || 'unknown',
         role: params.role,
         action: params.action,
         entity_type: params.entityType ?? null,
@@ -180,7 +180,11 @@ class AuditLogService {
       query.where('created_at', '>=', `${startDate} 00:00:00`);
     }
 
-    const dataPromise = query.clone().select('*').limit(Number(limit)).offset(offset);
+    const dataPromise = query.clone()
+      .select('*')
+      .select('email as username') // Alias for frontend compatibility
+      .limit(Number(limit))
+      .offset(offset);
     let totalPromise = null;
     if (includeTotal) {
       totalPromise = query.clone().count('id as total').first();

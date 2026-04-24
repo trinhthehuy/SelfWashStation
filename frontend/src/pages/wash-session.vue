@@ -1,5 +1,10 @@
 <template>
   <div class="wash-session-container">
+    <el-card shadow="never" class="header-card title-only-card">
+      <div class="header-content">
+        <h2 class="page-title">Lịch sử rửa xe</h2>
+      </div>
+    </el-card>
     <el-card shadow="never" class="filter-card">
       <el-form :inline="false" :model="filterForm" class="session-filter-form">
         <el-form-item class="fi-station" :label="isMobile ? '' : 'Trạm'">

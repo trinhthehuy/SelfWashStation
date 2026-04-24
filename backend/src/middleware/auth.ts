@@ -7,7 +7,7 @@ export type UserRole = 'sa' | 'engineer' | 'agency' | 'regional_manager' | 'stat
 
 export interface AuthUser {
   id: number;
-  username: string;
+  email: string;
   fullName: string;
   role: UserRole;
   agencyId: number | null;

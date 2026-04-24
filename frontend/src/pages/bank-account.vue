@@ -4,10 +4,9 @@
       <div class="header-content">
         <div class="title-group">
           <h2 class="page-title">Quản lý Tài khoản Ngân hàng</h2>
-          <p class="sub-title">Thiết lập tài khoản ngân hàng để gán cho các trụ rửa xe</p>
         </div>
-        <el-button type="primary" :icon="Plus" @click="handleAddNew" size="large">
-          Thêm tài khoản mới
+        <el-button type="primary" :icon="Plus" @click="handleAddNew" class="mobile-add-btn">
+          Thêm mới
         </el-button>
       </div>
 
@@ -181,6 +180,7 @@
             placeholder="Tìm theo ID, tên đại lý, CCCD, số điện thoại"
             @select="handleSelectName"
             clearable
+            :disabled="isAutoCreate"
             style="width: 100%"
           >
             <template #default="{ item }">
@@ -196,7 +196,7 @@
           <el-select
             v-model="formData.identity_number"
             placeholder="Chọn ID (CCCD)"
-            :disabled="!availableIdentities.length"
+            :disabled="isAutoCreate || !availableIdentities.length"
             @change="handleSelectIdentity"
             style="width: 100%"
           >
@@ -363,6 +363,7 @@ const loading = ref(false);
 const showModal = ref(false);
 const submitting = ref(false);
 const isEdit = ref(false);
+const isAutoCreate = ref(false);
 const formRef = ref(null);
 const agencyList = ref([]);
 const availableIdentities = ref([]);
@@ -520,6 +521,7 @@ const handleSelectIdentity = (val) => {
 
 const handleAddNew = async () => {
   isEdit.value = false;
+  isAutoCreate.value = false;
   formData.value = { id: null, agency_id: "", agency_name: "", identity_number: "", bank_name: "", account_number: "", account_name: "" };
   availableIdentities.value = [];
   await fetchAgencies();
@@ -539,6 +541,7 @@ const openCreateModalFromQuery = async () => {
   const matchedAgency = agencyList.value.find((item) => item.id === queryAgencyId);
 
   isEdit.value = false;
+  isAutoCreate.value = true;
   formData.value = {
     id: null,
     agency_id: "",
@@ -554,6 +557,18 @@ const openCreateModalFromQuery = async () => {
     formData.value.agency_id = matchedAgency.id;
     formData.value.agency_name = matchedAgency.agency_name;
     formData.value.identity_number = matchedAgency.identity_number;
+  } else if (queryAgencyId) {
+    // Nếu không tìm thấy trong list (có thể do cache hoặc mới tạo), 
+    // vẫn lấy thông tin từ query để người dùng có thể lưu ngay.
+    const virtualAgency = {
+      id: queryAgencyId,
+      agency_name: queryAgencyName,
+      identity_number: queryIdentityNumber
+    };
+    availableIdentities.value = [virtualAgency];
+    formData.value.agency_id = queryAgencyId;
+    formData.value.agency_name = queryAgencyName;
+    formData.value.identity_number = queryIdentityNumber;
   } else {
     availableIdentities.value = [];
     formData.value.agency_name = queryAgencyName;
@@ -574,6 +589,7 @@ const openCreateModalFromQuery = async () => {
 
 const handleEdit = async (item) => {
   isEdit.value = true;
+  isAutoCreate.value = false;
   formData.value = { ...item, agency_name: item.agency_name };
   await fetchAgencies();
   availableIdentities.value = agencyList.value.filter(a => a.id === item.agency_id);

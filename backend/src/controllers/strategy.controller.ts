@@ -33,7 +33,7 @@ export class StrategyController {
           const newStrategy = await strategyService.createStrategy(req.body, getAgencyScope(req));
           auditService.log({
             userId: req.user?.id,
-            username: req.user?.username || 'system',
+            email: req.user?.email || 'system',
             role: req.user?.role || 'unknown',
             action: 'STRATEGY_CREATE',
             entityType: 'strategy',
@@ -64,7 +64,7 @@ export class StrategyController {
 
         auditService.log({
           userId: req.user?.id,
-          username: req.user?.username || 'system',
+          email: req.user?.username || 'system',
           role: req.user?.role || 'unknown',
           action: 'STRATEGY_UPDATE',
           entityType: 'strategy',
@@ -86,7 +86,7 @@ export class StrategyController {
         const deletedStrategy = await strategyService.deleteStrategy(Number(id), getAgencyScope(req));
         auditService.log({
           userId: req.user?.id,
-          username: req.user?.username || 'system',
+          email: req.user?.username || 'system',
           role: req.user?.role || 'unknown',
           action: 'STRATEGY_DELETE',
           entityType: 'strategy',

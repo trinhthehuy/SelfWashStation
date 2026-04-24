@@ -1,9 +1,13 @@
 <template>
   <div class="revenue-report-container">
+    <el-card shadow="never" class="header-card title-only-card">
+      <div class="header-content">
+        <h2 class="page-title">Báo cáo doanh thu</h2>
+      </div>
+    </el-card>
     <el-card shadow="never" class="filter-card">
-      <!-- Dòng 1: Thống kê + Thời gian -->
       <div class="filter-row top-filter-row">
-        <div class="filter-item">
+        <div class="filter-item level-filter-item">
           <span class="filter-label">Thống kê</span>
           <el-select v-model="filterForm.level" @change="handleLevelFilter" size="small" class="level-select">
             <el-option label="Theo Tỉnh" value="province" />
@@ -12,6 +16,20 @@
             <el-option label="Theo Trạm" value="station" />
             <el-option label="Theo Trụ" value="bay" />
           </el-select>
+
+          <!-- Mobile: Toggle Button -->
+          <el-button 
+            v-if="isMobile" 
+            type="primary" 
+            plain 
+            size="small"
+            :icon="Filter" 
+            @click="showMobileFilter = !showMobileFilter"
+            class="filter-toggle-btn-inline"
+          >
+            {{ showMobileFilter ? 'Đóng' : 'Bộ lọc' }} 
+            <span v-if="activeFilterCount > 0" class="filter-count-mini">{{ activeFilterCount }}</span>
+          </el-button>
         </div>
         <div class="time-controls">
           <el-radio-group v-model="filterForm.timeType" size="small" @change="handleTimeTypeChange" class="time-group">
@@ -19,6 +37,17 @@
             <el-radio-button value="week">Tuần</el-radio-button>
             <el-radio-button value="month">Tháng</el-radio-button>
           </el-radio-group>
+
+          <el-button 
+            v-if="isMobile" 
+            size="small" 
+            class="date-toggle-btn" 
+            :class="{ 'is-active': showMobileDatePicker }"
+            :icon="Calendar"
+            @click="showMobileDatePicker = !showMobileDatePicker"
+          >
+            Chọn ngày cụ thể
+          </el-button>
 
           <transition name="slide-down">
             <div v-if="!isMobile" class="inline-date-picker-wrap">
@@ -40,8 +69,8 @@
       </div>
 
       <!-- Mobile: giữ date range ở hàng riêng như cũ -->
-      <transition name="slide-down">
-        <div class="filter-row" v-if="isMobile">
+      <transition name="expand">
+        <div class="filter-row" v-if="isMobile && showMobileDatePicker">
           <el-date-picker
             v-model="filterForm.dateRange"
             type="daterange"
@@ -58,7 +87,8 @@
       </transition>
 
       <!-- Dòng 3: Filter chips -->
-      <div class="filter-row filter-chips-row">
+      <transition name="expand">
+        <div v-if="!isMobile || showMobileFilter" class="filter-row filter-chips-row" :class="{ 'is-collapsed': isMobile && !showMobileFilter }">
         <div v-if="!isMobile" class="desktop-filter-field province-field">
           <span class="desktop-filter-label">Tỉnh</span>
           <el-select
@@ -155,88 +185,97 @@
           </el-select>
         </div>
 
-        <el-popover v-if="isMobile" trigger="click" placement="bottom-start" :width="210" popper-class="filter-pop">
-          <template #reference>
-            <button class="filter-chip" :class="{ active: filterForm.province_id }" :disabled="filterForm.level === 'agency'">
-              <span class="chip-label">Tỉnh</span>
-              <span class="chip-val" v-if="selectedProvinceName">{{ selectedProvinceName }}</span>
-              <el-icon><ArrowDown /></el-icon>
-            </button>
-          </template>
-          <el-select v-model="filterForm.province_id" :disabled="filterForm.level === 'agency'" filterable clearable
-            :loading="selectLoading.province" @change="handleProvinceChange" @clear="handleProvinceChange(null)"
-            style="width:100%" placeholder="Chọn tỉnh">
-            <el-option v-for="item in options.provinces" :key="item.id" :label="item.name" :value="item.id" />
-          </el-select>
-        </el-popover>
+        <!-- Tỉnh -->
+        <el-select 
+          v-if="isMobile && filterForm.level !== 'agency'"
+          v-model="filterForm.province_id" 
+          filterable 
+          clearable
+          size="small"
+          :loading="selectLoading.province" 
+          @change="handleProvinceChange" 
+          @clear="handleProvinceChange(null)"
+          placeholder="Chọn tỉnh ..."
+          class="mobile-filter-select"
+        >
+          <el-option v-for="item in options.provinces" :key="item.id" :label="item.name" :value="item.id" />
+        </el-select>
 
-        <el-popover v-if="isMobile" trigger="click" placement="bottom-start" :width="210" popper-class="filter-pop">
-          <template #reference>
-            <button class="filter-chip" :class="{ active: filterForm.ward_id }" :disabled="['province','agency'].includes(filterForm.level)">
-              <span class="chip-label">Xã</span>
-              <span class="chip-val" v-if="selectedWardName">{{ selectedWardName }}</span>
-              <el-icon><ArrowDown /></el-icon>
-            </button>
-          </template>
-          <el-select v-model="filterForm.ward_id" :disabled="['province','agency'].includes(filterForm.level)" filterable clearable
-            remote :remote-method="remoteFetchWards"
-            :loading="selectLoading.ward" @change="handleWardChange" @clear="handleWardChange(null)"
-            style="width:100%" placeholder="Tìm xã...">
-            <el-option v-for="item in options.wards" :key="item.id" :label="item.name" :value="item.id" />
-          </el-select>
-        </el-popover>
+        <!-- Xã -->
+        <el-select 
+          v-if="isMobile && !['province','agency'].includes(filterForm.level)"
+          v-model="filterForm.ward_id" 
+          filterable 
+          clearable
+          size="small"
+          remote 
+          :remote-method="remoteFetchWards"
+          :loading="selectLoading.ward" 
+          @change="handleWardChange" 
+          @clear="handleWardChange(null)"
+          placeholder="Chọn xã ..."
+          class="mobile-filter-select"
+        >
+          <el-option v-for="item in options.wards" :key="item.id" :label="item.name" :value="item.id" />
+        </el-select>
 
-        <el-popover v-if="isMobile" trigger="click" placement="bottom-start" :width="220" popper-class="filter-pop">
-          <template #reference>
-            <button class="filter-chip" :class="{ active: filterForm.agency_id }" :disabled="['province','ward'].includes(filterForm.level) || isAgency">
-              <span class="chip-label">Đại lý</span>
-              <span class="chip-val" v-if="selectedAgencyName">{{ selectedAgencyName }}</span>
-              <el-icon><ArrowDown /></el-icon>
-            </button>
-          </template>
-          <el-select v-model="filterForm.agency_id" :disabled="['province','ward'].includes(filterForm.level) || isAgency" filterable clearable
-            remote :remote-method="remoteFetchAgencies"
-            :loading="selectLoading.agency" @change="handleAgencyChange" @clear="handleAgencyChange(null)"
-            style="width:100%" placeholder="Tìm đại lý...">
-            <el-option v-for="item in options.agencies" :key="item.id" :label="item.agency_name" :value="item.id">
-              <div class="agency-dual">
-                <div class="agency-dual-name">{{ item.agency_name }}</div>
-                <div class="agency-dual-id">ID: {{ item.identity_number || 'N/A' }}</div>
-              </div>
-            </el-option>
-          </el-select>
-        </el-popover>
+        <!-- Đại lý -->
+        <el-select 
+          v-if="isMobile && !['province','ward'].includes(filterForm.level) && !isAgency"
+          v-model="filterForm.agency_id" 
+          filterable 
+          clearable
+          size="small"
+          remote 
+          :remote-method="remoteFetchAgencies"
+          :loading="selectLoading.agency" 
+          @change="handleAgencyChange" 
+          @clear="handleAgencyChange(null)"
+          placeholder="Chọn Đại lý ..."
+          class="mobile-filter-select"
+        >
+          <el-option v-for="item in options.agencies" :key="item.id" :label="item.agency_name" :value="item.id">
+            <div class="agency-dual">
+              <div class="agency-dual-name">{{ item.agency_name }}</div>
+              <div class="agency-dual-id">ID: {{ item.identity_number || 'N/A' }}</div>
+            </div>
+          </el-option>
+        </el-select>
 
-        <el-popover v-if="isMobile" trigger="click" placement="bottom-start" :width="220" popper-class="filter-pop">
-          <template #reference>
-            <button class="filter-chip" :class="{ active: filterForm.station_id }" :disabled="['province','ward','agency'].includes(filterForm.level)">
-              <span class="chip-label">Mã trạm</span>
-              <span class="chip-val" v-if="selectedStationName">{{ selectedStationName }}</span>
-              <el-icon><ArrowDown /></el-icon>
-            </button>
-          </template>
-          <el-select v-model="filterForm.station_id" :disabled="['province','ward','agency'].includes(filterForm.level)" filterable clearable
-            remote :remote-method="remoteFetchStations"
-            :loading="selectLoading.station" @change="handleStationChange" @clear="handleStationClear"
-            style="width:100%" placeholder="Tìm trạm...">
-            <el-option v-for="item in options.stations" :key="item.id" :label="item.name" :value="item.id" />
-          </el-select>
-        </el-popover>
+        <!-- Mã trạm -->
+        <el-select 
+          v-if="isMobile && !['province','ward','agency'].includes(filterForm.level)"
+          v-model="filterForm.station_id" 
+          filterable 
+          clearable
+          size="small"
+          remote 
+          :remote-method="remoteFetchStations"
+          :loading="selectLoading.station" 
+          @change="handleStationChange" 
+          @clear="handleStationClear"
+          placeholder="Chọn trạm ..."
+          class="mobile-filter-select"
+        >
+          <el-option v-for="item in options.stations" :key="item.id" :label="item.name" :value="item.id" />
+        </el-select>
 
-        <el-popover v-if="isMobile" trigger="click" placement="bottom-start" :width="220" popper-class="filter-pop">
-          <template #reference>
-            <button class="filter-chip" :class="{ active: filterForm.bay_code }" :disabled="['province','ward','agency','station'].includes(filterForm.level) || !filterForm.station_id">
-              <span class="chip-label">Mã trụ</span>
-              <span class="chip-val" v-if="filterForm.bay_code">{{ filterForm.bay_code }}</span>
-              <el-icon><ArrowDown /></el-icon>
-            </button>
-          </template>
-          <el-select v-model="filterForm.bay_code" :disabled="['province','ward','agency','station'].includes(filterForm.level) || !filterForm.station_id" filterable clearable
-            :loading="selectLoading.bay" @change="handleBayChange" @clear="handleBayClear"
-            style="width:100%" placeholder="Chọn trụ">
-            <el-option v-for="item in options.bays" :key="item.bay_code" :label="item.bay_code" :value="item.bay_code" />
-          </el-select>
-        </el-popover>
+        <!-- Mã trụ -->
+        <el-select 
+          v-if="isMobile && filterForm.level === 'bay'"
+          v-model="filterForm.bay_code" 
+          :disabled="!filterForm.station_id" 
+          filterable 
+          clearable
+          size="small"
+          :loading="selectLoading.bay" 
+          @change="handleBayChange" 
+          @clear="handleBayClear"
+          placeholder="Chọn trụ ..."
+          class="mobile-filter-select"
+        >
+          <el-option v-for="item in options.bays" :key="item.bay_code" :label="item.bay_code" :value="item.bay_code" />
+        </el-select>
 
         <!-- Right-aligned display mode switch -->
         <div v-if="!isMobile" class="display-mode-switch-inline">
@@ -246,7 +285,8 @@
             <el-radio-button value="full">Đầy đủ</el-radio-button>
           </el-radio-group>
         </div>
-      </div>
+        </div>
+      </transition>
     </el-card>
 
     <div v-if="!isMobile" class="insight-strip">
@@ -322,33 +362,40 @@
           @keydown.enter.prevent="toggleExpandedCard(idx)"
           @keydown.space.prevent="toggleExpandedCard(idx)"
         >
-          <!-- Card header: STT + tên chính + thời gian -->
-          <div class="mc-header">
-            <span class="mc-stt">{{ indexMethod(idx) }}</span>
-            <div class="mc-title">
-              <span class="mc-name">{{ row[mobileCardCfg.title] ?? '—' }}</span>
-              <span class="mc-sub" v-if="mobileCardCfg.sub">{{ row[mobileCardCfg.sub] }}</span>
+          <!-- Line 1: Header (STT + Name) + Revenue + Expand Icon -->
+          <div class="mc-top-row">
+            <div class="mc-header">
+              <span class="mc-stt">{{ indexMethod(idx) }}</span>
+              <div class="mc-title">
+                <span class="mc-name">{{ row[mobileCardCfg.title] ?? '—' }}</span>
+                <span class="mc-sub" v-if="mobileCardCfg.sub">{{ row[mobileCardCfg.sub] }}</span>
+              </div>
             </div>
-            <span class="mc-time">{{ row.Time }}</span>
+            <div class="mc-right-meta">
+              <div class="mc-revenue">{{ formatMoney(row.revenue) }}</div>
+              <el-icon class="mc-expand-icon" :class="{ 'is-active': expandedCard === idx }">
+                <ArrowDown />
+              </el-icon>
+            </div>
           </div>
 
-          <!-- Doanh thu nổi bật -->
-          <div class="mc-revenue">{{ formatMoney(row.revenue) }}</div>
-
-          <!-- Stats dòng chính -->
-          <div class="mc-stats">
-            <div class="mc-stat" v-if="row.total_sessions !== undefined">
-              <span class="mcs-label">Phiên</span>
-              <span class="mcs-val">{{ row.total_sessions }}</span>
+          <!-- Line 2: Stats + Time -->
+          <div class="mc-bottom-row">
+            <div class="mc-stats">
+              <div class="mc-stat" v-if="row.total_sessions !== undefined">
+                <span class="mcs-label">Phiên: </span>
+                <span class="mcs-val">{{ row.total_sessions }}</span>
+              </div>
+              <div class="mc-stat" v-if="row.bay_count !== undefined">
+                <span class="mcs-label">Trụ: </span>
+                <span class="mcs-val">{{ row.bay_count }}</span>
+              </div>
+              <div class="mc-stat" v-if="row.revenue_per_bay !== undefined">
+                <span class="mcs-label">DT/Trụ: </span>
+                <span class="mcs-val money">{{ formatMoney(row.revenue_per_bay) }}</span>
+              </div>
             </div>
-            <div class="mc-stat" v-if="row.bay_count !== undefined">
-              <span class="mcs-label">Số trụ</span>
-              <span class="mcs-val">{{ row.bay_count }}</span>
-            </div>
-            <div class="mc-stat" v-if="row.revenue_per_bay !== undefined">
-              <span class="mcs-label">DT/Trụ</span>
-              <span class="mcs-val money">{{ formatMoney(row.revenue_per_bay) }}</span>
-            </div>
+            <span class="mc-time">{{ row.Time }}</span>
           </div>
 
           <!-- Chi tiết mở rộng -->
@@ -372,13 +419,15 @@
               <div class="mc-detail-row" v-if="row.agency_name && mobileCardCfg.title !== 'agency_name'">
                 <span>Đại lý</span><span>{{ row.agency_name }}</span>
               </div>
+              <div class="mc-detail-row" v-if="row.ward_name && mobileCardCfg.title !== 'ward_name'">
+                <span>Xã / Phường</span><span>{{ row.ward_name }}</span>
+              </div>
               <div class="mc-detail-row" v-if="row.address">
                 <span>Địa chỉ</span><span>{{ row.address }}</span>
               </div>
             </div>
           </transition>
 
-          <div class="mc-expand-hint">{{ expandedCard === idx ? '▲ Thu gọn' : '▼ Chi tiết' }}</div>
         </div>
 
         <div v-if="!loading && tableData.length === 0" class="mc-empty">Không có dữ liệu</div>
@@ -386,7 +435,7 @@
     </div>
 
     <!-- Pagination -->
-    <div class="pagination-container" style="margin-top: 16px">
+    <div class="pagination-container">
       <el-pagination
         v-if="!isMobile"
         v-model:current-page="currentPage"
@@ -414,7 +463,7 @@
 
 <script setup>
 import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
-import { ArrowDown } from '@element-plus/icons-vue'
+import { ArrowDown, Filter, Search, Calendar } from '@element-plus/icons-vue'
 import { revenueApi } from '@/api/revenue'
 import { ElMessage } from 'element-plus'
 import { wardApi } from '@/api/ward'
@@ -464,6 +513,8 @@ const filterForm = reactive({
 const agencySearchKeyword = ref('')
 
 const isMobile = ref(window.innerWidth < 768)
+const showMobileFilter = ref(false)
+const showMobileDatePicker = ref(false)
 const onResize = () => {
   isMobile.value = window.innerWidth < 768
 }
@@ -496,28 +547,27 @@ const mobileCardCfg = computed(() => {
     province: { title: 'province_name', sub: null },
     ward: { title: 'ward_name', sub: 'province_name' },
     agency: { title: 'agency_name', sub: 'province_name' },
-    station: { title: 'station_code', sub: 'agency_name' },
+    station: { title: 'station_code', sub: 'address' },
     bay: { title: 'bay_code', sub: 'station_code' }
   }
   return cfgMap[filterForm.level] ?? cfgMap.province
 })
 
-const selectedProvinceName = computed(() =>
-  filterForm.province_id ? (options.provinces.find((p) => p.id === filterForm.province_id)?.name ?? null) : null
-)
-
-const selectedWardName = computed(() =>
-  filterForm.ward_id ? (options.wards.find((w) => w.id === filterForm.ward_id)?.name ?? null) : null
-)
-
-const selectedAgencyName = computed(() =>
-  filterForm.agency_id ? (options.agencies.find((a) => a.id === filterForm.agency_id)?.agency_name ?? null) : null
-)
 
 const lastSearch = reactive({
   ward: '',
   agency: '',
   station: ''
+})
+
+const activeFilterCount = computed(() => {
+  let count = 0
+  if (filterForm.province_id) count++
+  if (filterForm.ward_id) count++
+  if (filterForm.agency_id) count++
+  if (filterForm.station_id) count++
+  if (filterForm.bay_code) count++
+  return count
 })
 
 const normalizeSearchValue = (value) => String(value || '').toLowerCase().trim()
@@ -526,10 +576,19 @@ let remoteWardTimer = null
 const remoteFetchWards = (query) => {
   const q = normalizeSearchValue(query)
   if (q === lastSearch.ward && options.wards.length > 0) return
-  if (remoteWardTimer) clearTimeout(remoteWardTimer)
   remoteWardTimer = setTimeout(() => {
     fetchWards(filterForm.province_id, q)
   }, 300)
+}
+
+const resetFilters = () => {
+  filterForm.province_id = null
+  filterForm.ward_id = null
+  filterForm.agency_id = null
+  filterForm.station_id = null
+  filterForm.bay_code = null
+  filterForm.dateRange = []
+  scheduleFetchData()
 }
 
 let remoteAgencyTimer = null
@@ -552,9 +611,6 @@ const remoteFetchStations = (query) => {
   }, 300)
 }
 
-const selectedStationName = computed(() =>
-  filterForm.station_id ? (options.stations.find((s) => s.id === filterForm.station_id)?.name ?? null) : null
-)
 
 const allColumnConfigs = {
   province: [
@@ -975,6 +1031,9 @@ const fetchData = async ({ resetPage = false } = {}) => {
 }
 
 const handleTimeTypeChange = (val) => {
+  if (val === 'day') {
+    filterForm.dateRange = []
+  }
   scheduleFetchData({ resetPage: true })
 }
 
@@ -1451,84 +1510,10 @@ onMounted(async () => {
   border-top-color: #53a8ff;
 }
 
-@media (max-width: 768px) {
-  .revenue-report-container { padding: 10px; }
-  :deep(.filter-card .el-card__body) { padding: 10px; }
-
-  .top-filter-row {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 8px;
-  }
-
-  .filter-item {
-    align-items: center;
-    gap: 8px;
-  }
-
-  .filter-label {
-    min-width: 58px;
-  }
-
-  .level-select {
-    width: 100%;
-  }
-
-  .time-controls {
-    margin-left: 0;
-    width: 100%;
-    justify-content: flex-start;
-    gap: 8px;
-  }
-
-  .time-group {
-    margin-left: 0;
-    width: 100%;
-  }
-
-  :deep(.time-group .el-radio-button) {
-    flex: 1;
-  }
-
-  :deep(.time-group .el-radio-button__inner) {
-    width: 100%;
-    text-align: center;
-  }
-
-  .filter-row {
-    gap: 8px;
-  }
-
-  .date-range-picker {
-    min-width: 0;
-    max-width: 100%;
-    width: 100%;
-  }
-
-  .filter-chips-row {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 8px;
-  }
-
-  :deep(.filter-chips-row .el-popover__reference-wrapper) {
-    display: block;
-    width: 100%;
-  }
-
-  .filter-chip {
-    width: 100%;
-    justify-content: space-between;
-    border-radius: 10px;
-  }
-
-  .pagination-container { justify-content: center; margin-top: 12px; }
-  .chip-val { max-width: 90px; }
-}
 
 /* ── Mobile card list ────────────────────────────── */
 .mobile-card-list {
-  margin-top: 12px;
+  margin-top: 8px;
   display: flex;
   flex-direction: column;
   gap: 10px;
@@ -1537,7 +1522,7 @@ onMounted(async () => {
 .mobile-card {
   background: var(--bg-card);
   border-radius: var(--report-card-radius);
-  padding: 13px 14px;
+  padding: 8px 10px;
   cursor: pointer;
   border: 1px solid var(--report-border);
   transition: border-color 0.2s;
@@ -1548,11 +1533,32 @@ onMounted(async () => {
   outline-offset: 2px;
 }
 
+.mc-top-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 8px;
+  margin-bottom: 2px;
+}
+.mc-right-meta {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.mc-expand-icon {
+  font-size: 14px;
+  color: var(--report-text-sub);
+  transition: transform 0.3s ease;
+}
+.mc-expand-icon.is-active {
+  transform: rotate(180deg);
+}
 .mc-header {
   display: flex;
   align-items: flex-start;
-  gap: 8px;
-  margin-bottom: 6px;
+  gap: 4px;
+  flex: 1;
+  min-width: 0;
 }
 .mc-stt {
   font-size: 11px;
@@ -1576,33 +1582,40 @@ onMounted(async () => {
   text-overflow: ellipsis;
 }
 .mc-sub {
-  font-size: 11px;
+  font-size: 10px;
   color: var(--report-text-sub);
+  opacity: 0.8;
+}
+.mc-bottom-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
 }
 .mc-time {
   font-size: 11px;
   color: var(--report-text-sub);
   white-space: nowrap;
-  padding-top: 2px;
 }
 
 .mc-revenue {
-  font-size: 18px;
+  font-size: 15px;
   font-weight: 700;
   color: var(--report-accent);
-  margin-bottom: 8px;
+  white-space: nowrap;
 }
 
 .mc-stats {
   display: flex;
-  gap: 12px;
+  gap: 8px;
   flex-wrap: wrap;
-  margin-bottom: 6px;
+  flex: 1;
 }
 .mc-stat {
   display: flex;
-  flex-direction: column;
-  align-items: flex-start;
+  flex-direction: row;
+  align-items: center;
+  gap: 2px;
 }
 .mcs-label {
   font-size: 10px;
@@ -1611,7 +1624,7 @@ onMounted(async () => {
   letter-spacing: 0.03em;
 }
 .mcs-val {
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 600;
   color: var(--report-text-main);
 }
@@ -1705,5 +1718,124 @@ onMounted(async () => {
   flex-direction: column;
   gap: 10px;
   overflow-y: auto;
+}
+
+@media (max-width: 768px) {
+  .revenue-report-container { padding: 8px; gap: 4px; }
+  :deep(.filter-card .el-card__body) { padding: 8px 10px; }
+  
+  .level-filter-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+  }
+
+  .filter-toggle-btn-inline {
+    flex-shrink: 0;
+    font-weight: 600;
+    border-radius: 8px;
+  }
+
+  .filter-count-mini {
+    background: var(--el-color-primary);
+    color: #fff;
+    padding: 0 5px;
+    border-radius: 6px;
+    font-size: 10px;
+    margin-left: 4px;
+    line-height: 1.4;
+  }
+
+  .top-filter-row {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 6px;
+  }
+
+  .filter-item {
+    align-items: center;
+    gap: 8px;
+  }
+
+  .filter-label {
+    min-width: 58px;
+  }
+
+  .level-select {
+    flex: 1;
+  }
+
+  .time-controls {
+    margin-left: 0;
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 2px;
+  }
+
+  .time-group {
+    margin-left: 0;
+    flex: 1;
+  }
+
+  .date-toggle-btn {
+    flex-shrink: 0;
+    font-weight: 600;
+    font-size: 11px;
+    padding: 0 10px;
+    height: 24px;
+    border-radius: 6px;
+    border: 1px dashed var(--el-color-primary-light-5);
+    background: var(--el-color-primary-light-9);
+    color: var(--el-color-primary);
+    transition: all 0.3s ease;
+  }
+
+  .date-toggle-btn.is-active {
+    background: var(--el-color-primary);
+    color: #fff;
+    border-style: solid;
+    border-color: var(--el-color-primary);
+    box-shadow: 0 2px 8px rgba(64, 158, 255, 0.3);
+  }
+
+  :deep(.time-group .el-radio-button) {
+    flex: 1;
+  }
+
+  :deep(.time-group .el-radio-button__inner) {
+    width: 100%;
+    text-align: center;
+  }
+
+  .filter-row {
+    gap: 6px;
+  }
+
+  .date-range-picker {
+    min-width: 0;
+    max-width: 100%;
+    width: 100%;
+  }
+
+  .filter-chips-row {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 6px;
+  }
+
+  :deep(.filter-chips-row .el-select) {
+    width: 100%;
+  }
+
+  .mobile-filter-select :deep(.el-input__inner) {
+    font-size: 12px;
+  }
+
+  .pagination-container { justify-content: center; margin-top: 4px; }
+  .mobile-card-list { margin-top: 2px; gap: 8px; }
+  .chip-val { max-width: 90px; }
 }
 </style>

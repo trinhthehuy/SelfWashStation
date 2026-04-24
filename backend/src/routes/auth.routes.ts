@@ -15,18 +15,18 @@ function isValidEmail(value: string): boolean {
 
 router.post('/login', loginRateLimit, async (req, res) => {
   try {
-    const { username, password } = req.body;
+    const { email, password } = req.body;
 
-    if (!username || !password) {
-      res.status(400).json({ message: 'Vui lòng nhập tài khoản và mật khẩu' });
+    if (!email || !password) {
+      res.status(400).json({ message: 'Vui lòng nhập email và mật khẩu' });
       return;
     }
 
-    const session = await SystemAuthService.login(String(username), String(password));
+    const session = await SystemAuthService.login(String(email), String(password));
     registerLoginSuccess(req);
     auditService.log({
       userId: session.user.id,
-      username: session.user.username,
+      email: session.user.email,
       role: session.user.role,
       action: 'LOGIN_SUCCESS',
       ip: req.ip,
@@ -36,7 +36,7 @@ router.post('/login', loginRateLimit, async (req, res) => {
     registerLoginFailure(req);
     auditService.log({
       userId: null,
-      username: String(req.body?.username || 'unknown'),
+      email: String(req.body?.email || req.body?.username || 'unknown'),
       role: 'unknown',
       action: 'LOGIN_FAILED',
       details: { reason: error.message },
@@ -47,17 +47,17 @@ router.post('/login', loginRateLimit, async (req, res) => {
 });
 
 router.post('/forgot-password', async (req, res) => {
-  const username = String(req.body?.username || '').trim();
-  if (!username) {
-    res.status(400).json({ message: 'Vui lòng nhập tên đăng nhập' });
+  const email = String(req.body?.email || req.body?.username || '').trim();
+  if (!email) {
+    res.status(400).json({ message: 'Vui lòng nhập email tài khoản' });
     return;
   }
 
   try {
-    const result = await SystemAuthService.requestPasswordReset(username);
+    const result = await SystemAuthService.requestPasswordReset(email);
     auditService.log({
       userId: null,
-      username,
+      email: email,
       role: 'unknown',
       action: 'PASSWORD_RESET_REQUEST',
       ip: req.ip,
@@ -71,7 +71,7 @@ router.post('/forgot-password', async (req, res) => {
   } catch (error: any) {
     auditService.log({
       userId: null,
-      username,
+      email: email,
       role: 'unknown',
       action: 'PASSWORD_RESET_FAILED',
       details: { reason: error.message },
@@ -105,7 +105,7 @@ router.post('/reset-password', async (req, res) => {
     await SystemAuthService.resetPasswordByToken(token, newPassword);
     auditService.log({
       userId: null,
-      username: 'unknown',
+      email: 'unknown',
       role: 'unknown',
       action: 'PASSWORD_RESET_SUCCESS',
       ip: req.ip,
@@ -114,7 +114,7 @@ router.post('/reset-password', async (req, res) => {
   } catch (error: any) {
     auditService.log({
       userId: null,
-      username: 'unknown',
+      email: 'unknown',
       role: 'unknown',
       action: 'PASSWORD_RESET_FAILED',
       details: { reason: error.message },
@@ -143,9 +143,10 @@ router.get('/users', authenticateToken, authorizeRoles(['sa', 'engineer']), asyn
   try {
     const page = Number(req.query.page) || 1;
     const limit = Number(req.query.limit) || 20;
+    const keyword = req.query.keyword ? String(req.query.keyword) : '';
     const includeTotal = req.query.include_total === 'true' || req.query.include_total === '1';
 
-    const result = await SystemAuthService.listUsers({ page, limit, includeTotal });
+    const result = await SystemAuthService.listUsers({ page, limit, includeTotal, keyword });
     res.json(result);
   } catch (error) {
     next(error);
@@ -154,8 +155,8 @@ router.get('/users', authenticateToken, authorizeRoles(['sa', 'engineer']), asyn
 
 router.post('/users', authenticateToken, authorizeRoles(['sa', 'regional_manager']), async (req: AuthRequest, res, next) => {
   try {
-    const { username, password, fullName, role, agencyId, email } = req.body;
-    if (!username || !password || !fullName || !role) {
+    const { email, password, fullName, role, agencyId } = req.body;
+    if (!email || !password || !fullName || !role) {
       res.status(400).json({ message: 'Thiếu thông tin bắt buộc' });
       return;
     }
@@ -193,16 +194,16 @@ router.post('/users', authenticateToken, authorizeRoles(['sa', 'regional_manager
       }
     }
 
-    const user = await SystemAuthService.createUser({ username, password, fullName, role, agencyId, email });
+    const user = await SystemAuthService.createUser({ email, password, fullName, role, agencyId });
     auditService.log({
       userId: req.user!.id,
-      username: req.user!.username,
+      email: req.user!.email,
       role: req.user!.role,
       action: 'USER_CREATE',
       entityType: 'system_user',
       entityId: user.id,
-      entityName: username,
-      details: { role, agencyId: agencyId ?? null, email: email ?? null },
+      entityName: email,
+      details: { role, agencyId: agencyId ?? null },
       ip: req.ip,
     });
     res.status(201).json({ data: user });
@@ -230,12 +231,12 @@ router.put('/users/:id', authenticateToken, authorizeRoles(['sa']), async (req: 
     await SystemAuthService.updateUser(Number(req.params.id), { fullName, role, agencyId, email, isActive });
     auditService.log({
       userId: req.user!.id,
-      username: req.user!.username,
+      email: req.user!.email,
       role: req.user!.role,
       action: 'USER_UPDATE',
       entityType: 'system_user',
       entityId: Number(req.params.id),
-      entityName: targetUser.username,
+      entityName: targetUser?.email || 'unknown',
       details: { fullName, role, agencyId, email, isActive },
       ip: req.ip,
     });
@@ -252,12 +253,12 @@ router.delete('/users/:id', authenticateToken, authorizeRoles(['sa']), async (re
     await SystemAuthService.deleteUser(targetId, req.user!.id);
     auditService.log({
       userId: req.user!.id,
-      username: req.user!.username,
+      email: req.user!.email,
       role: req.user!.role,
       action: 'USER_DELETE',
       entityType: 'system_user',
       entityId: targetId,
-      entityName: targetUser.username,
+      entityName: targetUser?.email || 'unknown',
       ip: req.ip,
     });
     res.json({ message: 'Xóa tài khoản thành công' });
@@ -282,12 +283,12 @@ router.put('/users/:id/password', authenticateToken, authorizeRoles(['sa']), asy
     await SystemAuthService.resetPassword(targetId, newPassword);
     auditService.log({
       userId: req.user!.id,
-      username: req.user!.username,
+      email: req.user!.email,
       role: req.user!.role,
       action: 'USER_RESET_PASSWORD',
       entityType: 'system_user',
       entityId: targetId,
-      entityName: targetUser.username,
+      entityName: targetUser?.email || 'unknown',
       ip: req.ip,
     });
     res.json({ message: 'Đặt lại mật khẩu thành công' });
@@ -387,12 +388,12 @@ router.put('/users/:id/scope', authenticateToken, authorizeRoles(['sa']), async 
     const targetUser = await SystemAuthService.getById(targetId);
     auditService.log({
       userId: req.user!.id,
-      username: req.user!.username,
+      email: req.user!.email,
       role: req.user!.role,
       action: 'USER_SCOPE_UPDATE',
       entityType: 'system_user',
       entityId: targetId,
-      entityName: targetUser.username,
+      entityName: targetUser?.email || 'unknown',
       details: { provinceIds, stationIds },
       ip: req.ip,
     });

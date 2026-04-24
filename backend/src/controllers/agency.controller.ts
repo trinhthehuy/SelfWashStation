@@ -84,7 +84,7 @@ export class AgencyController {
         const newAgency = await agencyService.createAgency(agencyData, accountData);
         auditService.log({
           userId: req.user?.id,
-          username: req.user?.username || 'system',
+          email: req.user?.email || 'system',
           role: req.user?.role || 'unknown',
           action: 'AGENCY_CREATE',
           entityType: 'agency',
@@ -98,7 +98,7 @@ export class AgencyController {
         });
       } catch (error: any) {
         if (
-          error.message === 'Tên đăng nhập đã tồn tại' ||
+          error.message === 'Email này đã được sử dụng cho một tài khoản khác' ||
           error.message === 'Số CCCD / ID này đã được sử dụng bởi một đại lý khác'
         ) {
           res.status(409).json({ message: error.message });
@@ -127,7 +127,7 @@ export class AgencyController {
 
       auditService.log({
         userId: req.user?.id,
-        username: req.user?.username || 'system',
+        email: req.user?.email || 'system',
         role: req.user?.role || 'unknown',
         action: 'AGENCY_UPDATE',
         entityType: 'agency',
@@ -163,7 +163,7 @@ export class AgencyController {
       const deletedAgency = await agencyService.deleteAgency(Number(id), getRequestScope(req));
       auditService.log({
         userId: req.user?.id,
-        username: req.user?.username || 'system',
+        email: req.user?.email || 'system',
         role: req.user?.role || 'unknown',
         action: 'AGENCY_DELETE',
         entityType: 'agency',

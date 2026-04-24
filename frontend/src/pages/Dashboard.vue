@@ -10,6 +10,11 @@ import RevenueHeatmap from "../components/revenue-heatmap.vue"
 <template>
 
 <div class="dashboard">
+  <el-card shadow="never" class="header-card title-only-card">
+    <div class="header-content">
+      <h2 class="page-title">Bảng điều khiển</h2>
+    </div>
+  </el-card>
 
   <!-- KPI -->
   <div class="kpi-wrapper">

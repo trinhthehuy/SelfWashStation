@@ -4,13 +4,9 @@
       <div class="header-content">
         <div class="title-group">
           <h2 class="page-title">Góp ý & Phản hồi</h2>
-          <p class="sub-title">
-            <template v-if="isSA">Quản lý và phản hồi góp ý từ người dùng hệ thống</template>
-            <template v-else>Gửi góp ý, kiến nghị đến tài khoản quản trị</template>
-          </p>
         </div>
-        <el-button type="primary" :icon="Plus" @click="openCreateDialog">
-          Gửi góp ý mới
+        <el-button type="primary" :icon="Plus" @click="openCreateDialog" class="mobile-add-btn">
+          Thêm mới
         </el-button>
       </div>
     </el-card>
@@ -387,7 +383,7 @@ const submitReply = async () => {
 .header-content {
   display: flex;
   justify-content: space-between;
-  align-items: flex-start;
+  align-items: center;
 }
 
 .page-title {

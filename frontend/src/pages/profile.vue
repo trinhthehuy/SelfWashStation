@@ -1,5 +1,10 @@
 <template>
   <div class="profile-page">
+    <el-card shadow="never" class="header-card title-only-card">
+      <div class="header-content">
+        <h2 class="page-title">Trang cá nhân</h2>
+      </div>
+    </el-card>
 
     <!-- Avatar + tên -->
     <el-card shadow="never" class="profile-card">
@@ -13,10 +18,13 @@
             <Camera :size="16" />
             <input type="file" accept="image/*" class="hidden-input" @change="handleAvatarFile" />
           </label>
+          <button v-if="avatarChanged" class="avatar-cancel-btn" title="Hủy thay đổi" @click="avatarChanged = false; avatarPreview = authStore.state.user?.avatar">
+            <span style="font-size: 14px; font-weight: bold">×</span>
+          </button>
         </div>
         <div class="profile-meta">
           <div class="profile-fullname">{{ authStore.state.user?.fullName }}</div>
-          <div class="profile-username">@{{ authStore.state.user?.username }}</div>
+          <div class="profile-username">{{ authStore.state.user?.email }}</div>
           <div class="role-badge" :class="roleClass">{{ roleLabel }}</div>
         </div>
       </div>
@@ -26,8 +34,8 @@
     <el-card shadow="never" class="section-card">
       <template #header><span class="card-title">Thông tin cá nhân</span></template>
       <el-form :model="profileForm" ref="profileFormRef" label-position="top" class="profile-form">
-        <el-row :gutter="24">
-          <el-col :span="12">
+        <el-row :gutter="12">
+          <el-col :xs="16" :sm="12">
             <el-form-item
               label="Tên hiển thị"
               prop="fullName"
@@ -36,22 +44,17 @@
               <el-input v-model="profileForm.fullName" placeholder="Tên hiển thị" />
             </el-form-item>
           </el-col>
-          <el-col :span="12">
-            <el-form-item label="Tên đăng nhập">
-              <el-input :value="authStore.state.user?.username" disabled />
+          <el-col :xs="0" :sm="12">
+            <el-form-item label="Email (Dùng để đăng nhập)">
+              <el-input :value="authStore.state.user?.email" disabled />
             </el-form-item>
           </el-col>
+          <el-col :xs="8" :sm="24" class="btn-col">
+            <el-button type="primary" :loading="profileLoading" @click="handleSaveProfile" class="save-profile-btn">
+              Lưu
+            </el-button>
+          </el-col>
         </el-row>
-
-        <div v-if="avatarPreview" class="avatar-preview-row">
-          <span class="preview-label">Ảnh đại diện mới</span>
-          <img :src="avatarPreview" class="preview-thumb" />
-          <el-button link type="danger" @click="removeAvatar">Xóa ảnh</el-button>
-        </div>
-
-        <el-button type="primary" :loading="profileLoading" @click="handleSaveProfile" style="margin-top: 8px">
-          Lưu thay đổi
-        </el-button>
       </el-form>
     </el-card>
 
@@ -59,41 +62,46 @@
     <el-card shadow="never" class="section-card">
       <template #header><span class="card-title">Đổi mật khẩu</span></template>
       <el-form :model="pwdForm" ref="pwdFormRef" label-position="top" class="profile-form">
-        <el-row :gutter="24">
-          <el-col :span="8">
+        <el-row :gutter="12">
+          <el-col :xs="12" :sm="8">
             <el-form-item
-              label="Mật khẩu hiện tại"
+              label="Mật khẩu cũ"
               prop="current"
               :rules="[{ required: true, message: 'Bắt buộc', trigger: 'blur' }]"
             >
-              <el-input v-model="pwdForm.current" type="password" show-password placeholder="Nhập mật khẩu hiện tại" />
+              <el-input v-model="pwdForm.current" type="password" show-password placeholder="Mật khẩu cũ" autocomplete="new-password" />
             </el-form-item>
+
           </el-col>
-          <el-col :span="8">
+          <el-col :xs="12" :sm="8">
             <el-form-item
               label="Mật khẩu mới"
               prop="newPwd"
               :rules="[{ required: true, min: 6, message: 'Tối thiểu 6 ký tự', trigger: 'blur' }]"
             >
-              <el-input v-model="pwdForm.newPwd" type="password" show-password placeholder="Tối thiểu 6 ký tự" />
+              <el-input v-model="pwdForm.newPwd" type="password" show-password placeholder="Mới" autocomplete="new-password" />
             </el-form-item>
+
           </el-col>
-          <el-col :span="8">
+          <el-col :xs="12" :sm="8">
             <el-form-item
-              label="Xác nhận mật khẩu mới"
+              label="Xác nhận"
               prop="confirm"
               :rules="[
                 { required: true, message: 'Bắt buộc', trigger: 'blur' },
                 { validator: validateConfirm, trigger: 'blur' }
               ]"
             >
-              <el-input v-model="pwdForm.confirm" type="password" show-password placeholder="Nhập lại mật khẩu mới" />
+              <el-input v-model="pwdForm.confirm" type="password" show-password placeholder="Xác nhận" autocomplete="new-password" />
             </el-form-item>
+
+          </el-col>
+          <el-col :xs="12" :sm="24" class="btn-col">
+            <el-button type="primary" :loading="pwdLoading" @click="handleChangePwd" class="change-pwd-btn">
+              Đổi mật khẩu
+            </el-button>
           </el-col>
         </el-row>
-        <el-button type="primary" :loading="pwdLoading" @click="handleChangePwd">
-          Đổi mật khẩu
-        </el-button>
       </el-form>
     </el-card>
 
@@ -263,16 +271,39 @@ const userInitials = computed(() => {
   box-sizing: border-box;
 }
 
+@media (max-width: 768px) {
+  .profile-page {
+    padding: 10px;
+    gap: 10px;
+    overflow: hidden; /* Try to prevent scroll if content fits */
+  }
+}
+
+
 /* ── Profile header card ─────────────────────────────────── */
 .profile-card :deep(.el-card__body) {
   padding: 24px;
 }
+
+@media (max-width: 768px) {
+  .profile-card :deep(.el-card__body) {
+    padding: 12px;
+  }
+}
+
 
 .profile-header {
   display: flex;
   align-items: center;
   gap: 24px;
 }
+
+@media (max-width: 768px) {
+  .profile-header {
+    gap: 12px;
+  }
+}
+
 
 .avatar-wrap {
   position: relative;
@@ -291,6 +322,15 @@ const userInitials = computed(() => {
   border: 3px solid transparent;
   overflow: hidden;
 }
+
+@media (max-width: 768px) {
+  .avatar-ring {
+    width: 60px;
+    height: 60px;
+    font-size: 20px;
+  }
+}
+
 
 .ring-sa       { background: rgba(99,102,241,0.15); color: #818cf8; border-color: rgba(99,102,241,0.4); }
 .ring-engineer { background: rgba(16,185,129,0.15); color: #34d399; border-color: rgba(16,185,129,0.4); }
@@ -323,6 +363,27 @@ const userInitials = computed(() => {
 
 .hidden-input { display: none; }
 
+.avatar-cancel-btn {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: #f56c6c;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  border: 2px solid #fff;
+  padding: 0;
+  z-index: 2;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  transition: transform 0.2s;
+}
+.avatar-cancel-btn:hover { transform: scale(1.1); }
+
 .profile-meta {
   display: flex;
   flex-direction: column;
@@ -340,6 +401,12 @@ const userInitials = computed(() => {
   color: var(--text-faint);
 }
 
+@media (max-width: 768px) {
+  .profile-fullname { font-size: 16px; }
+  .profile-username { font-size: 12px; }
+}
+
+
 .role-badge {
   display: inline-block;
   font-size: 11px;
@@ -352,12 +419,36 @@ const userInitials = computed(() => {
   margin-top: 2px;
 }
 
+@media (max-width: 768px) {
+  .role-badge {
+    font-size: 9px;
+    padding: 1px 6px;
+  }
+}
+
 .role-sa       { background: rgba(99,102,241,0.15); color: #818cf8; }
+
 .role-engineer { background: rgba(16,185,129,0.15); color: #34d399; }
 .role-agency   { background: rgba(245,158,11,0.15);  color: #fbbf24; }
 
 /* ── Section cards ───────────────────────────────────────── */
 .section-card { background: var(--bg-card); }
+
+.section-card :deep(.el-card__header) {
+  padding: 12px 16px;
+}
+.section-card :deep(.el-card__body) {
+  padding: 16px;
+}
+
+@media (max-width: 768px) {
+  .section-card :deep(.el-card__header) {
+    padding: 8px 12px;
+  }
+  .section-card :deep(.el-card__body) {
+    padding: 10px 12px;
+  }
+}
 
 .card-title {
   font-weight: 600;
@@ -366,6 +457,38 @@ const userInitials = computed(() => {
 }
 
 .profile-form { max-width: 720px; }
+
+@media (max-width: 768px) {
+  .profile-form :deep(.el-form-item) {
+    margin-bottom: 8px;
+  }
+  .profile-form :deep(.el-form-item__label) {
+    margin-bottom: 2px;
+    font-size: 12px;
+    line-height: 1.2;
+  }
+  .profile-form :deep(.el-button) {
+    width: 100%;
+    margin-top: 4px !important;
+    padding: 8px;
+    font-size: 13px;
+  }
+  .profile-form :deep(.el-input__inner) {
+    height: 32px;
+  }
+  .btn-col {
+    display: flex;
+    align-items: flex-end;
+    margin-bottom: 8px; /* Match el-form-item margin-bottom */
+  }
+  .change-pwd-btn, .save-profile-btn {
+    margin-top: 0 !important;
+    height: 32px;
+    width: 100%;
+  }
+
+}
+
 
 .avatar-preview-row {
   display: flex;

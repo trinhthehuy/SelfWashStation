@@ -1,5 +1,6 @@
 /* 1. CONFIGURATION & VARIABLES */
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,200..800;1,200..800&display=swap');
 
 /* ── LIGHT THEME (default) ──────────────────────────────── */
 :root {
@@ -84,6 +85,14 @@ html, body, #app {
   width: 100%;
   margin: 0;
   overflow: hidden;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+}
+
+/* Mobile specific font */
+@media (max-width: 768px) {
+  html, body, #app {
+    font-family: 'Plus Jakarta Sans', system-ui, sans-serif !important;
+  }
 }
 
 /* On mobile, allow content to scroll naturally */
@@ -105,8 +114,51 @@ html, body, #app {
     align-items: flex-start !important;
   }
 
-  .header-row h2 {
-    font-size: 20px !important;
+  .header-row h2,
+  .page-title {
+    font-size: 18px !important;
+    font-weight: 700 !important;
+    font-family: 'Plus Jakarta Sans', sans-serif !important;
+    margin: 0 !important;
+  }
+
+  /* Hide sub-titles on mobile as requested */
+  .sub-title,
+  .header-row p,
+  .page-desc {
+    display: none !important;
+  }
+
+  .header-content,
+  .page-header,
+  .header-title-row,
+  .settings-hero {
+    display: flex !important;
+    flex-direction: row !important;
+    justify-content: space-between !important;
+    align-items: center !important;
+    gap: 10px !important;
+  }
+
+  /* Force title-group to not shrink */
+  .title-group, .header-title {
+    flex: 1;
+    min-width: 0;
+  }
+
+  /* Specific style for "Thêm mới" button on mobile */
+  .mobile-add-btn {
+    padding: 6px 12px !important;
+    font-size: 13px !important;
+    height: 32px !important;
+    border-radius: 6px !important;
+    font-weight: 600 !important;
+    flex-shrink: 0;
+  }
+
+  .title-only-card :deep(.el-card__body),
+  .title-only-card .el-card__body {
+    padding: 8px 0 !important;
   }
 
   /* El-table wrapper: allow horizontal scroll */

@@ -1,15 +1,16 @@
 <template>
   <div class="configuration-page">
     <el-card shadow="never" class="settings-hero">
-      <div class="hero-content">
-        <p class="page-title">Cấu hình hệ thống</p>
-        <p class="page-desc">Quản lý tích hợp thanh toán, token API và kiểm tra vận hành toàn hệ thống.</p>
-      </div>
-      <div class="hero-actions">
-        <el-tag size="large" :type="mqttConnected ? 'success' : 'danger'">
-          {{ mqttConnected ? 'MQTT đang kết nối' : 'MQTT chưa kết nối' }}
-        </el-tag>
-        <el-button type="primary" @click="refreshMqtt" :loading="refreshing">Làm mới kết nối</el-button>
+      <div class="header-content">
+        <div class="hero-content">
+          <h2 class="page-title">Cấu hình hệ thống</h2>
+        </div>
+        <div class="hero-actions">
+          <el-tag size="large" :type="mqttConnected ? 'success' : 'danger'">
+            {{ mqttConnected ? 'MQTT đang kết nối' : 'MQTT chưa kết nối' }}
+          </el-tag>
+          <el-button type="primary" @click="refreshMqtt" :loading="refreshing">Làm mới kết nối</el-button>
+        </div>
       </div>
     </el-card>
 

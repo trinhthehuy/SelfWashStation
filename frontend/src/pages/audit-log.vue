@@ -94,7 +94,7 @@
             </template>
           </el-table-column>
   
-          <el-table-column label="Người dùng" width="150">
+          <el-table-column label="Tài khoản" width="200">
             <template #default="{ row }">
               <div class="user-cell">
                 <span class="username">{{ row.username }}</span>

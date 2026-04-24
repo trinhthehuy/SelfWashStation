@@ -1,9 +1,9 @@
 <template>
   <div class="reset-page">
     <div class="reset-card">
-      <h1 class="reset-title">Dat lai mat khau</h1>
-      <p class="reset-subtitle">
-        Tao mat khau moi cho tai khoan cua ban.
+      <h1 class="page-title">Đặt lại mật khẩu</h1>
+      <p class="sub-title">
+        Tạo mật khẩu mới cho tài khoản của bạn.
       </p>
 
       <div class="guide-box">

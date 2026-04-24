@@ -4,10 +4,9 @@
       <div class="header-content">
         <div class="title-group">
           <h2 class="page-title">Quản lý chiến lược</h2>
-          <p class="sub-title">Thiết lập các chiến lược vận hành hệ thống trạm rửa xe</p>
         </div>
-        <el-button type="primary" :icon="Plus" @click="handleAddNew" size="large">
-          Thêm chiến lược mới
+        <el-button type="primary" :icon="Plus" @click="handleAddNew" class="mobile-add-btn">
+          Thêm mới
         </el-button>
       </div>
 

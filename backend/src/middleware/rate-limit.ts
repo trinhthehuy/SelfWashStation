@@ -16,8 +16,8 @@ type UserLockState = {
 const attemptsByKey = new Map<string, AttemptState>();
 const userLocks = new Map<string, UserLockState>();
 
-function normalizeUsername(rawUsername: unknown): string {
-  return String(rawUsername || '').trim().toLowerCase();
+function normalizeEmail(rawEmail: unknown): string {
+  return String(rawEmail || '').trim().toLowerCase();
 }
 
 function getClientIp(req: Request): string {
@@ -26,12 +26,12 @@ function getClientIp(req: Request): string {
 }
 
 function getAttemptKey(req: Request): string {
-  const username = normalizeUsername(req.body?.username) || '__unknown__';
-  return `${getClientIp(req)}:${username}`;
+  const email = normalizeEmail(req.body?.email || req.body?.username) || '__unknown__';
+  return `${getClientIp(req)}:${email}`;
 }
 
-function getRequestUsername(req: Request): string {
-  return normalizeUsername(req.body?.username);
+function getRequestEmail(req: Request): string {
+  return normalizeEmail(req.body?.email || req.body?.username);
 }
 
 function resetWindowIfNeeded(state: AttemptState, now: number): AttemptState {
@@ -51,12 +51,12 @@ function getRetryAfterSeconds(blockedUntil: number, now: number): number {
   return Math.max(1, Math.ceil((blockedUntil - now) / 1000));
 }
 
-function prepareUserLockState(username: string, now: number): UserLockState | null {
-  if (!username) {
+function prepareUserLockState(email: string, now: number): UserLockState | null {
+  if (!email) {
     return null;
   }
 
-  const current = userLocks.get(username);
+  const current = userLocks.get(email);
   if (!current) {
     return {
       blockedHits: 0,
@@ -81,34 +81,34 @@ function prepareUserLockState(username: string, now: number): UserLockState | nu
   return state;
 }
 
-function getActiveUserLockUntil(username: string, now: number): number {
-  const state = prepareUserLockState(username, now);
+function getActiveUserLockUntil(email: string, now: number): number {
+  const state = prepareUserLockState(email, now);
   if (!state) {
     return 0;
   }
 
   if (state.lockedUntil > now) {
-    userLocks.set(username, state);
+    userLocks.set(email, state);
     return state.lockedUntil;
   }
 
   if (state.lockedUntil === 0 && state.blockedHits === 0) {
-    userLocks.delete(username);
+    userLocks.delete(email);
   } else {
-    userLocks.set(username, state);
+    userLocks.set(email, state);
   }
 
   return 0;
 }
 
-function registerRateLimitBlockHit(username: string, now: number): number {
-  const state = prepareUserLockState(username, now);
+function registerRateLimitBlockHit(email: string, now: number): number {
+  const state = prepareUserLockState(email, now);
   if (!state) {
     return 0;
   }
 
   if (state.lockedUntil > now) {
-    userLocks.set(username, state);
+    userLocks.set(email, state);
     return state.lockedUntil;
   }
 
@@ -120,17 +120,17 @@ function registerRateLimitBlockHit(username: string, now: number): number {
     state.hitWindowStartedAt = now;
   }
 
-  userLocks.set(username, state);
+  userLocks.set(email, state);
   return state.lockedUntil;
 }
 
 export function loginRateLimit(req: Request, res: Response, next: NextFunction) {
   const key = getAttemptKey(req);
-  const username = getRequestUsername(req);
+  const email = getRequestEmail(req);
   const now = Date.now();
   const currentState = attemptsByKey.get(key);
 
-  const userLockUntil = getActiveUserLockUntil(username, now);
+  const userLockUntil = getActiveUserLockUntil(email, now);
   if (userLockUntil > now) {
     const retryAfterSeconds = getRetryAfterSeconds(userLockUntil, now);
     res.setHeader('Retry-After', String(retryAfterSeconds));
@@ -153,7 +153,7 @@ export function loginRateLimit(req: Request, res: Response, next: NextFunction) 
   }
 
   if (state.blockedUntil > now) {
-    const escalatedLockUntil = registerRateLimitBlockHit(username, now);
+    const escalatedLockUntil = registerRateLimitBlockHit(email, now);
     const effectiveBlockedUntil = escalatedLockUntil > now ? escalatedLockUntil : state.blockedUntil;
     const retryAfterSeconds = getRetryAfterSeconds(effectiveBlockedUntil, now);
     const isEscalatedLock = escalatedLockUntil > now;
@@ -202,8 +202,8 @@ export function registerLoginFailure(req: Request) {
 
 export function registerLoginSuccess(req: Request) {
   attemptsByKey.delete(getAttemptKey(req));
-  const username = getRequestUsername(req);
-  if (username) {
-    userLocks.delete(username);
+  const email = getRequestEmail(req);
+  if (email) {
+    userLocks.delete(email);
   }
 }

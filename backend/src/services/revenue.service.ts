@@ -213,7 +213,8 @@ export class RevenueService {
             const [
                 agencyRow, stationStatusRow, bayRow,
                 revenueThisRow, revenuePrevRow,
-                trendRows
+                trendRows,
+                bayStatusRows
             ] = await Promise.all([
                 db('agency').count('id as count').where(agencyId != null ? { id: agencyId } : { is_active: 1 }).first(),
                 stationBaseScope.clone().select(db.raw('COUNT(*) as total_count'), db.raw('SUM(CASE WHEN is_active = 1 THEN 1 ELSE 0 END) as active_count')).first(),
@@ -226,7 +227,13 @@ export class RevenueService {
                 applySummaryScope(db('daily_bay_summary as dbs')).select(db.raw('SUM(total_amount) as revenue'), db.raw('SUM(total_transactions) as sessions')).whereBetween('summary_date', [firstDayOfPrevMonth, lastDayOfPrevMonth]).first(),
                 
                 // Trend 7 ngày cho Sparkline
-                applySummaryScope(db('daily_bay_summary as dbs')).select('summary_date as day').sum('total_amount as revenue').sum('total_transactions as sessions').whereBetween('summary_date', [db.raw('DATE_SUB(CURDATE(), INTERVAL 7 DAY)'), db.raw('DATE_SUB(CURDATE(), INTERVAL 1 DAY)')]).groupBy('summary_date').orderBy('summary_date', 'asc')
+                applySummaryScope(db('daily_bay_summary as dbs')).select('summary_date as day').sum('total_amount as revenue').sum('total_transactions as sessions').whereBetween('summary_date', [db.raw('DATE_SUB(CURDATE(), INTERVAL 7 DAY)'), db.raw('DATE_SUB(CURDATE(), INTERVAL 1 DAY)')]).groupBy('summary_date').orderBy('summary_date', 'asc'),
+
+                // Trạng thái trụ (Active/Stopped)
+                db('wash_bays')
+                    .whereIn('station_id', stationBaseScope.clone().select('id'))
+                    .select('bay_status as status', db.raw('COUNT(*) as count'))
+                    .groupBy('bay_status')
             ]);
 
             const revenueTrend: number[] = [];
@@ -247,7 +254,34 @@ export class RevenueService {
             const sessionsPrev = Number((revenuePrevRow as any)?.sessions || 0);
             const calcPct = (cur: number, prev: number) => prev > 0 ? Math.round(((cur - prev) / prev) * 100 * 10) / 10 : null;
 
-            return { success: true, data: { agency_count: Number((agencyRow as any)?.count || 0), station_count: Number((stationStatusRow as any)?.active_count || 0), station_total_count: Number((stationStatusRow as any)?.total_count || 0), bay_count: Number((bayRow as any)?.count || 0), revenue_this_month: revenueThis, sessions_this_month: sessionsThis, revenue_pct_change: calcPct(revenueThis, revenuePrev), sessions_pct_change: calcPct(sessionsThis, sessionsPrev), revenue_trend_7d: revenueTrend, sessions_trend_7d: sessionsTrend } };
+            // Mapping bay_status to array format expected by frontend
+            const bayStatus = (bayStatusRows as any[]).map(r => ({
+                status: Number(r.status),
+                count: Number(r.count)
+            }));
+
+            // Tạm thời giả định giá trị tháng trước bằng hiện tại nếu không có lịch sử trạng thái
+            const stationCount = Number((stationStatusRow as any)?.active_count || 0);
+            const currentBayOnline = bayStatus.find(s => s.status === 1)?.count || 0;
+
+            return { 
+                success: true, 
+                data: { 
+                    agency_count: Number((agencyRow as any)?.count || 0), 
+                    station_count: stationCount, 
+                    station_total_count: Number((stationStatusRow as any)?.total_count || 0), 
+                    bay_count: Number((bayRow as any)?.count || 0), 
+                    revenue_this_month: revenueThis, 
+                    sessions_this_month: sessionsThis, 
+                    revenue_pct_change: calcPct(revenueThis, revenuePrev), 
+                    sessions_pct_change: calcPct(sessionsThis, sessionsPrev), 
+                    revenue_trend_7d: revenueTrend, 
+                    sessions_trend_7d: sessionsTrend,
+                    bay_status: bayStatus,
+                    station_count_prev: stationCount, // Placeholder
+                    bay_online_prev: currentBayOnline // Placeholder
+                } 
+            };
         } catch (error) {
             console.error("SystemStats Error:", error);
             throw error;

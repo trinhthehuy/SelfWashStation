@@ -2,9 +2,8 @@
   <div class="page-container">
     <el-card shadow="never" class="header-card">
       <div class="header-content">
-        <div>
+        <div class="title-group">
           <h2 class="page-title">Thông báo hệ thống</h2>
-          <p class="sub-title">Theo dõi cảnh báo và cập nhật xử lý từ hệ thống</p>
         </div>
         <el-button plain :disabled="!unreadCount" @click="markAllRead">Đánh dấu đã đọc tất cả</el-button>
       </div>

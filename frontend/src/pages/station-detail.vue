@@ -1,8 +1,9 @@
+        
 <template>
   <el-dialog
     v-model="visible"
     :title="props.editData ? 'Cập nhật trạm ' + props.editData.station_name : 'Thêm trạm rửa xe mới'"
-    width="650px"
+    class="station-detail-dialog"
     @closed="$emit('close')"
     :close-on-click-modal="false"
     destroy-on-close
@@ -11,53 +12,47 @@
       :model="form" 
       label-position="top" 
       v-loading="submitting"
-      class="station-form"
+      class="station-form high-density-mobile"
     >
-      <el-row :gutter="20">
+      <el-row :gutter="16">
+        <!-- Khu vực & Đại lý -->
         <el-col :span="12">
-          <el-form-item label="Tỉnh" required>
+          <el-form-item label="Tỉnh/Thành phố" required>
             <el-select 
               v-model="form.province_id" 
-              filterable 
-              placeholder="Chọn tỉnh..." 
               @change="handleProvinceChange"
               class="w-full"
+              filterable
             >
               <el-option v-for="p in provinceData" :key="p.id" :label="p.name" :value="p.id" />
             </el-select>
           </el-form-item>
         </el-col>
-
         <el-col :span="12">
-          <el-form-item label="Huyện" required>
+          <el-form-item label="Quận/Huyện" required>
             <el-select 
               v-model="form.ward_id" 
-              filterable 
               :loading="loadingWards"
               :disabled="!form.province_id"
-              placeholder="Chọn huyện..."
               class="w-full"
+              filterable
             >
               <el-option v-for="w in wards" :key="w.id" :label="w.name" :value="w.id" />
             </el-select>
           </el-form-item>
         </el-col>
-      </el-row>
 
-      <el-row :gutter="20">
         <el-col :span="12">
           <el-form-item label="Mã trạm (Tự động)">
-            <el-input v-model="form.station_name" disabled placeholder="Tự động tạo..." />
+            <el-input v-model="form.station_name" disabled />
           </el-form-item>
         </el-col>
-        
         <el-col :span="12">
           <el-form-item label="Đại lý" required>
             <el-select 
               v-model="form.agency_id" 
               filterable 
               :filter-method="handleAgencyFilter"
-              placeholder="Chọn đại lý..."
               @change="handleAgencyChange"
               class="w-full"
             >
@@ -70,59 +65,51 @@
             </el-select>
           </el-form-item>
         </el-col>
-      </el-row>
 
-      <el-form-item label="Địa chỉ chi tiết" required>
-        <el-input v-model="form.address" placeholder="Số nhà, tên đường..." :prefix-icon="Location" />
-      </el-form-item>
-
-      <el-row :gutter="20">
+        <!-- Tọa độ -->
         <el-col :span="12">
-          <el-form-item label="Tọa độ GPS (Kinh độ / Vĩ độ)" required>
-            <div class="coordinate-inputs">
-              <el-input v-model="form.longitude" placeholder="Kinh độ (Longitude)" style="flex:1;" />
-              <el-input v-model="form.latitude" placeholder="Vĩ độ (Latitude)" style="flex:1;" />
-            </div>
+          <el-form-item label="Kinh độ (Lon)" required>
+            <el-input v-model="form.longitude" />
           </el-form-item>
         </el-col>
-      </el-row>
-
-      <el-row :gutter="20">
         <el-col :span="12">
-          <el-form-item label="Tài khoản ngân hàng" required>
+          <el-form-item label="Vĩ độ (Lat)" required>
+            <el-input v-model="form.latitude" />
+          </el-form-item>
+        </el-col>
+
+        <!-- Tài khoản & Chiến lược -->
+        <el-col :span="12">
+          <el-form-item label="Tài khoản NH" required>
             <el-select 
               v-model="form.bank_account_id" 
               filterable 
               :disabled="!form.agency_id || bankaccounts.length === 0"
-              placeholder="Chọn tài khoản..."
               class="w-full"
             >
               <el-option v-for="b in bankaccounts" :key="b.id" :label="b.name" :value="b.id" />
             </el-select>
           </el-form-item>
         </el-col>
-
         <el-col :span="12">
-          <el-form-item label="Chiến lược vận hành" required>
+          <el-form-item label="Chiến lược" required>
             <el-select 
               v-model="form.strategy_id" 
               filterable 
               :disabled="!form.agency_id || strategies.length === 0"
-              placeholder="Chọn chiến lược..."
               class="w-full"
             >
               <el-option v-for="s in strategies" :key="s.id" :label="s.name" :value="s.id">
                 <div class="strategy-dual">
                   <div class="strategy-dual-name">{{ s.strategy_name }}</div>
-                  <div class="strategy-dual-meta">Giá: {{ s.amount_per_unit_text }} - TG: {{ s.op_per_unit }}s - Bọt: {{ s.foam_per_unit }}ml</div>
+                  <div class="strategy-dual-meta">Giá: {{ s.amount_per_unit_text }} - TG: {{ s.op_per_unit }}s</div>
                 </div>
               </el-option>
             </el-select>
           </el-form-item>
         </el-col>
-      </el-row>
 
-      <el-row :gutter="20">
+        <!-- Cấu hình khác -->
         <el-col :span="12" v-if="!props.editData">
           <el-form-item label="Số trụ" required>
             <el-input-number
@@ -136,18 +123,25 @@
             />
           </el-form-item>
         </el-col>
-
-        <el-col :span="12">
-          <el-form-item label="Trạng thái hoạt động">
+        <el-col :span="!props.editData ? 12 : 24">
+          <el-form-item label="Trạng thái">
             <el-segmented 
               v-model="form.is_active" 
               :options="statusOptions"
-              class="w-full"
+              class="w-full status-segmented"
             />
           </el-form-item>
         </el-col>
-        <el-col :span="12">
-          <el-form-item label="Prefix chuyển khoản">
+
+        <!-- Địa chỉ & Thông tin thêm -->
+        <el-col :span="24">
+          <el-form-item label="Địa chỉ chi tiết" required>
+            <el-input v-model="form.address" :prefix-icon="Location" />
+          </el-form-item>
+        </el-col>
+
+        <el-col :span="24">
+          <el-form-item label="Prefix chuyển khoản (Tự động)" class="prefix-form-item">
             <el-input v-model="form.prefix" disabled />
           </el-form-item>
         </el-col>
@@ -390,64 +384,149 @@ onMounted(async () => {
   padding: 10px 5px;
 }
 
-.coordinate-inputs {
-  display:flex; 
-  gap:12px;
-  width:100%;
+
+
+/* Responsive Dialog */
+:deep(.station-detail-dialog) {
+  width: 650px;
+  max-width: 98%;
+  border-radius: 12px;
+  overflow: hidden;
 }
 
-.agency-dual {
+@media (max-width: 768px) {
+  :deep(.station-detail-dialog) {
+    width: 98% !important;
+    margin: 10px auto !important;
+  }
+  
+  :deep(.el-dialog__body) {
+    padding: 12px 16px !important;
+  }
+
+  .coordinate-inputs {
+    gap: 10px !important;
+  }
+  
+  /* Slightly more readable fonts */
+  .high-density-mobile :deep(.el-form-item__label) {
+    font-size: 12px !important;
+  }
+  
+  .high-density-mobile :deep(.el-input__inner),
+  .high-density-mobile :deep(.el-select__wrapper) {
+    font-size: 14px !important;
+  }
+
+  .status-segmented :deep(.el-segmented__item-label) {
+    font-size: 12px !important;
+    padding: 0 6px !important;
+  }
+}
+
+/* High density form - loosened slightly */
+.high-density-mobile :deep(.el-form-item) {
+  margin-bottom: 14px;
+}
+
+.high-density-mobile :deep(.el-form-item__label) {
+  font-weight: 600;
+  color: var(--el-text-color-regular);
+  padding-bottom: 4px !important;
+  line-height: 1.2;
+  margin-bottom: 0 !important;
+}
+
+.station-form {
+  padding: 0;
+}
+
+
+
+/* Dual display formatting */
+.agency-dual, .strategy-dual {
   display: flex;
   flex-direction: column;
   line-height: 1.2;
+  padding: 2px 0;
 }
 
-.agency-dual-name {
+.agency-dual-name, .strategy-dual-name {
   font-weight: 600;
+  font-size: 13px;
 }
 
-.agency-dual-id {
-  font-size: 12px;
+.agency-dual-id, .strategy-dual-meta {
+  font-size: 10px;
   color: var(--el-text-color-secondary);
 }
 
-.strategy-dual {
-  display: flex;
-  flex-direction: column;
-  line-height: 1.2;
-}
-
-.strategy-dual-name {
-  font-weight: 600;
-}
-
-.strategy-dual-meta {
-  font-size: 12px;
-  color: var(--el-text-color-secondary);
-}
-
+/* Footer layout */
 .dialog-footer {
   display: flex;
   justify-content: space-between;
   align-items: center;
   width: 100%;
+  gap: 10px;
+}
+
+@media (max-width: 480px) {
+  .dialog-footer {
+    flex-direction: column-reverse;
+    padding-top: 10px;
+  }
+  
+  .right-buttons {
+    width: 100%;
+    flex-direction: row; /* Keep buttons side by side if possible or stack */
+    justify-content: stretch;
+  }
+  
+  .right-buttons .el-button {
+    flex: 1;
+    margin-left: 0 !important;
+  }
+  
+  .delete-btn {
+    width: 100%;
+  }
 }
 
 .right-buttons {
   display: flex;
-  gap: 10px;
+  gap: 8px;
   margin-left: auto;
 }
 
-/* Tùy chỉnh màu sắc form item label */
-:deep(.el-form-item__label) {
-  font-weight: 600;
-  color: #606266;
-  padding-bottom: 4px !important;
+/* Premium Inputs */
+:deep(.el-input__wrapper), :deep(.el-select__wrapper) {
+  box-shadow: 0 0 0 1px #e4e7ed inset;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  border-radius: 8px;
+  padding: 4px 12px !important;
+  height: 40px;
 }
 
-/* Bo góc cho input */
-:deep(.el-input__wrapper), :deep(.el-select__wrapper) {
-  border-radius: 6px;
+@media (max-width: 768px) {
+  :deep(.el-input__wrapper), :deep(.el-select__wrapper) {
+    height: 36px;
+    padding: 2px 10px !important;
+  }
+}
+
+:deep(.el-input__wrapper:hover), :deep(.el-select__wrapper:hover) {
+  box-shadow: 0 0 0 1px var(--el-color-primary) inset;
+}
+
+:deep(.el-input__wrapper.is-focus), :deep(.el-select__wrapper.is-focus) {
+  box-shadow: 0 0 0 1px var(--el-color-primary) inset !important;
+}
+
+:deep(.el-input.is-disabled .el-input__wrapper) {
+  background-color: #f5f7fa;
+}
+/* Giảm khoảng cách chỉ cho prefix */
+.prefix-form-item {
+  margin-bottom: 4px !important;
 }
 </style>

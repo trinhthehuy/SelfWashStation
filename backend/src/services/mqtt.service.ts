@@ -15,7 +15,7 @@ class IntegratedMqttService {
     if (config) {
       this.config = {
         brokerUrl: config.brokerUrl || this.config.brokerUrl,
-        username: config.username || this.config.username,
+        email: config.username || this.config.username,
         password: config.password || this.config.password
       };
     }
@@ -36,7 +36,7 @@ class IntegratedMqttService {
     }
 
     this.client = mqtt.connect(brokerUrl, {
-      username: this.config.username || envUsername,
+      email: this.config.username || envUsername,
       password: this.config.password || envPassword,
       reconnectPeriod: 3000,
       connectTimeout: 10000

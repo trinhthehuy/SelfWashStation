@@ -6,214 +6,261 @@
           <h2 class="page-title">Quản lý trạm rửa xe</h2>
         </div>
         <div class="header-actions">
-          <el-button v-if="canManageStation" type="primary" :icon="Plus" @click="handleAddNew">
-            Thêm trạm mới
+          <el-button v-if="canManageStation" type="primary" :icon="Plus" @click="handleAddNew" class="mobile-add-btn">
+            Thêm mới
           </el-button>
         </div>
       </div>
 
-      <div class="filter-section">
-        <el-form :inline="true" :model="filterForm" class="demo-form-inline filter-layout">
-          <el-form-item label="Tỉnh">
-            <el-select
-              v-model="filterForm.province_id"
-              filterable remote clearable
-              :loading="selectLoading.province"
-              @change="handleProvinceChange"
-              @clear="handleProvinceClear"
-              style="width: 150px"
+      <div class="action-row" :class="{ 'is-mobile-row': isMobile }">
+        <div class="strategy-actions">
+          <template v-if="isSelectionMode">
+            <span class="selection-info" v-if="!isMobile">
+              <el-tag type="warning" size="small" style="margin-right:6px">{{ selectionAgencyName }}</el-tag>
+              <template v-if="selectedStations.length > 0">
+                Đã chọn <strong>{{ selectedStations.length }}</strong> trạm
+              </template>
+              <template v-else>Chọn trạm cần áp dụng</template>
+            </span>
+            <el-button
+              type="primary"
+              :icon="MagicStick"
+              :disabled="selectedStations.length === 0"
+              @click="openAssignStrategyDialog"
+              size="small"
+              class="mobile-strategy-confirm"
             >
-              <el-option v-for="item in options.provinces" :key="item.id" :label="item.name" :value="item.id" />
-            </el-select>
-          </el-form-item>
+              {{ isMobile ? 'Áp dụng CL' : 'Chọn chiến lược' }}
+            </el-button>
+            <el-button @click="exitSelectionMode" size="small">Hủy</el-button>
+          </template>
+          <template v-else>
+            <el-button :icon="MagicStick" @click="openPickAgencyDialog" size="small">
+              Thay đổi chiến lược
+            </el-button>
+          </template>
+        </div>
 
-          <el-form-item label="Xã">
-            <el-select
-              v-model="filterForm.ward_id"
-              filterable remote clearable
-              :remote-method="remoteFetchWards"
-              :loading="selectLoading.ward"
-              @change="handleWardChange"
-              @clear="handleWardClear"
-              style="width: 150px"
-              placeholder="Tìm xã..."
-            >
-              <el-option v-for="item in options.wards" :key="item.id" :label="item.ward_name" :value="item.id" />
-            </el-select>
-          </el-form-item>
+        <div class="filter-toggle-wrap" v-if="isMobile">
+          <el-button 
+            type="primary" 
+            plain 
+            size="small"
+            :icon="Filter" 
+            @click="showMobileFilter = !showMobileFilter"
+            class="filter-toggle-btn-inline"
+          >
+            {{ showMobileFilter ? 'Đóng' : 'Bộ lọc' }} 
+            <span v-if="activeFilterCount > 0" class="filter-count-mini">{{ activeFilterCount }}</span>
+          </el-button>
+        </div>
+      </div>
 
-          <el-form-item label="Đại lý">
-            <el-select
-              v-model="filterForm.agency_id"
-              filterable remote clearable
-              :remote-method="remoteFetchAgencies"
-              :loading="selectLoading.agency"
-              @change="handleAgencyChange"
-              @clear="handleAgencyClear"
-              style="width: 180px"
-              placeholder="Tìm đại lý..."
-            >
-              <el-option v-for="item in options.agencies" :key="item.id" :label="item.agency_name" :value="item.id">
-                <div class="agency-dual">
-                  <div class="agency-dual-name">{{ item.agency_name }}</div>
-                  <div class="agency-dual-id">ID: {{ item.identity_number || 'N/A' }}</div>
-                </div>
-              </el-option>
-            </el-select>
-          </el-form-item>
-
-          <el-form-item label="Mã trạm">
-            <el-select
-              v-model="filterForm.station_id"
-              filterable remote clearable
-              :remote-method="remoteFetchStations"
-              :loading="selectLoading.station"
-              @change="handleStationChange"
-              @clear="handleStationClear"
-              style="width: 180px"
-              placeholder="Tìm trạm..."
-            >
-              <el-option v-for="item in options.stations" :key="item.id" :label="item.station_name" :value="item.id" />
-            </el-select>
-          </el-form-item>
-
-          <!-- Nút + trạng thái chọn trạm inline với filter -->
-          <el-form-item>
-            <template v-if="isSelectionMode">
-              <span class="selection-info" style="margin-right: 8px;">
-                <el-tag type="warning" size="small" style="margin-right:6px">{{ selectionAgencyName }}</el-tag>
-                <template v-if="selectedStations.length > 0">
-                  Đã chọn <strong>{{ selectedStations.length }}</strong> trạm
-                </template>
-                <template v-else>Chọn trạm cần áp dụng</template>
-              </span>
-              <el-button
-                type="primary"
-                :icon="MagicStick"
-                :disabled="selectedStations.length === 0"
-                @click="openAssignStrategyDialog"
+      <div class="filter-section" v-if="!isMobile || showMobileFilter">
+        <transition name="expand">
+          <el-form 
+            v-if="!isMobile || showMobileFilter" 
+            :inline="true" 
+            :model="filterForm" 
+            class="demo-form-inline filter-layout"
+            :class="{ 'is-mobile-filters': isMobile }"
+          >
+            <el-form-item :label="isMobile ? '' : 'Tỉnh'" :class="{ 'no-label': isMobile }">
+              <el-select
+                v-model="filterForm.province_id"
+                filterable remote clearable
+                :loading="selectLoading.province"
+                @change="handleProvinceChange"
+                @clear="handleProvinceClear"
+                :placeholder="isMobile ? 'Chọn tỉnh ...' : 'Chọn tỉnh'"
+                class="filter-select"
               >
-                Chọn chiến lược
-              </el-button>
-              <el-button @click="exitSelectionMode">Hủy</el-button>
-            </template>
-            <template v-else>
-              <el-button :icon="MagicStick" @click="openPickAgencyDialog">
-                Thay đổi chiến lược
-              </el-button>
-            </template>
-          </el-form-item>
-        </el-form>
+                <el-option v-for="item in options.provinces" :key="item.id" :label="item.name" :value="item.id" />
+              </el-select>
+            </el-form-item>
+
+            <el-form-item :label="isMobile ? '' : 'Xã'" :class="{ 'no-label': isMobile }">
+              <el-select
+                v-model="filterForm.ward_id"
+                filterable remote clearable
+                :remote-method="remoteFetchWards"
+                :loading="selectLoading.ward"
+                @change="handleWardChange"
+                @clear="handleWardClear"
+                :placeholder="isMobile ? 'Chọn xã ...' : 'Chọn xã'"
+                class="filter-select"
+              >
+                <el-option v-for="item in options.wards" :key="item.id" :label="item.ward_name" :value="item.id" />
+              </el-select>
+            </el-form-item>
+
+            <el-form-item :label="isMobile ? '' : 'Đại lý'" :class="{ 'no-label': isMobile }">
+              <el-select
+                v-model="filterForm.agency_id"
+                filterable remote clearable
+                :remote-method="remoteFetchAgencies"
+                :loading="selectLoading.agency"
+                @change="handleAgencyChange"
+                @clear="handleAgencyClear"
+                :placeholder="isMobile ? 'Chọn đại lý ...' : 'Chọn đại lý'"
+                class="filter-select"
+              >
+                <el-option v-for="item in options.agencies" :key="item.id" :label="item.agency_name" :value="item.id">
+                  <div class="agency-dual">
+                    <div class="agency-dual-name">{{ item.agency_name }}</div>
+                    <div class="agency-dual-id">ID: {{ item.identity_number || 'N/A' }}</div>
+                  </div>
+                </el-option>
+              </el-select>
+            </el-form-item>
+
+            <el-form-item :label="isMobile ? '' : 'Mã trạm'" :class="{ 'no-label': isMobile }">
+              <el-select
+                v-model="filterForm.station_id"
+                filterable remote clearable
+                :remote-method="remoteFetchStations"
+                :loading="selectLoading.station"
+                @change="handleStationChange"
+                @clear="handleStationClear"
+                :placeholder="isMobile ? 'Chọn trạm ...' : 'Chọn trạm'"
+                class="filter-select"
+              >
+                <el-option v-for="item in options.stations" :key="item.id" :label="item.station_name" :value="item.id" />
+              </el-select>
+            </el-form-item>
+          </el-form>
+        </transition>
       </div>
     </el-card>
 
-    <el-card shadow="never" class="table-card">
-      <div class="table-main">
-        <el-table
-          v-if="!isMobile"
-          ref="tableRef"
-          :data="list" 
-          :row-key="(row) => row.id"
-          :class="{ 'selection-mode': isSelectionMode }"
-          v-loading="loading" 
-          style="width: 100%"
-          height="100%"
-          border
-          stripe
-          highlight-current-row
-          @selection-change="handleSelectionChange"
+    <template v-if="!isMobile">
+      <el-card shadow="never" class="table-card">
+        <div class="table-main">
+          <el-table
+            ref="tableRef"
+            :data="list" 
+            :row-key="(row) => row.id"
+            :class="{ 'selection-mode': isSelectionMode }"
+            v-loading="loading" 
+            style="width: 100%"
+            height="100%"
+            border
+            stripe
+            highlight-current-row
+            @selection-change="handleSelectionChange"
+          >
+            <el-table-column type="selection" width="48" align="center" class-name="selection-column" />
+            <el-table-column prop="id" label="ID" min-width="50" align="right" header-align="right" />
+            
+            <el-table-column label="Thông tin trạm" min-width="120">
+              <template #default="{ row }">
+                <div class="station-name">
+                  <span class="station-name">{{ row.station_name }}</span>
+                </div>
+              </template>
+            </el-table-column>
+
+            <el-table-column label="Khu vực" min-width="200">
+              <template #default="{ row }">
+                <div class="font-bold">{{ row.province_name }}</div>
+                <div class="text-secondary">{{ row.ward_name }}</div>
+                <div class="text-secondary">{{ row.address }}</div>
+              </template>
+            </el-table-column>
+
+            <el-table-column prop="agency_name" label="Tên đại lý" min-width="100"  align="center"> </el-table-column>
+
+            <el-table-column label="Trạng thái" min-width="100"  max-width="120" align="center">
+              <template #default="{ row }">
+                <el-tag :type="row.is_active ? 'success' : 'danger'" effect="light">
+                  {{ row.is_active ? 'Hoạt động' : 'Tạm dừng' }}
+                </el-tag>
+                <el-switch
+                  v-model="row.is_active"
+                  :active-value="1"
+                  :inactive-value="0"
+                  active-text=""
+                  inactive-text=""
+                  style="--el-switch-on-color: #67c23a; --el-switch-off-color: #f56c6c"
+                  inline-prompt
+                  @change="(val) => handleStationStatusChange(row, val)"
+                />
+              </template>
+            </el-table-column>
+
+            <el-table-column label="Tài khoản ngân hàng" min-width="150">
+              <template #default="{ row }">
+                <div class="bank-info">
+                  <div class="font-bold">{{ row.bank_name }}</div>
+                  <div>{{ row.account_number }}</div>
+                  <div class="text-secondary">{{ row.account_name }}</div>
+                </div>
+              </template>
+            </el-table-column>
+
+            <el-table-column label="Chiến lược vận hành"  min-width="200">
+              <template #default="{ row }">
+                <div class="strategy-info">
+                  <el-tooltip content="Số tiền mỗi đơn vị">
+                    <el-tag size="small" type="info" class="mt-1">💰 {{ formatAmount(row.amount_per_unit) }} VNĐ</el-tag>
+                  </el-tooltip>
+                  <el-tooltip content="Thời gian vận hành">
+                    <el-tag size="small" type="info" class="mt-1">⏱️ {{ row.op_per_unit }}s</el-tag>
+                  </el-tooltip>
+                  <el-tooltip content="Định lượng hóa chất">
+                    <el-tag size="small" type="info" class="mt-1">🧪 {{ row.foam_per_unit }}ml</el-tag>
+                  </el-tooltip>
+                </div>
+              </template>
+            </el-table-column>
+
+            <el-table-column label="Ngày tạo" min-width="100" align="center">
+              <template #default="{ row }">
+                {{ formatDate(row.created_at) }}
+              </template>
+            </el-table-column>
+
+            <el-table-column label="Thao tác" min-width="120" fixed="right" align="left">
+              <template #default="{ row }">
+                <div class="action-wrapper">
+                  <el-button v-if="canManageStation" type="primary" link :icon="Edit" @click="handleEdit(row)">
+                    Sửa
+                  </el-button>
+                  <el-button type="warning" link :icon="View" @click="handleViewBays(row)">
+                    Chi tiết trụ
+                  </el-button>
+                </div>
+              </template>
+            </el-table-column>
+          </el-table>
+        </div>
+
+        <div class="pagination-wrapper">
+          <el-pagination
+            v-model:current-page="pagination.page"
+            v-model:page-size="pagination.limit"
+            :page-sizes="[10, 20, 50, 100]"
+            :total="pagination.total"
+            layout="total, sizes, prev, pager, next"
+            @size-change="handlePageSizeChange"
+            @current-change="handlePageChange"
+          />
+        </div>
+      </el-card>
+    </template>
+
+    <div v-else class="mobile-table-main" v-loading="loading">
+      <div class="mobile-card-list">
+        <div 
+          v-for="row in list" 
+          :key="row.id" 
+          class="mobile-card"
+          @click="toggleExpandedCard(row.id)"
         >
-          <el-table-column type="selection" width="48" align="center" class-name="selection-column" />
-          <el-table-column prop="id" label="ID" min-width="50" align="right" header-align="right" />
-          
-          <el-table-column label="Thông tin trạm" min-width="120">
-            <template #default="{ row }">
-              <div class="station-name">
-                <span class="station-name">{{ row.station_name }}</span>
-              </div>
-            </template>
-          </el-table-column>
-
-          <el-table-column label="Khu vực" min-width="200">
-            <template #default="{ row }">
-              <div class="font-bold">{{ row.province_name }}</div>
-              <div class="text-secondary">{{ row.ward_name }}</div>
-              <div class="text-secondary">{{ row.address }}</div>
-            </template>
-          </el-table-column>
-
-          <el-table-column prop="agency_name" label="Tên đại lý" min-width="100"  align="center"> </el-table-column>
-
-          <el-table-column label="Trạng thái" min-width="100"  max-width="120" align="center">
-            <template #default="{ row }">
-              <el-tag :type="row.is_active ? 'success' : 'danger'" effect="light">
-                {{ row.is_active ? 'Hoạt động' : 'Tạm dừng' }}
-              </el-tag>
-              <el-switch
-                v-model="row.is_active"
-                :active-value="1"
-                :inactive-value="0"
-                active-text=""
-                inactive-text=""
-                style="--el-switch-on-color: #67c23a; --el-switch-off-color: #f56c6c"
-                inline-prompt
-                @change="(val) => handleStationStatusChange(row, val)"
-              />
-            </template>
-          </el-table-column>
-
-          <el-table-column label="Tài khoản ngân hàng" min-width="150">
-            <template #default="{ row }">
-              <div class="bank-info">
-                <div class="font-bold">{{ row.bank_name }}</div>
-                <div>{{ row.account_number }}</div>
-                <div class="text-secondary">{{ row.account_name }}</div>
-              </div>
-            </template>
-          </el-table-column>
-
-          <el-table-column label="Chiến lược vận hành"  min-width="200">
-            <template #default="{ row }">
-              <div class="strategy-info">
-                <el-tooltip content="Số tiền mỗi đơn vị">
-                  <el-tag size="small" type="info" class="mt-1">💰 {{ formatAmount(row.amount_per_unit) }} VNĐ</el-tag>
-                </el-tooltip>
-                <el-tooltip content="Thời gian vận hành">
-                  <el-tag size="small" type="info" class="mt-1">⏱️ {{ row.op_per_unit }}s</el-tag>
-                </el-tooltip>
-                <el-tooltip content="Định lượng hóa chất">
-                  <el-tag size="small" type="info" class="mt-1">🧪 {{ row.foam_per_unit }}ml</el-tag>
-                </el-tooltip>
-              </div>
-            </template>
-          </el-table-column>
-
-          <el-table-column label="Ngày tạo" min-width="100" align="center">
-            <template #default="{ row }">
-              {{ formatDate(row.created_at) }}
-            </template>
-          </el-table-column>
-
-          <el-table-column label="Thao tác" min-width="120" fixed="right" align="left">
-            <template #default="{ row }">
-              <div class="action-wrapper">
-                <el-button v-if="canManageStation" type="primary" link :icon="Edit" @click="handleEdit(row)">
-                  Sửa
-                </el-button>
-                <el-button type="warning" link :icon="View" @click="handleViewBays(row)">
-                  Chi tiết trụ
-                </el-button>
-              </div>
-            </template>
-          </el-table-column>
-        </el-table>
-
-        <!-- Mobile card list -->
-        <div v-else class="mobile-card-list" v-loading="loading">
-          <div v-for="row in list" :key="row.id" class="mobile-card">
+          <div class="mc-top-content">
             <div class="mc-header">
               <div class="mc-title">
-                <div v-if="isSelectionMode" class="mc-select">
+                <div v-if="isSelectionMode" class="mc-select" @click.stop>
                   <el-checkbox
                     :model-value="isStationSelected(row.id)"
                     @change="(checked) => toggleMobileStationSelection(row, checked)"
@@ -221,58 +268,82 @@
                   <span class="mc-select-label">Chọn trạm</span>
                 </div>
                 <span class="mc-name">{{ row.station_name }}</span>
-                <span class="mc-sub">{{ row.province_name }} · {{ row.ward_name }}</span>
-                <span class="mc-sub" v-if="row.address">{{ row.address }}</span>
+                <span class="mc-address">{{ row.address }}</span>
               </div>
-              <el-tag :type="row.is_active ? 'success' : 'danger'" size="small" effect="light">
-                {{ row.is_active ? 'Hoạt động' : 'Tạm dừng' }}
-              </el-tag>
+              <div class="mc-right-meta">
+                <el-tag :type="row.is_active ? 'success' : 'danger'" size="small" effect="light">
+                  {{ row.is_active ? 'Hoạt động' : 'Tạm dừng' }}
+                </el-tag>
+                <el-icon class="mc-expand-icon" :class="{ 'is-active': expandedCard === row.id }">
+                  <ArrowDown />
+                </el-icon>
+              </div>
             </div>
-
-            <div class="mc-agency">{{ row.agency_name }}</div>
 
             <div class="mc-strategy">
               <el-tag size="small" type="info">💰 {{ formatAmount(row.amount_per_unit) }} VNĐ</el-tag>
               <el-tag size="small" type="info">⏱️ {{ row.op_per_unit }}s</el-tag>
               <el-tag size="small" type="info">🧪 {{ row.foam_per_unit }}ml</el-tag>
             </div>
-
-            <div class="mc-bank" v-if="row.bank_name">
-              <span class="mcs-label">Ngân hàng</span>
-              <span>{{ row.bank_name }} · {{ row.account_number }}</span>
-            </div>
-
-            <div class="mc-actions">
-              <el-switch
-                v-model="row.is_active"
-                :active-value="1"
-                :inactive-value="0"
-                style="--el-switch-on-color: #67c23a; --el-switch-off-color: #f56c6c"
-                inline-prompt
-                active-text="ON"
-                inactive-text="OFF"
-                @change="(val) => handleStationStatusChange(row, val)"
-              />
-              <el-button v-if="canManageStation" type="primary" size="small" plain :icon="Edit" @click="handleEdit(row)">Sửa</el-button>
-              <el-button type="warning" size="small" plain :icon="View" @click="handleViewBays(row)">Chi tiết trụ</el-button>
-            </div>
           </div>
-          <div v-if="!loading && list.length === 0" class="mc-empty">Không có dữ liệu</div>
+
+          <!-- Phần chi tiết mở rộng -->
+          <transition name="expand">
+            <div class="mc-detail" v-if="expandedCard === row.id">
+              <div class="mc-detail-row">
+                <span>Tỉnh / Thành</span><span>{{ row.province_name }}</span>
+              </div>
+              <div class="mc-detail-row">
+                <span>Quận / Huyện / Xã</span><span>{{ row.ward_name }}</span>
+              </div>
+              <div class="mc-detail-row">
+                <span>Đại lý</span><span>{{ row.agency_name }}</span>
+              </div>
+              <div class="mc-detail-row" v-if="row.bank_name">
+                <span>Ngân hàng</span><span>{{ row.bank_name }}</span>
+              </div>
+              <div class="mc-detail-row" v-if="row.account_number">
+                <span>Số tài khoản</span><span>{{ row.account_number }}</span>
+              </div>
+              <div class="mc-detail-row" v-if="row.account_name">
+                <span>Chủ tài khoản</span><span>{{ row.account_name }}</span>
+              </div>
+              <div class="mc-detail-row">
+                <span>Ngày tạo</span><span>{{ formatDate(row.created_at) }}</span>
+              </div>
+            </div>
+          </transition>
+
+          <div class="mc-actions" @click.stop>
+            <el-switch
+              v-model="row.is_active"
+              :active-value="1"
+              :inactive-value="0"
+              style="--el-switch-on-color: #67c23a; --el-switch-off-color: #f56c6c"
+              inline-prompt
+              active-text="ON"
+              inactive-text="OFF"
+              @change="(val) => handleStationStatusChange(row, val)"
+            />
+            <el-button v-if="canManageStation" type="primary" size="small" plain :icon="Edit" @click="handleEdit(row)">Sửa</el-button>
+            <el-button type="warning" size="small" plain :icon="View" @click="handleViewBays(row)">Chi tiết trụ</el-button>
+          </div>
         </div>
+        <div v-if="!loading && list.length === 0" class="mc-empty">Không có dữ liệu</div>
       </div>
 
-      <div class="pagination-wrapper">
+      <div class="pagination-wrapper mobile-pagination">
         <el-pagination
           v-model:current-page="pagination.page"
           v-model:page-size="pagination.limit"
-          :page-sizes="[10, 20, 50, 100]"
           :total="pagination.total"
-          layout="total, sizes, prev, pager, next"
-          @size-change="handlePageSizeChange"
+          layout="prev, pager, next"
+          :pager-count="5"
           @current-change="handlePageChange"
+          size="small"
         />
       </div>
-    </el-card>
+    </div>
         <el-dialog
       v-model="bayModalVisible"
       :title="'Danh sách trụ - ' + currentStation?.station_name"
@@ -420,10 +491,11 @@
 import { ref, computed, reactive, onMounted, onUnmounted } from "vue";
 
 const isMobile = ref(window.innerWidth < 768)
+const showMobileFilter = ref(false)
 const _onResize = () => { isMobile.value = window.innerWidth < 768 }
 onMounted(() => window.addEventListener('resize', _onResize))
 onUnmounted(() => window.removeEventListener('resize', _onResize))
-import { Plus, Edit, Search, View, Delete, MagicStick } from "@element-plus/icons-vue";
+import { Plus, Edit, Search, View, Delete, MagicStick, Filter, ArrowDown } from "@element-plus/icons-vue";
 import { ElMessage } from 'element-plus';
 import { stationApi } from "@/api/station"; 
 import { strategyApi } from "@/api/strategy";
@@ -442,6 +514,15 @@ const loading = ref(false);
 const showModal = ref(false);
 const editingItem = ref(null);
 const stationOptionsLoaded = ref(false);
+const expandedCard = ref(null);
+
+const toggleExpandedCard = (id) => {
+  if (expandedCard.value === id) {
+    expandedCard.value = null;
+  } else {
+    expandedCard.value = id;
+  }
+};
 const pagination = reactive({
   page: 1,
   limit: 20,
@@ -499,6 +580,15 @@ const filterForm = reactive({
   agency_id: null,
   station_id: null
 });
+
+const activeFilterCount = computed(() => {
+  let count = 0
+  if (filterForm.province_id) count++
+  if (filterForm.ward_id) count++
+  if (filterForm.agency_id) count++
+  if (filterForm.station_id) count++
+  return count
+})
 
 const amountFormatter = new Intl.NumberFormat('vi-VN', { maximumFractionDigits: 0 });
 const lastSearch = reactive({
@@ -1062,6 +1152,27 @@ const handleDeleteBay = async (bay) => {
   justify-content: flex-end;
   flex-shrink: 0;
 }
+/* Filter Select Widths */
+.filter-select {
+  width: 180px;
+}
+.filter-layout :deep(.el-form-item:nth-child(1) .filter-select),
+.filter-layout :deep(.el-form-item:nth-child(2) .filter-select) {
+  width: 150px;
+}
+
+.action-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.strategy-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
 
 /* 2. Header Content */
 .header-content {
@@ -1199,29 +1310,74 @@ const handleDeleteBay = async (bay) => {
 /* ── Mobile ─────────────────────────────────────── */
 @media (max-width: 768px) {
   .page-container {
-    padding: 8px;
+    padding: 4px 4px 2px 4px;
+    gap: 2px;
   }
 
   .header-card {
-    margin-bottom: 8px;
+    margin-bottom: 0;
   }
-
-  .header-content {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 10px;
-    margin-bottom: 10px;
+  :deep(.header-card .el-card__body) {
+    padding: 8px 10px !important;
   }
 
   .header-actions {
     flex-wrap: wrap;
-    width: 100%;
+  }
+
+  .action-row.is-mobile-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0;
+    gap: 8px;
+  }
+
+  .strategy-actions {
+    flex: 1;
+    display: flex;
+    gap: 6px;
+  }
+
+  .filter-toggle-wrap {
+    flex-shrink: 0;
   }
 
   .header-actions :deep(.el-button) {
-    flex: 1 1 auto;
     font-size: 11px;
     padding: 6px 10px;
+  }
+
+  .filter-toggle-btn-inline {
+    font-weight: 600;
+    border-radius: 8px;
+  }
+
+  .filter-count-mini {
+    background: var(--el-color-primary);
+    color: #fff;
+    padding: 0 5px;
+    border-radius: 6px;
+    font-size: 10px;
+    margin-left: 4px;
+    line-height: 1.4;
+  }
+
+  .is-mobile-filters {
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 8px !important;
+    width: 100%;
+    margin-top: 8px !important;
+  }
+
+  .is-mobile-filters :deep(.el-form-item) {
+    margin: 0 !important;
+    flex: none !important;
+  }
+
+  .is-mobile-filters :deep(.el-form-item.no-label .el-form-item__label) {
+    display: none;
   }
 
   .search-input {
@@ -1252,8 +1408,29 @@ const handleDeleteBay = async (bay) => {
   }
 
   .page-title {
-    font-size: 16px;
+    font-size: 15px;
+    letter-spacing: -0.01em;
   }
+
+  .mobile-table-main {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding-bottom: 2px;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  .mobile-pagination {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin-top: 4px;
+    margin-bottom: 2px;
+  }
+
+
 }
 
 /* ── Landscape ──────────────────────────────────── */
@@ -1277,26 +1454,27 @@ const handleDeleteBay = async (bay) => {
   }
 }
 
-/* ── Mobile card list ────────────────────────────── */
-.mobile-card-list {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
+
 
 .mobile-card {
-  background: var(--el-bg-color);
-  border-radius: 10px;
-  padding: 12px 14px;
-  border: 1px solid var(--el-border-color-light);
+  background: var(--bg-card);
+  border-radius: 8px;
+  padding: 10px 12px;
+  border: 1px solid var(--border-subtle);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.12);
+  transition: all 0.2s ease;
+}
+.mobile-card:active {
+  transform: scale(0.98);
+  border-color: var(--el-color-primary);
 }
 
 .mc-header {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
   gap: 8px;
-  margin-bottom: 6px;
+  margin-bottom: 4px;
 }
 
 .mc-title {
@@ -1305,6 +1483,32 @@ const handleDeleteBay = async (bay) => {
   gap: 2px;
   flex: 1;
   overflow: hidden;
+}
+
+.mc-address {
+  font-size: 11px;
+  color: var(--el-text-color-secondary);
+  line-height: 1.3;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.mc-right-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.mc-expand-icon {
+  transition: transform 0.3s ease;
+  color: var(--el-text-color-placeholder);
+  font-size: 14px;
+}
+
+.mc-expand-icon.is-active {
+  transform: rotate(180deg);
+  color: var(--el-color-primary);
 }
 
 .mc-select {
@@ -1333,38 +1537,58 @@ const handleDeleteBay = async (bay) => {
   color: var(--el-text-color-secondary);
 }
 
-.mc-agency {
-  font-size: 12px;
-  color: var(--el-text-color-regular);
-  margin-bottom: 8px;
+.mc-detail {
+  padding: 8px 0;
+  border-top: 1px dashed var(--el-border-color-lighter);
+  margin-top: 4px;
+}
+
+.mc-detail-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 11px;
+  line-height: 1.8;
+}
+
+.mc-detail-row span:first-child {
+  color: var(--el-text-color-placeholder);
+  flex-shrink: 0;
+}
+
+.mc-detail-row span:last-child {
+  color: var(--el-text-color-primary);
   font-weight: 500;
+  text-align: right;
 }
 
 .mc-strategy {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
-  margin-bottom: 8px;
+  gap: 4px;
+  margin-bottom: 6px;
+}
+.mc-strategy :deep(.el-tag) {
+  padding: 0 4px;
+  height: 20px;
+  font-size: 10px;
 }
 
-.mc-bank {
-  display: flex;
-  gap: 8px;
-  font-size: 12px;
-  color: var(--el-text-color-secondary);
-  margin-bottom: 10px;
-}
 
-.mcs-label {
-  font-weight: 500;
-  color: var(--el-text-color-placeholder);
-}
 
 .mc-actions {
   display: flex;
-  gap: 8px;
+  gap: 6px;
   align-items: center;
   flex-wrap: wrap;
+  border-top: 1px solid var(--el-border-color-lighter);
+  padding-top: 8px;
+  margin-top: 4px;
+}
+.mc-actions :deep(.el-button) {
+  padding: 4px 8px;
+  height: 28px;
+  font-size: 11px;
 }
 
 .mc-empty {
@@ -1377,7 +1601,23 @@ const handleDeleteBay = async (bay) => {
   flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
   overflow-y: auto;
+}
+
+/* --- Transitions --- */
+.expand-enter-active,
+.expand-leave-active {
+  transition: all 0.3s ease-in-out;
+  overflow: hidden;
+  max-height: 500px;
+}
+
+.expand-enter-from,
+.expand-leave-to {
+  max-height: 0;
+  opacity: 0;
+  margin-top: 0;
+  margin-bottom: 0;
 }
 </style>

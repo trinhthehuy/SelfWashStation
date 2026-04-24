@@ -1,15 +1,18 @@
 <template>
   <div class="accounts-page">
     <el-card shadow="never" class="settings-hero">
-      <p class="page-title">Tài khoản hệ thống</p>
-      <p class="page-desc">Quản lý tài khoản và phân quyền hệ thống.</p>
+      <div class="header-content">
+        <h2 class="page-title">Tài khoản hệ thống</h2>
+        <el-button v-if="isSa" type="primary" :icon="Plus" @click="handleAdd" class="mobile-add-btn">
+          Thêm mới
+        </el-button>
+      </div>
     </el-card>
 
     <!-- Bảng danh sách tài khoản -->
     <el-card shadow="never" class="table-card user-list-card">
       <template #header>
         <div class="card-header">
-          <span>Danh sách tài khoản hệ thống</span>
           <div class="header-actions">
             <el-input
               v-model="searchKeyword"
@@ -19,7 +22,6 @@
               class="search-input"
               autocomplete="off"
             />
-            <el-button v-if="isSa" type="primary" :icon="Plus" @click="handleAdd" :circle="isMobile"></el-button>
           </div>
         </div>
       </template>
@@ -33,11 +35,8 @@
         v-loading="loading"
         height="100%"
       >
-        <el-table-column prop="username" label="Tài khoản" min-width="140" />
-        <el-table-column prop="email" label="Email" min-width="180">
-          <template #default="{ row }">{{ row.email || '-' }}</template>
-        </el-table-column>
-        <el-table-column prop="fullName" label="Họ tên" min-width="160" />
+        <el-table-column prop="fullName" label="Tên hiển thị" min-width="180" />
+        <el-table-column prop="email" label="Email / Tài khoản" min-width="200" />
         <el-table-column label="Vai trò" width="130">
           <template #default="{ row }">
             <el-tag :type="roleTag(row.role)" size="small">{{ roleLabel(row.role) }}</el-tag>
@@ -63,7 +62,7 @@
           <template #default="{ row }">
             <el-button type="primary" link :icon="Edit" @click="handleEdit(row)">Sửa</el-button>
             <el-button type="warning" link :icon="Key" @click="handleResetPwd(row)"></el-button>
-            <el-button type="danger" link :icon="Delete" @click="handleDelete(row)" :disabled="row.username === 'sa' || row.id === currentUserId"></el-button>
+            <el-button type="danger" link :icon="Delete" @click="handleDelete(row)" :disabled="row.email === 'admin@system.local' || row.id === currentUserId"></el-button>
           </template>
         </el-table-column>
       </el-table>
@@ -73,23 +72,21 @@
         <div v-for="u in filteredUsers" :key="u.id" class="mobile-user-card">
           <div class="m-card-header">
             <div class="m-card-title">
-              <strong>{{ u.username }}</strong>
-              <el-tag :type="roleTag(u.role)" size="small">{{ roleLabel(u.role) }}</el-tag>
+              <strong>{{ u.email }}</strong>
+              <div style="display: flex; gap: 8px; margin-top: 4px;">
+                <el-tag :type="roleTag(u.role)" size="small">{{ roleLabel(u.role) }}</el-tag>
+              </div>
             </div>
             <div class="m-card-actions" v-if="isSa">
               <el-button type="primary" link :icon="Edit" @click="handleEdit(u)"></el-button>
               <el-button type="warning" link :icon="Key" @click="handleResetPwd(u)"></el-button>
-              <el-button type="danger" link :icon="Delete" @click="handleDelete(u)" :disabled="u.username === 'sa' || u.id === currentUserId"></el-button>
+              <el-button type="danger" link :icon="Delete" @click="handleDelete(u)" :disabled="u.email === 'admin@system.local' || u.id === currentUserId"></el-button>
             </div>
           </div>
           <div class="m-card-body">
             <div class="m-info-row">
               <span class="m-label">Họ tên:</span>
               <span class="m-val">{{ u.fullName }}</span>
-            </div>
-            <div class="m-info-row">
-              <span class="m-label">Email:</span>
-              <span class="m-val">{{ u.email || '-' }}</span>
             </div>
             <div class="m-info-row">
               <span class="m-label">Liên kết:</span>
@@ -124,21 +121,45 @@
     <!-- Đổi mật khẩu của chính mình -->
     <el-card shadow="never" class="table-card pwd-card">
       <template #header><span style="font-size: 14px; font-weight: 600;">Đổi mật khẩu của tôi</span></template>
-      <el-form :model="pwdForm" label-position="top" class="pwd-form-inline" ref="pwdFormRef">
+      <el-form :model="pwdForm" label-position="top" class="pwd-form-inline" ref="pwdFormRef" autocomplete="off">
+        <!-- Dummy inputs to trick browser autofill -->
+        <input type="text" style="display:none" />
+        <input type="password" style="display:none" />
         <el-row :gutter="15">
           <el-col :span="6">
             <el-form-item label="Mật khẩu hiện tại" prop="current" :rules="[{ required: true, message: 'Bắt buộc', trigger: 'blur' }]">
-              <el-input v-model="pwdForm.current" type="password" show-password placeholder="Mật khẩu cũ" size="small" autocomplete="current-password" />
+              <el-input 
+                v-model="pwdForm.current" 
+                type="text" 
+                placeholder="Mật khẩu cũ" 
+                size="small" 
+                autocomplete="new-password"
+                @focus="$event.target.type = 'password'"
+              />
             </el-form-item>
           </el-col>
           <el-col :span="6">
             <el-form-item label="Mật khẩu mới" prop="newPwd" :rules="[{ required: true, min: 6, message: 'Tối thiểu 6 ký tự', trigger: 'blur' }]">
-              <el-input v-model="pwdForm.newPwd" type="password" show-password placeholder="Mật khẩu mới" size="small" autocomplete="new-password" />
+              <el-input 
+                v-model="pwdForm.newPwd" 
+                type="text" 
+                placeholder="Mật khẩu mới" 
+                size="small" 
+                autocomplete="new-password"
+                @focus="$event.target.type = 'password'"
+              />
             </el-form-item>
           </el-col>
           <el-col :span="6">
             <el-form-item label="Xác nhận lại" prop="confirm" :rules="[{ required: true, message: 'Bắt buộc', trigger: 'blur' }, { validator: validateConfirmPwd, trigger: 'blur' }]">
-              <el-input v-model="pwdForm.confirm" type="password" show-password placeholder="Xác nhận lại" size="small" autocomplete="new-password" />
+              <el-input 
+                v-model="pwdForm.confirm" 
+                type="text" 
+                placeholder="Xác nhận lại" 
+                size="small" 
+                autocomplete="new-password"
+                @focus="$event.target.type = 'password'"
+              />
             </el-form-item>
           </el-col>
           <el-col :span="6" style="display: flex; align-items: flex-end; padding-bottom: 18px;">
@@ -150,9 +171,13 @@
 
     <!-- Modal tạo / sửa tài khoản -->
     <el-dialog v-model="showModal" :title="isEdit ? 'Chỉnh sửa tài khoản' : 'Thêm tài khoản mới'" width="480px" destroy-on-close>
-      <el-form :model="form" ref="formRef" label-position="top">
-        <el-form-item label="Tên đăng nhập" prop="username" :rules="[{ required: true, message: 'Bắt buộc', trigger: 'blur' }]">
-          <el-input v-model="form.username" placeholder="Ví dụ: admin_station1" :disabled="isEdit" />
+      <el-form :model="form" ref="formRef" label-position="top" autocomplete="off">
+        <!-- Dummy inputs to trick browser autofill -->
+        <input type="text" name="fake-email" style="position: fixed; top: -1000px; left: -1000px; opacity: 0;" />
+        <input type="password" name="fake-password" style="position: fixed; top: -1000px; left: -1000px; opacity: 0;" />
+
+        <el-form-item label="Email (Dùng để đăng nhập)" prop="email" :rules="[{ required: true, message: 'Bắt buộc', trigger: 'blur' }, { validator: validateEmailField, trigger: 'blur' }]">
+          <el-input v-model="form.email" placeholder="Nhập email tài khoản" :disabled="isEdit" autocomplete="new-password" />
         </el-form-item>
         <el-form-item label="Họ tên" prop="fullName" :rules="[{ required: true, message: 'Bắt buộc', trigger: 'blur' }]">
           <el-input v-model="form.fullName" placeholder="Nhập họ và tên" />
@@ -165,9 +190,6 @@
             <el-option label="Giám sát trạm (Supervisor)" value="station_supervisor" />
             <el-option label="Chủ đại lý (Agency)" value="agency" />
           </el-select>
-        </el-form-item>
-        <el-form-item label="Email account" prop="email" :rules="[{ validator: validateEmailField, trigger: 'blur' }]">
-          <el-input v-model="form.email" placeholder="Nhập email tài khoản" />
         </el-form-item>
         <el-form-item v-if="form.role === 'agency'" label="Liên kết Đại lý" prop="agencyId" :rules="[{ required: true, message: 'Bắt buộc' }]">
           <el-select v-model="form.agencyId" filterable remote :remote-method="filterAgencyOptions" placeholder="Tìm tên hoặc ID đại lý" style="width:100%" @change="onAgencyChange">
@@ -185,7 +207,7 @@
           </el-select>
         </el-form-item>
         <el-form-item v-if="!isEdit" label="Mật khẩu" prop="password" :rules="[{ required: true, min: 6, message: 'Tối thiểu 6 ký tự', trigger: 'blur' }]">
-          <el-input v-model="form.password" type="password" show-password placeholder="Tối thiểu 6 ký tự" />
+          <el-input v-model="form.password" type="password" show-password placeholder="Tối thiểu 6 ký tự" autocomplete="new-password" />
         </el-form-item>
         <el-form-item v-if="isEdit" label="Trạng thái">
           <el-switch v-model="form.isActive" active-text="Hoạt động" inactive-text="Khóa" />
@@ -199,7 +221,7 @@
 
     <!-- Modal đặt lại mật khẩu -->
     <el-dialog v-model="showResetPwd" title="Đặt lại mật khẩu" width="400px" destroy-on-close>
-      <p style="margin: 0 0 16px; color: #909399;">Đặt mật khẩu mới cho tài khoản <strong>{{ resetTarget?.username }}</strong></p>
+      <p style="margin: 0 0 16px; color: #909399;">Đặt mật khẩu mới cho tài khoản <strong>{{ resetTarget?.email }}</strong></p>
       <el-form :model="resetForm" :rules="resetRules" ref="resetFormRef" label-position="top">
         <el-form-item label="Mật khẩu mới" prop="newPassword">
           <el-input v-model="resetForm.newPassword" type="password" show-password placeholder="Tối thiểu 6 ký tự" />
@@ -217,7 +239,7 @@
 </template>
 
 <script setup>
-import { onMounted, onUnmounted, ref, computed, h } from 'vue'
+import { onMounted, onUnmounted, ref, computed, h, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import { Plus, Edit, Delete, Key, Search } from '@element-plus/icons-vue'
 import { authApi } from '@/api/auth'
@@ -271,7 +293,7 @@ const roleLabel = (role) => {
   return map[role] || role
 }
 
-const form = ref({ username: '', fullName: '', email: '', role: 'agency', agencyId: null, provinceIds: [], stationIds: [], password: '', isActive: true })
+const form = ref({ fullName: '', email: '', role: 'agency', agencyId: null, provinceIds: [], stationIds: [], password: '', isActive: true })
 const resetForm = ref({ newPassword: '', confirm: '' })
 const pwdForm = ref({ current: '', newPwd: '', confirm: '' })
 
@@ -283,7 +305,7 @@ const validateConfirmPwd = (_rule, value, cb) => {
 const validateEmailField = (_rule, value, cb) => {
   const email = String(value || '').trim().toLowerCase()
   if (!email) {
-    cb(new Error('Email account là bắt buộc'))
+    cb()
     return
   }
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
@@ -302,14 +324,15 @@ const resetRules = {
 }
 
 const normalizeSearchValue = (v) => String(v || '').toLowerCase().trim()
-const filteredUsers = computed(() => {
-  const k = normalizeSearchValue(searchKeyword.value)
-  if (!k) return users.value
-  return users.value.filter(u => 
-    normalizeSearchValue(u.username).includes(k) || 
-    normalizeSearchValue(u.email).includes(k) || 
-    normalizeSearchValue(u.fullName).includes(k)
-  )
+const filteredUsers = computed(() => users.value)
+
+let searchTimer = null
+watch(searchKeyword, () => {
+  if (searchTimer) clearTimeout(searchTimer)
+  searchTimer = setTimeout(() => {
+    page.value = 1
+    fetchUsers()
+  }, 400)
 })
 
 const agencyDisplayLabel = (agency) => `${agency?.agency_name || 'Không rõ'} - ID: ${agency?.identity_number || 'N/A'}`
@@ -337,7 +360,8 @@ const fetchUsers = async () => {
     const res = await authApi.getUsers({ 
       page: page.value, 
       limit: pageSize.value,
-      include_total: 1 
+      include_total: 1,
+      keyword: searchKeyword.value
     })
     users.value = res.data.data || []
     if (res.data.total !== undefined) {
@@ -368,20 +392,19 @@ const onRoleChange = () => {
 
 const onAgencyChange = (agencyId) => {
   if (form.value.role !== 'agency') return
-  const agency = agencies.value.find((item) => item.id === agencyId)
-  form.value.email = agency?.email || ''
+  // Bỏ tự động điền email của đại lý
   formRef.value?.validateField('email')
 }
 
 const handleAdd = () => {
   isEdit.value = false
-  form.value = { username: '', fullName: '', email: '', role: 'agency', agencyId: null, provinceIds: [], stationIds: [], password: '', isActive: true }
+  form.value = { fullName: '', email: '', role: 'agency', agencyId: null, provinceIds: [], stationIds: [], password: '', isActive: true }
   showModal.value = true
 }
 
 const handleEdit = async (row) => {
   isEdit.value = true
-  form.value = { username: row.username, fullName: row.fullName, email: row.email || '', role: row.role, agencyId: row.agencyId, provinceIds: [], stationIds: [], password: '', isActive: row.isActive, _id: row.id }
+  form.value = { fullName: row.fullName, email: row.email || '', role: row.role, agencyId: row.agencyId, provinceIds: [], stationIds: [], password: '', isActive: row.isActive, _id: row.id }
   if (row.role === 'regional_manager' || row.role === 'station_supervisor') {
     try {
       const res = await authApi.getUserScope(row.id)
@@ -411,7 +434,6 @@ const handleSubmit = async () => {
       ElMessage.success('Cập nhật tài khoản thành công')
     } else {
       const res = await authApi.createUser({
-        username: form.value.username,
         password: form.value.password,
         fullName: form.value.fullName,
         email: String(form.value.email || '').trim().toLowerCase(),
@@ -438,7 +460,7 @@ const handleSubmit = async () => {
 const handleDelete = async (row) => {
   const confirmed = await confirmPopup(
     h('div', null, [
-      h('p', null, `Xóa tài khoản "${row.username}"?`),
+      h('p', null, `Xóa tài khoản "${row.email}"?`),
       h('p', { style: 'color:red;font-size:12px' }, 'Hành động này không thể hoàn tác.')
     ]),
     'Xác nhận xóa',
@@ -493,6 +515,9 @@ const handleChangePwd = async () => {
 
 onMounted(() => {
   window.addEventListener('resize', handleResize)
+  // Clear any data in pwdForm to prevent unexpected autofill
+  pwdForm.value = { current: '', newPwd: '', confirm: '' }
+  
   fetchUsers()
   fetchAgencies()
   metadataStore.fetchProvinces()

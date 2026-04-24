@@ -86,7 +86,7 @@ export class FeedbackController {
 
       auditService.log({
         userId: req.user!.id,
-        username: req.user!.username,
+        email: req.user!.email,
         role: req.user!.role,
         action: 'FEEDBACK_CREATE',
         entityType: 'feedback',
@@ -116,7 +116,7 @@ export class FeedbackController {
         return res.status(400).json({ message: 'Nội dung phản hồi không được để trống' });
       }
 
-      const repliedBy = req.user!.username;
+      const repliedBy = req.user!.email;
       const updated = await feedbackService.replyFeedback(numericId, String(reply).trim(), repliedBy);
 
       if (!updated.creator_user_id) {
@@ -134,7 +134,7 @@ export class FeedbackController {
 
       auditService.log({
         userId: req.user!.id,
-        username: req.user!.username,
+        email: req.user!.email,
         role: req.user!.role,
         action: 'FEEDBACK_REPLY',
         entityType: 'feedback',

@@ -56,7 +56,7 @@ export class TransController {
             
             auditService.log({
                 userId: req.user?.id,
-                username: req.user?.username || 'system',
+                email: req.user?.email || 'system',
                 role: req.user?.role || 'unknown',
                 action: 'TRANSACTION_DELETE',
                 entityType: 'transaction',

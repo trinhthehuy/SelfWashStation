@@ -4,10 +4,10 @@
     <div class="page-header">
       <div class="header-title">
         <el-icon :size="20" color="#409eff"><Shop /></el-icon>
-        <h2>{{ pageTitle }}</h2>
+        <h2 class="page-title">{{ pageTitle }}</h2>
       </div>
-      <el-button v-if="isSaOnly" type="primary" :icon="Plus" @click="handleAdd">
-        Thêm đại lý
+      <el-button v-if="isSaOnly" type="primary" :icon="Plus" @click="handleAdd" class="mobile-add-btn">
+        Thêm mới
       </el-button>
     </div>
 
@@ -132,7 +132,7 @@
         
         <el-row :gutter="20">
           <el-col :span="12">
-            <el-form-item label="Số CCCD">
+            <el-form-item label="Số CCCD" required>
               <el-input v-model="formData.identity_number" placeholder="Số căn cước" />
             </el-form-item>
           </el-col>
@@ -178,7 +178,7 @@
 
         <el-row :gutter="20">
           <el-col :span="12">
-            <el-form-item label="Số điện thoại liên hệ">
+            <el-form-item label="Số điện thoại liên hệ" required>
               <el-input v-model="formData.phone" :icon="Phone" placeholder="09xxx..." />
             </el-form-item>
           </el-col>
@@ -200,10 +200,10 @@
           </el-form-item>
           <template v-if="createAccount">
             <el-row :gutter="20">
+              <el-col :span="24">
+                <el-alert title="Tài khoản sẽ sử dụng Email của đại lý để đăng nhập." type="info" :closable="false" show-icon style="margin-bottom: 12px;" />
+              </el-col>
               <el-col :span="12">
-                <el-form-item label="Tên đăng nhập" required>
-                  <el-input v-model="accountUsername" placeholder="Tự động theo tên đại lý" @input="handleAccountUsernameInput" />
-                </el-form-item>
               </el-col>
               <el-col :span="12">
                 <el-form-item label="Mật khẩu ban đầu" required>
@@ -212,7 +212,7 @@
               </el-col>
             </el-row>
             <div class="account-default-note">
-              Hệ thống tự sinh tên đăng nhập không dấu từ tên đại lý. Nếu trùng, sẽ tự thêm hậu tố số.
+              Email đăng nhập: <strong>{{ formData.email || 'Chưa nhập email' }}</strong>
             </div>
           </template>
         </template>
@@ -337,9 +337,7 @@ const provinceData = computed(() => metadataStore.provinces.map(p => ({
 const showModal = ref(false)
 const isEdit = ref(false)
 const createAccount = ref(false)
-const accountUsername = ref('')
 const accountPassword = ref('')
-const isUsernameManuallyEdited = ref(false)
 const DEFAULT_AGENCY_PASSWORD = '123456aA@'
 const formData = ref({
   id: null,
@@ -379,9 +377,7 @@ const handleProvinceChange = async (val) => {
 const handleAdd = () => {
   isEdit.value = false
   createAccount.value = false
-  accountUsername.value = ''
   accountPassword.value = ''
-  isUsernameManuallyEdited.value = false
   // Reset form về mặc định
   formData.value = {
     id: null,
@@ -403,9 +399,7 @@ const handleAdd = () => {
 const handleEdit = (item) => {
   isEdit.value = true
   createAccount.value = false
-  accountUsername.value = ''
   accountPassword.value = ''
-  isUsernameManuallyEdited.value = false
   formData.value = {
     id: item.id,
     province_id: item.province_id,
@@ -422,135 +416,62 @@ const handleEdit = (item) => {
   showModal.value = true
 }
 
-const normalizeVietnameseToUsername = (value) => {
-  const normalized = String(value || '')
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .replace(/đ/g, 'd')
-    .replace(/Đ/g, 'D')
-    .toLowerCase()
-    .replace(/[^a-z0-9]/g, '')
-
-  return normalized || 'daily'
-}
-
-const buildUsernameCandidate = (baseUsername, attempt) => {
-  if (attempt === 0) return baseUsername
-  return `${baseUsername}${String(attempt).padStart(2, '0')}`
-}
-
-const setAutoAccountDefaults = () => {
-  if (!createAccount.value) return
-
-  if (!isUsernameManuallyEdited.value) {
-    accountUsername.value = normalizeVietnameseToUsername(formData.value.agency_name)
-  }
-
-  if (!accountPassword.value) {
-    accountPassword.value = DEFAULT_AGENCY_PASSWORD
-  }
-}
-
-const handleAccountUsernameInput = () => {
-  isUsernameManuallyEdited.value = true
-}
-
 watch(createAccount, (enabled) => {
   if (enabled) {
-    setAutoAccountDefaults()
-  }
-})
-
-watch(() => formData.value.agency_name, () => {
-  if (createAccount.value && !isUsernameManuallyEdited.value) {
-    accountUsername.value = normalizeVietnameseToUsername(formData.value.agency_name)
+    if (!accountPassword.value) {
+      accountPassword.value = DEFAULT_AGENCY_PASSWORD
+    }
   }
 })
 
 const createAgency = async (agencyData) => {
   try {
-    const basePayload = { ...agencyData }
-    const shouldCreateAccount = createAccount.value
-    const maxUsernameRetry = 30
-    let usernameBase = ''
-    let passwordValue = ''
-
-    // Gửi accountData nếu người dùng bật switch tạo tài khoản
-    if (shouldCreateAccount) {
-      usernameBase = normalizeVietnameseToUsername(accountUsername.value || agencyData.agency_name)
-      passwordValue = accountPassword.value || DEFAULT_AGENCY_PASSWORD
-      if (!passwordValue || passwordValue.length < 6) throw new Error('Mật khẩu tối thiểu 6 ký tự')
+    const payload = { ...agencyData }
+    if (createAccount.value) {
+      const passwordValue = accountPassword.value || DEFAULT_AGENCY_PASSWORD
+      if (passwordValue.length < 6) throw new Error('Mật khẩu tối thiểu 6 ký tự')
+      payload.accountData = { password: passwordValue }
     }
 
-    for (let attempt = 0; attempt < maxUsernameRetry; attempt++) {
-      const payload = { ...basePayload }
-      const usernameCandidate = shouldCreateAccount
-        ? buildUsernameCandidate(usernameBase, attempt)
-        : null
+    // 1. Gọi API tạo đại lý mới
+    const response = await agencyApi.createAgency(payload)
 
-      if (shouldCreateAccount && usernameCandidate) {
-        payload.accountData = { username: usernameCandidate, password: passwordValue }
-      }
+    // Kiểm tra nếu tạo đại lý thành công và có ID trả về
+    if (response && response.data.data && response.data.data.id) {
+      const newAgencyId = response.data.data.id;
 
+      // 2. Định nghĩa object chiến lược mặc định
+      const defaultStrategy = {
+        strategy_name: "Mặc định",
+        agency_id: newAgencyId,
+        amount_per_unit: 1000,
+        op_per_unit: 60,
+        foam_per_unit: 6,
+        enabled: 1
+      };
+
+      // 3. Gọi API tạo chiến lược
       try {
-        // 1. Gọi API tạo đại lý mới
-        const response = await agencyApi.createAgency(payload)
+        await strategyApi.createStrategies(defaultStrategy);
+      } catch (stratErr) {
+        console.error("Lỗi tạo chiến lược mặc định:", stratErr);
+        // Không chặn quá trình nếu chỉ lỗi tạo chiến lược
+      }
 
-        // Kiểm tra nếu tạo đại lý thành công và có ID trả về
-        if (response && response.data.data && response.data.data.id) {
-          const newAgencyId = response.data.data.id;
-
-          // 2. Định nghĩa object chiến lược mặc định
-          const defaultStrategy = {
-            strategy_name: "Mặc định",
-            agency_id: newAgencyId,
-            amount_per_unit: 1000,
-            op_per_unit: 60,
-            foam_per_unit: 6,
-            enabled: 1
-          };
-
-          // 3. Gọi API tạo chiến lược
-          await strategyApi.createStrategies(defaultStrategy);
-
-          const createdAccount = response.data.data.createdAccount
-          const finalUsername = createdAccount?.username || usernameCandidate || null
-          if (finalUsername) {
-            accountUsername.value = finalUsername
-          }
-          return {
-            agencyId: newAgencyId,
-            agencyName: agencyData.agency_name,
-            identityNumber: agencyData.identity_number || '',
-            username: finalUsername,
-            usernameAutoAdjusted: Boolean(shouldCreateAccount && attempt > 0)
-          }
-        }
-
-        console.error("Không nhận được ID:", response);
-        return {
-          agencyId: null,
-          agencyName: agencyData.agency_name,
-          identityNumber: agencyData.identity_number || '',
-          username: null,
-          usernameAutoAdjusted: false
-        }
-      } catch (error) {
-        const status = error?.response?.status
-        const errorMessage = String(error?.response?.data?.message || error?.message || '')
-        const isDuplicateUsername = shouldCreateAccount && status === 409 && errorMessage.includes('Tên đăng nhập đã tồn tại')
-
-        if (isDuplicateUsername) {
-          continue
-        }
-
-        throw error
+      return {
+        agencyId: newAgencyId,
+        agencyName: agencyData.agency_name,
+        identityNumber: agencyData.identity_number || '',
+        email: agencyData.email
       }
     }
 
-    throw new Error('Tên đăng nhập bị trùng quá nhiều lần, vui lòng nhập tên đăng nhập khác.')
+    throw new Error('Không nhận được thông tin đại lý sau khi tạo');
   } catch (error) {
-    console.error("Lỗi khi tạo đại lý hoặc chiến lược:", error);
+    console.error("Lỗi khi tạo đại lý:", error);
+    if (error?.response?.status === 409) {
+      throw new Error('Email đại lý này đã được sử dụng cho một tài khoản khác');
+    }
     throw error;
   }
 };
@@ -559,6 +480,11 @@ const createAgency = async (agencyData) => {
 const handleSubmit = async () => {
   if (!formData.value.agency_name) {
     ElMessage.warning('Vui lòng nhập tên đại lý')
+    return
+  }
+
+  if (!formData.value.identity_number) {
+    ElMessage.warning('Vui lòng nhập số CCCD đại lý')
     return
   }
 
@@ -608,9 +534,8 @@ const handleSubmit = async () => {
 
     } else {
       const result = await createAgency(formData.value);
-      if (result?.username) {
-        const autoAdjustedNote = result.usernameAutoAdjusted ? ' (đã tự điều chỉnh do trùng tên)' : ''
-        ElMessage.success(`Đã tạo đại lý: ${result.agencyName}. Tài khoản đăng nhập: ${result.username}${autoAdjustedNote}`)
+      if (result?.email) {
+        ElMessage.success(`Đã tạo đại lý: ${result.agencyName}. Email đăng nhập: ${result.email}`)
       } else {
         ElMessage.success(`Đã tạo đại lý thành công: ${formData.value.agency_name}`)
       }
@@ -629,7 +554,7 @@ const handleSubmit = async () => {
         if (shouldCreateBankAccount) {
           showModal.value = false
           await router.push({
-            name: 'tai-khoan-ngan-hang',
+            name: 'bank-account',
             query: {
               autoCreate: '1',
               agencyId: String(result.agencyId),
@@ -833,13 +758,6 @@ const handleDelete = async () => {
 }
 
 @media (max-width: 768px) {
-  .page-header {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 10px;
-    margin-bottom: 12px;
-  }
-
   .page {
     padding: 8px;
   }

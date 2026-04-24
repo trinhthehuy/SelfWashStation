@@ -12,10 +12,9 @@ const getDefaultInitialPassword = () => process.env.DEFAULT_INITIAL_PASSWORD || 
 
 type SystemUserRow = {
   id: number;
-  username: string;
+  email: string;
   password_hash: string;
   full_name: string;
-  email?: string | null;
   role: UserRole;
   agency_id: number | null;
   is_active: number;
@@ -25,7 +24,7 @@ type SystemUserRow = {
 };
 
 type SeedSystemAccount = {
-  username: string;
+  email: string;
   password: string;
   fullName: string;
   role: UserRole;
@@ -66,26 +65,11 @@ function normalizeOptionalEmail(value: unknown): string | null {
   return isValidEmail(email) ? email : null;
 }
 
-function buildFallbackEmailFromUsername(username: string): string {
-  const localPart = String(username || '')
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '.')
-    .replace(/^\.+|\.+$/g, '')
-    .slice(0, 48);
-
-  return `${localPart || 'user'}@no-email.local`;
-}
 
 async function resolveResetRecipientEmail(user: SystemUserRow): Promise<string> {
   const directEmail = String(user.email || '').trim().toLowerCase();
   if (isValidEmail(directEmail)) {
     return directEmail;
-  }
-
-  const usernameAsEmail = String(user.username || '').trim().toLowerCase();
-  if (isValidEmail(usernameAsEmail)) {
-    return usernameAsEmail;
   }
 
   if (user.agency_id) {
@@ -117,14 +101,16 @@ const getRequiredEnv = (name: string) => {
 const getDefaultSystemAccounts = (): SeedSystemAccount[] => {
   return [
     {
-      username: getRequiredEnv('SEED_SA_USERNAME'),
+      email: getRequiredEnv('SEED_SA_EMAIL'),
+      email: 'sa',
       password: getRequiredEnv('SEED_SA_PASSWORD'),
       fullName: 'Super Admin',
       role: 'sa',
       agencyId: null
     },
     {
-      username: getRequiredEnv('SEED_ENGINEER_USERNAME'),
+      email: getRequiredEnv('SEED_ENGINEER_EMAIL'),
+      email: 'engineer',
       password: getRequiredEnv('SEED_ENGINEER_PASSWORD'),
       fullName: 'System Engineer',
       role: 'engineer',
@@ -136,7 +122,7 @@ const getDefaultSystemAccounts = (): SeedSystemAccount[] => {
 function sanitizeUser(user: SystemUserRow): AuthUser {
   return {
     id: user.id,
-    username: user.username,
+    email: user.email,
     fullName: user.full_name,
     role: user.role,
     agencyId: user.agency_id,
@@ -152,10 +138,9 @@ export class SystemAuthService {
     if (!hasSystemUsers) {
       await db.schema.createTable('system_users', (table) => {
         table.increments('id').primary();
-        table.string('username', 64).notNullable().unique();
+        table.string('email', 191).notNullable().unique();
         table.string('password_hash', 255).notNullable();
         table.string('full_name', 128).notNullable();
-        table.string('email', 191).notNullable();
         table.enu('role', ['sa', 'engineer', 'agency']).notNullable();
         table.integer('agency_id').unsigned().nullable();
         table.boolean('is_active').notNullable().defaultTo(true);
@@ -174,7 +159,12 @@ export class SystemAuthService {
 
     if (hasSystemUsers && !(await db.schema.hasColumn('system_users', 'email'))) {
       await db.schema.alterTable('system_users', (table) => {
-        table.string('email', 191).notNullable().defaultTo('');
+        table.string('email', 191).nullable();
+      });
+
+      // No more fallback from username as username is being removed
+      await db.schema.alterTable('system_users', (table) => {
+        table.string('email', 191).notNullable().unique().alter();
       });
     }
 
@@ -189,6 +179,18 @@ export class SystemAuthService {
     if (hasTransactions && !(await db.schema.hasColumn('transactions', 'bay_code'))) {
       await db.schema.alterTable('transactions', (table) => {
         table.string('bay_code', 16).nullable();
+      });
+    }
+
+    const hasPasswordTokens = await db.schema.hasTable('password_reset_tokens');
+    if (!hasPasswordTokens) {
+      await db.schema.createTable('password_reset_tokens', (table) => {
+        table.increments('id').primary();
+        table.integer('user_id').unsigned().notNullable().references('id').inTable('system_users').onDelete('CASCADE');
+        table.string('token_hash', 255).notNullable().unique();
+        table.dateTime('expires_at').notNullable();
+        table.dateTime('used_at').nullable();
+        table.timestamp('created_at').defaultTo(db.fn.now());
       });
     }
   }
@@ -206,13 +208,13 @@ export class SystemAuthService {
 
     for (const account of seedAccounts) {
       try {
-        const existing = await db<SystemUserRow>('system_users').where('username', account.username).first();
+        const existing = await db<SystemUserRow>('system_users').where('email', account.email).first();
 
         if (existing) {
           if (!existing.email || !String(existing.email).trim()) {
             const nextEmail = account.role === 'agency'
               ? await resolveAgencyEmail(account.agencyId)
-              : (isValidEmail(account.username) ? account.username.toLowerCase() : buildFallbackEmailFromUsername(account.username));
+              : null;
 
             if (nextEmail) {
               await db('system_users')
@@ -233,32 +235,31 @@ export class SystemAuthService {
                 updated_at: db.fn.now()
               });
           }
-          console.log(`ℹ️  Account already exists: ${account.username}`);
+          console.log(`ℹ️  Account already exists: ${account.email}`);
           continue;
         }
 
         const passwordHash = await bcrypt.hash(account.password, 10);
 
         await db('system_users').insert({
-          username: account.username,
+          email: account.email,
           password_hash: passwordHash,
           full_name: account.fullName,
-          email: isValidEmail(account.username) ? account.username.toLowerCase() : buildFallbackEmailFromUsername(account.username),
           role: account.role,
           agency_id: account.agencyId,
           is_active: 1,
           must_change_password: 0
         });
-        console.log(`✅ Default account created: ${account.username} (${account.role})`);
+        console.log(`✅ Default account created: ${account.email} (${account.role})`);
       } catch (err) {
-        console.error(`❌ Failed to seed account "${account.username}":`, err);
+        console.error(`❌ Failed to seed account "${account.email}":`, err);
       }
     }
   }
 
-  static async login(username: string, password: string) {
+  static async login(email: string, password: string) {
     const user = await db<SystemUserRow>('system_users')
-      .where('username', username)
+      .where('email', email)
       .andWhere('is_active', 1)
       .first();
 
@@ -299,30 +300,45 @@ export class SystemAuthService {
     return sanitizeUser(user);
   }
 
-  static async listUsers(params: { page?: number; limit?: number; includeTotal?: boolean } = {}) {
+  static async listUsers(params: { page?: number; limit?: number; includeTotal?: boolean; keyword?: string } = {}) {
     const page = Number(params.page) || 1;
     const limit = Number(params.limit) || 20;
     const offset = (page - 1) * limit;
+    const keyword = params.keyword ? String(params.keyword).trim() : '';
 
     const query = db<SystemUserRow>('system_users')
-      .select('id', 'username', 'full_name', 'email', 'role', 'agency_id', 'is_active', 'last_login_at', 'created_at')
-      .orderByRaw("FIELD(role, 'sa', 'engineer', 'agency')")
+      .select('id', 'email', 'full_name', 'role', 'agency_id', 'is_active', 'last_login_at', 'created_at');
+
+    if (keyword) {
+      query.where((builder) => {
+        builder.where('email', 'like', `%${keyword}%`)
+               .orWhere('full_name', 'like', `%${keyword}%`);
+      });
+    }
+
+    query.orderByRaw("FIELD(role, 'sa', 'engineer', 'agency')")
       .orderBy('id', 'asc');
 
     const users = await query.clone().limit(limit).offset(offset);
 
     let total = undefined;
     if (params.includeTotal) {
-      const countRes = await db('system_users').count('id as count').first();
+      const countQuery = db('system_users');
+      if (keyword) {
+        countQuery.where((builder) => {
+          builder.where('email', 'like', `%${keyword}%`)
+                 .orWhere('full_name', 'like', `%${keyword}%`);
+        });
+      }
+      const countRes = await countQuery.count('id as count').first();
       total = Number(countRes?.count || 0);
     }
 
     return {
       data: users.map((user) => ({
         id: user.id,
-        username: user.username,
+        email: user.email,
         fullName: user.full_name,
-        email: user.email || null,
         role: user.role,
         agencyId: user.agency_id,
         isActive: Boolean(user.is_active),
@@ -334,43 +350,43 @@ export class SystemAuthService {
   }
 
   static async createUser(data: {
-    username: string;
-    password: string;
+    email: string;
+    password?: string;
     fullName: string;
     role: UserRole;
     agencyId?: number | null;
-    email?: string | null;
   }) {
-    const existing = await db('system_users').where('username', data.username).first();
-    if (existing) throw new Error('Tên đăng nhập đã tồn tại');
-
-    const passwordHash = await bcrypt.hash(data.password, 10);
-    const nextEmail = normalizeOptionalEmail(data.email);
-
-    if (!nextEmail) {
+    const email = data.email.trim().toLowerCase();
+    if (!email) {
       throw new Error('Email account là bắt buộc và phải đúng định dạng');
     }
+
+    const existing = await db('system_users').where('email', email).first();
+    if (existing) throw new Error('Email này đã được sử dụng');
+    const passwordHash = data.password
+      ? await bcrypt.hash(data.password, 10)
+      : await bcrypt.hash(getDefaultInitialPassword(), 10);
+
     const [id] = await db('system_users').insert({
-      username: data.username,
+      email,
       password_hash: passwordHash,
       full_name: data.fullName,
-      email: nextEmail,
       role: data.role,
       agency_id: data.agencyId || null,
-      is_active: true,
-      must_change_password: true
+      is_active: 1,
+      must_change_password: data.password ? 0 : 1
     });
 
     const user = await db<SystemUserRow>('system_users')
       .where('id', id)
-      .select('id', 'username', 'full_name', 'email', 'role', 'agency_id', 'is_active', 'last_login_at', 'created_at')
+      .select('id', 'email', 'full_name', 'role', 'agency_id', 'is_active', 'last_login_at', 'created_at', 'must_change_password')
       .first();
 
     return {
       id: user!.id,
-      username: user!.username,
+      email: user!.email,
+      email: user!.username || user!.email.split('@')[0],
       fullName: user!.full_name,
-      email: user!.email || null,
       role: user!.role,
       agencyId: user!.agency_id,
       isActive: Boolean(user!.is_active),
@@ -396,10 +412,14 @@ export class SystemAuthService {
     if ('agencyId' in data) updates.agency_id = data.agencyId ?? null;
     if (data.isActive !== undefined) updates.is_active = data.isActive;
     if ('email' in data) {
-      updates.email = normalizeOptionalEmail(data.email);
-      if (!updates.email) {
+      const nextEmail = normalizeOptionalEmail(data.email);
+      if (!nextEmail) {
         throw new Error('Email account là bắt buộc và phải đúng định dạng');
       }
+      // Check if email already used by someone else
+      const duplicate = await db('system_users').where('email', nextEmail).andWhereNot('id', id).first();
+      if (duplicate) throw new Error('Email này đã được sử dụng bởi một tài khoản khác');
+      updates.email = nextEmail;
     }
 
     if (Object.keys(updates).length === 0) throw new Error('Không có dữ liệu cần cập nhật');
@@ -411,7 +431,7 @@ export class SystemAuthService {
   static async deleteUser(id: number, requesterId: number) {
     const user = await db('system_users').where('id', id).first();
     if (!user) throw new Error('Không tìm thấy tài khoản');
-    if (user.username === 'sa') throw new Error('Không thể xóa tài khoản superadmin');
+    if (user.email === 'admin@system.local' || user.role === 'sa') throw new Error('Không thể xóa tài khoản superadmin');
     if (id === requesterId) throw new Error('Không thể xóa tài khoản đang đăng nhập');
 
     await db('system_users').where('id', id).delete();
@@ -458,14 +478,14 @@ export class SystemAuthService {
     return sanitizeUser(updated!);
   }
 
-  static async requestPasswordReset(username: string) {
-    const normalizedUsername = String(username || '').trim();
-    if (!normalizedUsername) {
+  static async requestPasswordReset(email: string) {
+    const normalizedEmail = String(email || '').trim().toLowerCase();
+    if (!normalizedEmail) {
       return { resetToken: null };
     }
 
     const user = await db<SystemUserRow>('system_users')
-      .where('username', normalizedUsername)
+      .where('email', normalizedEmail)
       .andWhere('is_active', 1)
       .first();
 

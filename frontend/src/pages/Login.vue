@@ -52,21 +52,21 @@
           <Car :size="34" />
         </div>
 
-        <h2 class="form-title">Đăng nhập</h2>
-        <p class="form-subtitle">Nhập thông tin xác thực để tiếp tục</p>
+        <h2 class="page-title">Đăng nhập</h2>
+        <p class="sub-title">Nhập thông tin xác thực để tiếp tục</p>
 
         <el-form label-position="top" @submit.prevent="handleLogin">
-          <el-form-item label="Tên đăng nhập" :error="formErrors.username">
+          <el-form-item label="Email" :error="formErrors.email">
             <el-input
-              v-model="form.username"
-              placeholder="Nhập tên đăng nhập"
+              v-model="form.email"
+              placeholder="Nhập email của bạn"
               size="large"
-              :prefix-icon="UserIcon"
-              autocomplete="username"
-              :aria-invalid="Boolean(formErrors.username)"
-              aria-label="Tên đăng nhập"
+              :prefix-icon="MailIcon"
+              autocomplete="email"
+              :aria-invalid="Boolean(formErrors.email)"
+              aria-label="Email"
               @keyup.enter="handleLogin"
-              @input="clearFieldError('username')"
+              @input="clearFieldError('email')"
             />
           </el-form-item>
 
@@ -183,12 +183,12 @@
 <script setup>
 import { reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { Car, CheckCircle2, User, Lock, LogIn, ShieldCheck } from 'lucide-vue-next'
+import { Car, CheckCircle2, Mail, Lock, LogIn, ShieldCheck } from 'lucide-vue-next'
 import { ElMessage } from 'element-plus'
 import { authApi } from '@/api/auth'
 import { authStore } from '@/stores/auth'
 
-const UserIcon = User
+const MailIcon = Mail
 const LockIcon = Lock
 
 const router = useRouter()
@@ -199,9 +199,9 @@ const forceChangeSubmitting = ref(false)
 const currentPasswordAfterLogin = ref('')
 const rememberMe = ref(authStore.state.rememberMe)
 
-const form = reactive({ username: '', password: '' })
+const form = reactive({ email: '', password: '' })
 const forceChangeForm = reactive({ newPassword: '', confirmPassword: '' })
-const formErrors = reactive({ username: '', password: '' })
+const formErrors = reactive({ email: '', password: '' })
 
 const clearFieldError = (field) => {
   formErrors[field] = ''
@@ -211,25 +211,27 @@ const clearFieldError = (field) => {
 }
 
 const resetFieldErrors = () => {
-  formErrors.username = ''
+  formErrors.email = ''
   formErrors.password = ''
 }
 
 const validateLoginForm = () => {
   resetFieldErrors()
 
-  form.username = String(form.username || '').trim()
+  form.email = String(form.email || '').trim()
   form.password = String(form.password || '')
 
-  if (!form.username) {
-    formErrors.username = 'Vui lòng nhập tên đăng nhập'
+  if (!form.email) {
+    formErrors.email = 'Vui lòng nhập email'
+  } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) {
+    formErrors.email = 'Email không hợp lệ'
   }
 
   if (!form.password) {
     formErrors.password = 'Vui lòng nhập mật khẩu'
   }
 
-  return !formErrors.username && !formErrors.password
+  return !formErrors.email && !formErrors.password
 }
 
 const formatRetryAfter = (retryAfterSeconds) => {
@@ -287,7 +289,7 @@ const resolveLoginErrorMessage = (error) => {
   }
 
   if (normalized.includes('không tồn tại') || normalized.includes('bị khóa')) {
-    formErrors.username = 'Tài khoản không tồn tại hoặc đã bị khóa'
+    formErrors.email = 'Tài khoản không tồn tại hoặc đã bị khóa'
     return 'Tài khoản không tồn tại hoặc đã bị khóa'
   }
 
@@ -309,7 +311,7 @@ const handleLogin = async () => {
 
   submitting.value = true
   try {
-    const response = await authApi.login({ username: form.username, password: form.password })
+    const response = await authApi.login({ email: form.email, password: form.password })
     const session = response.data
     authStore.setSession(session, { rememberMe: rememberMe.value })
 

@@ -4,8 +4,8 @@ export const authApi = {
   login(payload) {
     return apiClient.post('/auth/login', payload)
   },
-  forgotPassword(username) {
-    return apiClient.post('/auth/forgot-password', { username })
+  forgotPassword(email) {
+    return apiClient.post('/auth/forgot-password', { email })
   },
   validateResetPasswordToken(token) {
     return apiClient.get(`/auth/reset-password/${token}`)

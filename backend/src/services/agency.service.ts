@@ -92,11 +92,10 @@ export class AgencyService {
     }
   }
   /**
-   * Tạo đại lý mới.
-   * Nếu accountData được cung cấp ({ username, password }), tạo tài khoản system_users kèm theo
-   * trong cùng một transaction. Rollback toàn bộ nếu username đã tồn tại.
+   * Nếu accountData được cung cấp ({ password }), tạo tài khoản system_users kèm theo
+   * trong cùng một transaction. Rollback toàn bộ nếu email đã tồn tại.
    */
-  async createAgency(data: any, accountData?: { username: string; password: string } | null) {
+  async createAgency(data: any, accountData?: { password: string; username?: string } | null) {
     // Kiểm tra CCCD trước khi tạo
     if (data.identity_number) {
       const existingAgency = await db('agency').where('identity_number', data.identity_number).first();
@@ -110,29 +109,31 @@ export class AgencyService {
       return await db('agency').where('id', newId).first();
     }
 
-    // Kiểm tra username trước để trả lỗi rõ ràng, trước khi mở transaction
-    const existingUser = await db('system_users').where('username', accountData.username).first();
+    // Kiểm tra email trước để trả lỗi rõ ràng, trước khi mở transaction
+    const agencyEmail = normalizeAgencyEmail(data.email);
+    const existingUser = await db('system_users').where('email', agencyEmail).first();
     if (existingUser) {
-      throw new Error('Tên đăng nhập đã tồn tại');
+      throw new Error('Email này đã được sử dụng cho một tài khoản khác');
     }
 
     return await db.transaction(async (trx) => {
       const [newAgencyId] = await trx('agency').insert(data);
       const agency = await trx('agency').where('id', newAgencyId).first();
 
+      const agencyEmail = normalizeAgencyEmail(data.email);
       const passwordHash = await bcrypt.hash(accountData.password, 10);
       await trx('system_users').insert({
-        username: accountData.username,
+        email: agencyEmail,
+        email: accountData.username || agencyEmail?.split('@')[0],
         password_hash: passwordHash,
         full_name: data.agency_name,
-        email: normalizeAgencyEmail(data.email),
         role: 'agency',
         agency_id: newAgencyId,
         is_active: true,
         must_change_password: true,
       });
 
-      return { ...agency, createdAccount: { username: accountData.username } };
+      return { ...agency, createdAccount: { email: agencyEmail } };
     });
   }
   

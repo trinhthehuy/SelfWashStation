@@ -1,28 +1,28 @@
 <template>
   <div class="forgot-page">
     <div class="forgot-card">
-      <h1 class="forgot-title">Quen mat khau</h1>
-      <p class="forgot-subtitle">
-        Nhap ten dang nhap de tao lien ket dat lai mat khau.
+      <h1 class="page-title">Quên mật khẩu</h1>
+      <p class="sub-title">
+        Nhập địa chỉ email để nhận liên kết đặt lại mật khẩu.
       </p>
 
       <div class="guide-box">
-        <p class="guide-title">Huong dan nhanh</p>
+        <p class="guide-title">Hướng dẫn nhanh</p>
         <ul class="guide-list">
-          <li>Lien ket dat lai mat khau se duoc gui vao email da dang ky.</li>
-          <li>Lien ket chi co hieu luc trong mot khoang thoi gian ngan va chi dung duoc 1 lan.</li>
-          <li>Neu khong thay email, vui long kiem tra thu muc Spam/Junk.</li>
-          <li>Neu duoc cap mat khau tam mot lan, hay dang nhap bang mat khau do va doi mat khau ngay.</li>
+          <li>Liên kết đặt lại mật khẩu sẽ được gửi vào email đã đăng ký.</li>
+          <li>Liên kết chỉ có hiệu lực trong một khoảng thời gian ngắn và chỉ dùng được 1 lần.</li>
+          <li>Nếu không thấy email, vui lòng kiểm tra thư mục Spam/Junk.</li>
+          <li>Nếu được cấp mật khẩu tạm một lần, hãy đăng nhập bằng mật khẩu đó và đổi mật khẩu ngay.</li>
         </ul>
       </div>
 
       <el-form label-position="top" @submit.prevent="handleSubmit">
-        <el-form-item label="Ten dang nhap" :error="fieldError">
+        <el-form-item label="Email tài khoản" :error="fieldError">
           <el-input
-            v-model="form.username"
-            placeholder="Nhap ten dang nhap"
+            v-model="form.email"
+            placeholder="Nhập email của bạn"
             size="large"
-            autocomplete="username"
+            autocomplete="email"
             :aria-invalid="Boolean(fieldError)"
             @keyup.enter="handleSubmit"
             @input="fieldError = ''"
@@ -64,11 +64,11 @@
           :loading="submitting"
           :disabled="submitting"
         >
-          Gui yeu cau dat lai mat khau
+          Gửi yêu cầu đặt lại mật khẩu
         </el-button>
       </el-form>
 
-      <router-link to="/login" class="back-link">Quay lai dang nhap</router-link>
+      <router-link to="/login" class="back-link">Quay lại đăng nhập</router-link>
 
       <p v-if="devToken" class="dev-token">
         Dev token: <span>{{ devToken }}</span>
@@ -81,7 +81,7 @@
 import { reactive, ref } from 'vue'
 import { authApi } from '@/api/auth'
 
-const form = reactive({ username: '' })
+const form = reactive({ email: '' })
 const submitting = ref(false)
 const fieldError = ref('')
 const errorMessage = ref('')
@@ -100,15 +100,19 @@ const handleSubmit = async () => {
   deliveryHint.value = ''
   devToken.value = ''
 
-  form.username = String(form.username || '').trim()
-  if (!form.username) {
-    fieldError.value = 'Vui long nhap ten dang nhap'
+  form.email = String(form.email || '').trim()
+  if (!form.email) {
+    fieldError.value = 'Vui lòng nhập email'
+    return
+  }
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) {
+    fieldError.value = 'Email không hợp lệ'
     return
   }
 
   submitting.value = true
   try {
-    const response = await authApi.forgotPassword(form.username)
+    const response = await authApi.forgotPassword(form.email)
     successMessage.value = response?.data?.message || 'Yeu cau da duoc ghi nhan'
     deliveryHint.value = response?.data?.deliveryHint || ''
     devToken.value = response?.data?.resetToken || ''

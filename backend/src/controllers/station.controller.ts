@@ -120,7 +120,7 @@ export class StationController {
       const newStation = await stationService.createStation(req.body, getRequestScope(req));
       auditService.log({
         userId: req.user?.id,
-        username: req.user?.username || 'system',
+        email: req.user?.email || 'system',
         role: req.user?.role || 'unknown',
         action: 'STATION_CREATE',
         entityType: 'station',
@@ -151,7 +151,7 @@ export class StationController {
 
     auditService.log({
       userId: req.user?.id,
-      username: req.user?.username || 'system',
+      email: req.user?.username || 'system',
       role: req.user?.role || 'unknown',
       action: 'STATION_UPDATE',
       entityType: 'station',
@@ -173,7 +173,7 @@ export class StationController {
     const deletedStation = await stationService.deleteStation(Number(id), getRequestScope(req));
     auditService.log({
       userId: req.user?.id,
-      username: req.user?.username || 'system',
+      email: req.user?.username || 'system',
       role: req.user?.role || 'unknown',
       action: 'STATION_DELETE',
       entityType: 'station',
