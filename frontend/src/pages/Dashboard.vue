@@ -90,7 +90,7 @@ min-width:0;
 .right-panel{
 display:flex;
 flex-direction:column;
-gap:15px;
+gap:16x;
 min-height:0;
 min-width:0;
 }

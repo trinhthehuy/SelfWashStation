@@ -12,7 +12,7 @@
           <Car :size="44" />
         </div>
 
-        <p class="brand-eyebrow">Giải pháp trạm rửa xe tự phục vụ 24/7</p>
+        <p class="brand-eyebrow">Hệ thống quản lý trạm rửa xe tự phục vụ 24/7</p>
         <h1 class="brand-title">
           <span class="brand-name">Xe Sạch 365</span>
           <span class="brand-descriptor">Hệ thống quản lý trạm rửa xe tự phục vụ</span>
