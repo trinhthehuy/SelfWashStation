@@ -101,14 +101,14 @@ export function getAgencyScope(req: AuthRequest, fallbackAgencyId?: number | nul
  */
 export function getRequestScope(req: AuthRequest, fallbackAgencyId?: number | null): RequestScope {
   const user = req.user;
-  const role = user?.role || 'unknown';
+  const role = user?.role;
   const scope = req.scope;
 
   return {
     role,
-    agencyId: (role === 'agency') ? (user?.agencyId ?? null) : (fallbackAgencyId ?? null),
-    provinceIds: (role === 'regional_manager') ? (scope?.provinceIds ?? []) : [],
-    stationIds: (role === 'station_supervisor') ? (scope?.stationIds ?? []) : []
+    agencyId: role === 'agency' ? (user?.agencyId ?? null) : (fallbackAgencyId ?? null),
+    provinceIds: role === 'regional_manager' ? (scope?.provinceIds ?? []) : [],
+    stationIds: role === 'station_supervisor' ? (scope?.stationIds ?? []) : []
   };
 }
 

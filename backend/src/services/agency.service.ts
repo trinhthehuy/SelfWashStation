@@ -51,7 +51,8 @@ export class AgencyService {
       // Bắt buộc chỉ xem đúng đại lý của mình, kể cả khi agencyId là null (thì sẽ không thấy gì)
       query.where('a.id', scope.agencyId || 0);
     } else if (scope?.role === 'regional_manager' && (scope?.provinceIds?.length || 0) > 0) {
-      query.whereIn('a.province_id', scope.provinceIds);
+      const provinceIds = scope.provinceIds as number[];
+      query.whereIn('a.province_id', provinceIds);
       if (ward_id) query.andWhere('a.ward_id', ward_id);
     } else if (scope?.agencyId) {
       // Trường hợp sa/engineer chọn xem một đại lý cụ thể qua UI filter hoặc tham số

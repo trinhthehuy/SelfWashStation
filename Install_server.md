@@ -58,17 +58,14 @@ sudo chown -R selfwash:selfwash /opt/SelfWashStation
 cd /opt
 git clone https://github.com/trinhthehuy/SelfWashStation.git
 cd SelfWashStation
-6. Tạo file môi trường .env.production
+6. Tạo file môi trường .env.production từ template
+cp env.production .env.production
 nano .env.production
 
 Nội dung: (điền đầy đủ các biến môi trường production)
 
-Sau khi tạo xong, tạo symlink .env trỏ vào .env.production để Docker Compose tự đọc:
-
-ln -sf .env.production .env
-
 7. Chạy hệ thống Docker
-docker compose up -d --build
+docker compose --env-file .env.production up -d --build
 
 Kiểm tra:
 
@@ -122,12 +119,8 @@ Restart:
 sudo systemctl restart nginx
 9. Rebuild project sau khi đổi domain
 cd /opt/selfwashstation
-docker compose down
-docker compose up -d --build
-
-Lưu ý: Nếu chưa có symlink .env, chạy lại:
-
-ln -sf .env.production .env
+docker compose --env-file .env.production down
+docker compose --env-file .env.production up -d --build
 
 10. Truy cập hệ thống
 
@@ -141,9 +134,7 @@ http://serverninhbinh.gotdns.ch/api
 11. Update project sau này
 cd /opt/selfwashstation
 git pull
-docker compose up -d --build
-
-Lưu ý: Symlink .env → .env.production chỉ cần tạo 1 lần. Nếu mất symlink thì chạy lại: ln -sf .env.production .env
+docker compose --env-file .env.production up -d --build
 12. Lệnh quản trị hệ thống
 Xem log
 docker compose logs -f

@@ -33,28 +33,34 @@ npm run build:selfwash-frontend
 
 ## Deploy with Docker
 
-1. Prepare production environment file at root (`.env`) with at least:
+1. Copy template env file and fill real production values:
+
+```bash
+cp env.production .env.production
+```
+
+2. Ensure `.env.production` has at least:
 	- `PORT`
 	- `FRONTEND_PORT`
 	- `VITE_API_URL`
 	- `MYSQL_HOST`, `MYSQL_PORT`, `MYSQL_USER`, `MYSQL_PASSWORD`, `MYSQL_DATABASE`
 	- `CA_PEM_PATH` (for TLS DB connection)
-2. Ensure `backend/ca.pem` exists and matches `CA_PEM_PATH`.
-3. Build and start services:
+3. Ensure `backend/ca.pem` exists and matches `CA_PEM_PATH`.
+4. Build and start services:
 
 ```bash
-docker compose up -d --build
+docker compose --env-file .env.production up -d --build
 ```
 
-4. Check service logs:
+5. Check service logs:
 
 ```bash
-docker compose logs -f backend
-docker compose logs -f frontend
+docker compose --env-file .env.production logs -f backend
+docker compose --env-file .env.production logs -f frontend
 ```
 
-5. Stop services:
+6. Stop services:
 
 ```bash
-docker compose down
+docker compose --env-file .env.production down
 ```
