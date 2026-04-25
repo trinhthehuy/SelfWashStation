@@ -8,6 +8,24 @@ import { SmtpSettingsService } from '../services/smtp-settings.service.js';
 
 const router = Router();
 
+function resolveWebhookPayload(req: Request) {
+  const body = req.body;
+
+  if (body && typeof body === 'object' && Object.keys(body).length > 0) {
+    return body;
+  }
+
+  if (typeof body === 'string' && body.trim()) {
+    try {
+      return JSON.parse(body);
+    } catch {
+      return {};
+    }
+  }
+
+  return {};
+}
+
 async function handleWebhookAuth(req: Request, res: Response) {
   const authorized = await ApiTokenService.authenticateWebhookRequest(req);
 
@@ -21,15 +39,19 @@ async function handleWebhookAuth(req: Request, res: Response) {
 
 router.post('/webhook/bank-transfer', async (req, res) => {
   const requestId = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  const payload = resolveWebhookPayload(req);
   const isDevTestHeader = String(req.headers['x-dev-test'] || '').toLowerCase() === 'true';
 
   console.log('[WEBHOOK][INCOMING]', {
     requestId,
     path: '/api/webhook/bank-transfer',
+    contentType: req.headers['content-type'] || null,
+    bodyType: typeof req.body,
+    bodyKeys: Object.keys(payload || {}),
     isDevTestHeader,
-    transferType: req.body?.transferType,
-    transactionId: req.body?.id || req.body?.transactionId || req.body?.paymentId || null,
-    referenceCode: req.body?.referenceCode || null,
+    transferType: payload?.transferType,
+    transactionId: payload?.id || payload?.transactionId || payload?.paymentId || null,
+    referenceCode: payload?.referenceCode || null,
   });
 
   if (isDevTestHeader && !DevModeService.isEnabled()) {
@@ -50,8 +72,8 @@ router.post('/webhook/bank-transfer', async (req, res) => {
   }
 
   try {
-    const result = await BankTransferService.processIncomingTransfer(req.body, {
-      isTest: isDevTestHeader || req.body?.isTest === true,
+    const result = await BankTransferService.processIncomingTransfer(payload, {
+      isTest: isDevTestHeader || payload?.isTest === true,
       requestId,
     });
     console.log('[WEBHOOK][DONE]', {

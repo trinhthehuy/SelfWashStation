@@ -16,7 +16,9 @@ export function createApp() {
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'x-dev-test']
   }));
-  app.use(express.json());
+  app.use(express.json({ type: ['application/json', 'application/*+json'] }));
+  app.use(express.urlencoded({ extended: true }));
+  app.use(express.text({ type: ['text/plain'] }));
   app.use(morgan('dev'));
 
   // API Routes
