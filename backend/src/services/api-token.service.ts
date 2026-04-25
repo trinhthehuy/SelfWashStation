@@ -109,12 +109,19 @@ export class ApiTokenService {
       return false;
     }
 
+    const authHeader = String(req.headers['authorization'] || '').trim();
+    const authToken = authHeader
+      .replace(/^apikey\s+/i, '')
+      .replace(/^bearer\s+/i, '')
+      .trim();
+
     const token = String(
       req.headers['x-api-token'] ||
       req.headers['x-api-key'] ||
+      authToken ||
       req.query.token ||
       ''
-    );
+    ).trim();
 
     const isValid = await this.validateToken(token);
     if (isValid) {

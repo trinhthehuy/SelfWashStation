@@ -219,11 +219,19 @@ export class BankTransferService {
     let accountNumber = normalizeAccountNumber(accountRaw);
 
     if (payload.transferAmount && payload.transferType && payload.transferType !== 'in') {
-      throw new Error('Chỉ xử lý giao dịch tiền vào');
+      return {
+        success: true,
+        ignored: true,
+        message: 'Bỏ qua giao dịch tiền ra'
+      };
     }
 
     if (!amount || !content) {
-      throw new Error('Dữ liệu webhook không hợp lệ');
+      return {
+        success: true,
+        ignored: true,
+        message: 'Bỏ qua webhook thiếu dữ liệu amount/content'
+      };
     }
 
     const dedupeKey = String(
@@ -249,12 +257,20 @@ export class BankTransferService {
     }) as any;
 
     if (!matchedStation) {
-      throw new Error('Không tìm thấy mã trạm trong nội dung chuyển khoản');
+      return {
+        success: true,
+        ignored: true,
+        message: 'Không tìm thấy mã trạm trong nội dung chuyển khoản'
+      };
     }
 
     const stationAccounts = getStationAccountList(matchedStation);
     if (stationAccounts.length > 0 && accountNumber && !stationAccounts.includes(accountNumber)) {
-      throw new Error('Số tài khoản nhận không thuộc trạm trong nội dung chuyển khoản');
+      return {
+        success: true,
+        ignored: true,
+        message: 'Số tài khoản nhận không thuộc trạm trong nội dung chuyển khoản'
+      };
     }
 
     let bayCode = getBayCode(content, matchedStation.transferPrefix || String(matchedStation.stationId));
@@ -263,7 +279,11 @@ export class BankTransferService {
     }
 
     if (!bayCode || !matchedStation.bays.some((bay: any) => bay.id === bayCode)) {
-      throw new Error('Không xác định được trụ rửa hợp lệ');
+      return {
+        success: true,
+        ignored: true,
+        message: 'Không xác định được trụ rửa hợp lệ'
+      };
     }
 
     const { op, foam } = this.calculateWashTimes(amount, matchedStation);
