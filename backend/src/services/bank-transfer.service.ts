@@ -10,6 +10,42 @@ function normalizeAccountNumber(value: unknown) {
   return String(value || '').replace(/\D/g, '').trim();
 }
 
+function toNumber(value: unknown) {
+  if (value === null || value === undefined) {
+    return 0;
+  }
+
+  const normalized = String(value)
+    .replace(/\./g, '')
+    .replace(/,/g, '')
+    .replace(/\s+/g, '')
+    .trim();
+
+  const parsed = Number(normalized);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function pickFirst(payload: any, paths: string[]) {
+  for (const path of paths) {
+    const segments = path.split('.');
+    let current: any = payload;
+
+    for (const segment of segments) {
+      if (current == null) {
+        current = undefined;
+        break;
+      }
+      current = current[segment];
+    }
+
+    if (current !== undefined && current !== null && String(current).trim() !== '') {
+      return current;
+    }
+  }
+
+  return undefined;
+}
+
 function formatTimestamp(value?: string) {
   const date = value ? new Date(String(value).replace(' ', 'T')) : new Date();
   const safeDate = Number.isNaN(date.getTime()) ? new Date() : date;
@@ -138,10 +174,49 @@ export class BankTransferService {
   }
 
   static async processIncomingTransfer(payload: any, options?: { isTest?: boolean }) {
-    let amount = Number(payload.amount || payload.transferAmount || 0);
-    let content = String(payload.content || '');
-    let timestamp = payload.transactionDate || payload.timestamp || new Date().toISOString();
-    let accountNumber = normalizeAccountNumber(payload.accountNumber);
+    const amountRaw = pickFirst(payload, [
+      'amount',
+      'transferAmount',
+      'transfer_amount',
+      'data.amount',
+      'data.transferAmount',
+      'data.transfer_amount'
+    ]);
+    const contentRaw = pickFirst(payload, [
+      'content',
+      'description',
+      'transactionContent',
+      'transferContent',
+      'data.content',
+      'data.description',
+      'data.transactionContent',
+      'data.transferContent'
+    ]);
+    const timestampRaw = pickFirst(payload, [
+      'transactionDate',
+      'timestamp',
+      'createdAt',
+      'created_at',
+      'data.transactionDate',
+      'data.timestamp',
+      'data.createdAt',
+      'data.created_at'
+    ]);
+    const accountRaw = pickFirst(payload, [
+      'accountNumber',
+      'accountNo',
+      'bankAccount',
+      'toAccountNumber',
+      'data.accountNumber',
+      'data.accountNo',
+      'data.bankAccount',
+      'data.toAccountNumber'
+    ]);
+
+    let amount = toNumber(amountRaw);
+    let content = String(contentRaw || '');
+    let timestamp = String(timestampRaw || new Date().toISOString());
+    let accountNumber = normalizeAccountNumber(accountRaw);
 
     if (payload.transferAmount && payload.transferType && payload.transferType !== 'in') {
       throw new Error('Chỉ xử lý giao dịch tiền vào');
@@ -178,7 +253,7 @@ export class BankTransferService {
     }
 
     const stationAccounts = getStationAccountList(matchedStation);
-    if (stationAccounts.length > 0 && !stationAccounts.includes(accountNumber)) {
+    if (stationAccounts.length > 0 && accountNumber && !stationAccounts.includes(accountNumber)) {
       throw new Error('Số tài khoản nhận không thuộc trạm trong nội dung chuyển khoản');
     }
 
