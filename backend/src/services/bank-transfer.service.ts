@@ -173,7 +173,18 @@ export class BankTransferService {
     }
   }
 
-  static async processIncomingTransfer(payload: any, options?: { isTest?: boolean }) {
+  static async processIncomingTransfer(payload: any, options?: { isTest?: boolean; requestId?: string }) {
+    const requestId = options?.requestId || `local-${Date.now()}`;
+    const logCtx = (step: string, extra?: Record<string, unknown>) => {
+      console.log('[WEBHOOK][FLOW]', { requestId, step, ...(extra || {}) });
+    };
+
+    logCtx('payload_received', {
+      transferType: payload?.transferType || null,
+      sourceId: payload?.id || payload?.transactionId || payload?.paymentId || null,
+      referenceCode: payload?.referenceCode || null,
+    });
+
     const amountRaw = pickFirst(payload, [
       'amount',
       'transferAmount',
@@ -218,7 +229,15 @@ export class BankTransferService {
     let timestamp = String(timestampRaw || new Date().toISOString());
     let accountNumber = normalizeAccountNumber(accountRaw);
 
+    logCtx('payload_normalized', {
+      amount,
+      contentPreview: content.slice(0, 64),
+      timestamp,
+      accountNumber: accountNumber || null,
+    });
+
     if (payload.transferAmount && payload.transferType && payload.transferType !== 'in') {
+      logCtx('ignored_outgoing_transfer');
       return {
         success: true,
         ignored: true,
@@ -227,6 +246,7 @@ export class BankTransferService {
     }
 
     if (!amount || !content) {
+      logCtx('ignored_missing_amount_or_content', { amount, hasContent: Boolean(content) });
       return {
         success: true,
         ignored: true,
@@ -243,6 +263,7 @@ export class BankTransferService {
 
     const dedupe = await this.markProcessedWebhook(dedupeKey, payload);
     if (dedupe.isDuplicate) {
+      logCtx('duplicate_skipped', { dedupeKey });
       return {
         success: true,
         duplicate: true,
@@ -257,6 +278,7 @@ export class BankTransferService {
     }) as any;
 
     if (!matchedStation) {
+      logCtx('ignored_station_not_found', { contentPreview: content.slice(0, 64) });
       return {
         success: true,
         ignored: true,
@@ -265,7 +287,14 @@ export class BankTransferService {
     }
 
     const stationAccounts = getStationAccountList(matchedStation);
+    logCtx('station_matched', {
+      stationId: matchedStation.stationId,
+      transferPrefix: matchedStation.transferPrefix || null,
+      configuredAccounts: stationAccounts,
+    });
+
     if (stationAccounts.length > 0 && accountNumber && !stationAccounts.includes(accountNumber)) {
+      logCtx('ignored_account_mismatch', { accountNumber });
       return {
         success: true,
         ignored: true,
@@ -279,6 +308,7 @@ export class BankTransferService {
     }
 
     if (!bayCode || !matchedStation.bays.some((bay: any) => bay.id === bayCode)) {
+      logCtx('ignored_bay_not_resolved', { bayCode: bayCode || null });
       return {
         success: true,
         ignored: true,
@@ -289,7 +319,9 @@ export class BankTransferService {
     const { op, foam } = this.calculateWashTimes(amount, matchedStation);
     const mqttPayload = this.formatMqttMessage(bayCode, op, foam, timestamp);
     const mqttTopic = `${matchedStation.transferPrefix}/cmd`;
+    logCtx('mqtt_publish_attempt', { mqttTopic, mqttPayload, op, foam });
     const mqttQueued = await mqttService.publish(mqttTopic, mqttPayload);
+    logCtx('mqtt_publish_result', { mqttTopic, mqttQueued });
     const isTest = options?.isTest === true || payload.isTest === true;
 
     const transactionPayload = {
@@ -325,10 +357,12 @@ export class BankTransferService {
         transaction_time: formatTimestamp(timestamp),
         notes: 'Generated from system test'
       });
+      logCtx('saved_test_transaction', { transactionId: transactionPayload.transaction_id });
     } else {
       await db('transactions').insert(transactionPayload);
       // Cập nhật summary ngay lập tức (Real-time)
       await aggregationService.incrementSummary(transactionPayload);
+      logCtx('saved_live_transaction_and_aggregated', { transactionId: transactionPayload.transaction_id });
     }
 
     await db('webhook_logs').insert({
@@ -338,6 +372,14 @@ export class BankTransferService {
       result_body: JSON.stringify({ mqttQueued }),
       is_duplicate: 0,
       is_test: isTest ? 1 : 0
+    });
+
+    logCtx('completed', {
+      stationId: matchedStation.stationId,
+      bayCode,
+      mqttTopic,
+      mqttQueued,
+      isTest,
     });
 
     return {

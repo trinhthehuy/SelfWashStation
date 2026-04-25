@@ -20,28 +20,56 @@ async function handleWebhookAuth(req: Request, res: Response) {
 }
 
 router.post('/webhook/bank-transfer', async (req, res) => {
+  const requestId = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
   const isDevTestHeader = String(req.headers['x-dev-test'] || '').toLowerCase() === 'true';
 
+  console.log('[WEBHOOK][INCOMING]', {
+    requestId,
+    path: '/api/webhook/bank-transfer',
+    isDevTestHeader,
+    transferType: req.body?.transferType,
+    transactionId: req.body?.id || req.body?.transactionId || req.body?.paymentId || null,
+    referenceCode: req.body?.referenceCode || null,
+  });
+
   if (isDevTestHeader && !DevModeService.isEnabled()) {
+    console.warn('[WEBHOOK][REJECTED]', { requestId, reason: 'dev_mode_disabled' });
     res.status(401).json({ error: 'Token API không hợp lệ hoặc chưa được cấu hình' });
     return;
   }
 
   if (isDevTestHeader && !mqttService.getStatus()) {
+    console.warn('[WEBHOOK][REJECTED]', { requestId, reason: 'mqtt_not_connected_for_dev_test' });
     res.status(503).json({ error: 'MQTT chưa kết nối, không thể gửi lệnh' });
     return;
   }
 
   if (!(await handleWebhookAuth(req, res))) {
+    console.warn('[WEBHOOK][REJECTED]', { requestId, reason: 'auth_failed' });
     return;
   }
 
   try {
     const result = await BankTransferService.processIncomingTransfer(req.body, {
-      isTest: isDevTestHeader || req.body?.isTest === true
+      isTest: isDevTestHeader || req.body?.isTest === true,
+      requestId,
+    });
+    console.log('[WEBHOOK][DONE]', {
+      requestId,
+      success: result?.success === true,
+      ignored: result?.ignored === true,
+      duplicate: result?.duplicate === true,
+      mqttQueued: result?.mqttQueued ?? null,
+      mqttTopic: result?.mqttTopic ?? null,
+      message: result?.message ?? null,
     });
     res.json(result);
   } catch (error: any) {
+    console.error('[WEBHOOK][ERROR]', {
+      requestId,
+      message: error?.message || 'Lỗi xử lý webhook',
+      stack: error?.stack || null,
+    });
     res.status(400).json({ error: error.message || 'Lỗi xử lý webhook' });
   }
 });

@@ -123,10 +123,27 @@ export class ApiTokenService {
       ''
     ).trim();
 
+    const tokenSource = req.headers['x-api-token']
+      ? 'x-api-token'
+      : req.headers['x-api-key']
+        ? 'x-api-key'
+        : authToken
+          ? 'authorization'
+          : req.query.token
+            ? 'query.token'
+            : 'none';
+
+    console.log('[WEBHOOK][AUTH]', {
+      tokenSource,
+      hasToken: Boolean(token),
+    });
+
     const isValid = await this.validateToken(token);
     if (isValid) {
       await this.recordTokenUsage(token);
     }
+
+    console.log('[WEBHOOK][AUTH_RESULT]', { isValid });
 
     return isValid;
   }

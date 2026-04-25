@@ -25,8 +25,15 @@ class IntegratedMqttService {
     const envPassword = process.env.MQTT_PASS || process.env.MQTT_PASSWORD || undefined;
     const brokerUrl = this.config.brokerUrl || envBroker;
 
+    console.log('[MQTT][INIT]', {
+      brokerUrl: brokerUrl || null,
+      hasUsername: Boolean(this.config.username || envUsername),
+      hasPassword: Boolean(this.config.password || envPassword),
+    });
+
     if (!brokerUrl) {
       this.connected = false;
+      console.warn('[MQTT][INIT] broker url is empty, skip connect');
       return;
     }
 
@@ -44,28 +51,39 @@ class IntegratedMqttService {
 
     this.client.on('connect', () => {
       this.connected = true;
-      console.log('MQTT connected');
+      console.log('[MQTT][CONNECTED]');
     });
 
     this.client.on('close', () => {
       this.connected = false;
-      console.warn('MQTT connection closed');
+      console.warn('[MQTT][CLOSED] connection closed');
     });
 
     this.client.on('error', (error) => {
       this.connected = false;
-      console.error('MQTT error:', error);
+      console.error('[MQTT][ERROR]', error);
     });
   }
 
   async publish(topic: string, message: string) {
     if (!this.client || !this.connected) {
+      console.warn('[MQTT][PUBLISH_SKIPPED]', {
+        reason: !this.client ? 'client_not_initialized' : 'client_not_connected',
+        topic,
+      });
       return false;
     }
 
     return new Promise<boolean>((resolve) => {
       this.client!.publish(topic, message, { qos: 1 }, (error) => {
-        resolve(!error);
+        if (error) {
+          console.error('[MQTT][PUBLISH_ERROR]', { topic, error: error.message });
+          resolve(false);
+          return;
+        }
+
+        console.log('[MQTT][PUBLISHED]', { topic, message });
+        resolve(true);
       });
     });
   }
