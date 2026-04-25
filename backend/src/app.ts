@@ -9,6 +9,12 @@ import { initJobs } from './jobs/hourly-summary.js';
 
 export function createApp() {  
   const app = express();
+  const rawBodySaver = (req: express.Request, _res: express.Response, buf: Buffer) => {
+    if (buf?.length) {
+      (req as any).rawBody = buf.toString('utf8');
+    }
+  };
+
   initJobs().catch(err => console.error("Job Initialization Failed:", err));
   // Middleware
   app.use(cors({
@@ -16,9 +22,9 @@ export function createApp() {
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'x-dev-test']
   }));
-  app.use(express.json({ type: ['application/json', 'application/*+json'] }));
-  app.use(express.urlencoded({ extended: true }));
-  app.use(express.text({ type: ['text/plain'] }));
+  app.use(express.json({ type: ['application/json', 'application/*+json'], verify: rawBodySaver }));
+  app.use(express.urlencoded({ extended: true, verify: rawBodySaver }));
+  app.use(express.text({ type: ['text/plain'], verify: rawBodySaver }));
   app.use(morgan('dev'));
 
   // API Routes

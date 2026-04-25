@@ -8,11 +8,69 @@ import { SmtpSettingsService } from '../services/smtp-settings.service.js';
 
 const router = Router();
 
+function parsePrimitive(value: string) {
+  const trimmed = value.trim();
+  if (trimmed === 'null') return null;
+  if (trimmed === 'true') return true;
+  if (trimmed === 'false') return false;
+  if (/^-?\d+$/.test(trimmed)) return Number(trimmed);
+  return trimmed;
+}
+
+function parseMultipartLikeBody(rawBody: string) {
+  const result: Record<string, any> = {};
+  const fieldRegex = /Content-Disposition:[^\n]*name="([^"]+)"[^\n]*\r?\n(?:Content-Type:[^\n]*\r?\n)?\r?\n([\s\S]*?)(?=\r?\n--)/g;
+
+  let match: RegExpExecArray | null = null;
+  while ((match = fieldRegex.exec(rawBody)) !== null) {
+    const key = match[1];
+    const value = parsePrimitive(match[2] || '');
+    result[key] = value;
+  }
+
+  return result;
+}
+
+function parseRawWebhookBody(rawBody: string) {
+  const raw = String(rawBody || '').trim();
+  if (!raw) return {};
+
+  try {
+    return JSON.parse(raw);
+  } catch {
+    // noop
+  }
+
+  if (raw.includes('Content-Disposition:') && raw.includes('name="')) {
+    return parseMultipartLikeBody(raw);
+  }
+
+  try {
+    const params = new URLSearchParams(raw);
+    const parsed: Record<string, any> = {};
+    for (const [key, value] of params.entries()) {
+      parsed[key] = parsePrimitive(value);
+    }
+    return parsed;
+  } catch {
+    return {};
+  }
+}
+
 function resolveWebhookPayload(req: Request) {
+  const rawBody = String((req as any).rawBody || '');
   const body = req.body;
 
   if (body && typeof body === 'object' && Object.keys(body).length > 0) {
-    return body;
+    const keys = Object.keys(body);
+    const isMalformedMultipartKey =
+      keys.length === 1 &&
+      keys[0].includes('Content-Disposition') &&
+      keys[0].includes('boundary');
+
+    if (!isMalformedMultipartKey) {
+      return body;
+    }
   }
 
   if (typeof body === 'string' && body.trim()) {
@@ -23,7 +81,7 @@ function resolveWebhookPayload(req: Request) {
     }
   }
 
-  return {};
+  return parseRawWebhookBody(rawBody);
 }
 
 async function handleWebhookAuth(req: Request, res: Response) {
@@ -52,6 +110,16 @@ router.post('/webhook/bank-transfer', async (req, res) => {
     transferType: payload?.transferType,
     transactionId: payload?.id || payload?.transactionId || payload?.paymentId || null,
     referenceCode: payload?.referenceCode || null,
+  });
+
+  console.log('[WEBHOOK][RAW_BODY]', {
+    requestId,
+    rawBody: String((req as any).rawBody || '').slice(0, 8000),
+  });
+
+  console.log('[WEBHOOK][PAYLOAD_PARSED]', {
+    requestId,
+    payload,
   });
 
   if (isDevTestHeader && !DevModeService.isEnabled()) {
