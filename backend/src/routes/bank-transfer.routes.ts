@@ -63,13 +63,23 @@ function resolveWebhookPayload(req: Request) {
 
   if (body && typeof body === 'object' && Object.keys(body).length > 0) {
     const keys = Object.keys(body);
-    const isMalformedMultipartKey =
+    const singleKey = keys[0] || '';
+    const singleValue = String((body as any)[singleKey] || '');
+    const looksLikeMultipartBlob =
       keys.length === 1 &&
-      keys[0].includes('Content-Disposition') &&
-      keys[0].includes('boundary');
+      (singleKey.includes('Content-Disposition') ||
+        singleKey.startsWith('--------------------------') ||
+        singleValue.includes('Content-Disposition:') ||
+        singleValue.includes('--------------------------'));
 
-    if (!isMalformedMultipartKey) {
+    if (!looksLikeMultipartBlob) {
       return body;
+    }
+
+    // Body parser produced a malformed single-key object; parse from raw payload instead.
+    const parsedFromRaw = parseRawWebhookBody(rawBody || `${singleKey}=${singleValue}`);
+    if (Object.keys(parsedFromRaw).length > 0) {
+      return parsedFromRaw;
     }
   }
 
