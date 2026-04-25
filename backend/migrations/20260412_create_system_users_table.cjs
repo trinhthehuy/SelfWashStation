@@ -10,7 +10,9 @@ exports.up = async function (knex) {
     table.string('username', 64).notNullable().unique();
     table.string('password_hash', 255).notNullable();
     table.string('full_name', 128).notNullable();
-    table.enu('role', ['sa', 'engineer', 'agency']).notNullable();
+    table
+      .enu('role', ['sa', 'engineer', 'agency', 'regional_manager', 'station_supervisor'])
+      .notNullable();
     table.integer('agency_id').unsigned().nullable();
     table.boolean('is_active').notNullable().defaultTo(true);
     table.boolean('must_change_password').notNullable().defaultTo(false);

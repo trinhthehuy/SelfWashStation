@@ -3,6 +3,11 @@
  */
 
 exports.up = async function (knex) {
+  const hasSystemUsers = await knex.schema.hasTable('system_users');
+  if (!hasSystemUsers) {
+    return;
+  }
+
   await knex.raw(`
     ALTER TABLE system_users
     MODIFY COLUMN role ENUM('sa', 'engineer', 'agency', 'regional_manager', 'station_supervisor')
@@ -11,6 +16,11 @@ exports.up = async function (knex) {
 };
 
 exports.down = async function (knex) {
+  const hasSystemUsers = await knex.schema.hasTable('system_users');
+  if (!hasSystemUsers) {
+    return;
+  }
+
   // Remove any users with the new roles before rolling back the enum
   await knex('system_users')
     .whereIn('role', ['regional_manager', 'station_supervisor'])

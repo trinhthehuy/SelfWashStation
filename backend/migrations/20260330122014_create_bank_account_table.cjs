@@ -1,7 +1,9 @@
-exports.up = function(knex) {
+exports.up = async function(knex) {
   // No-op: this migration was created empty
+  return Promise.resolve();
 };
 
-exports.down = function(knex) {
+exports.down = async function(knex) {
   // No-op
+  return Promise.resolve();
 };

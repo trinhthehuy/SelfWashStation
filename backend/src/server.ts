@@ -21,7 +21,8 @@ async function startServer() {
       await db.migrate.latest();
       console.log('✅ Database migrations applied.');
     } catch (migrateErr) {
-      console.warn('⚠️  Migration warning (non-fatal):', migrateErr);
+      console.error('❌ Database migration failed:', migrateErr);
+      throw migrateErr;
     }
     await ensureLocationData();
     // Đảm bảo tạo bảng và seed tài khoản nếu chưa có

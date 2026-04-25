@@ -4,6 +4,17 @@
  */
 
 exports.up = async function (knex) {
+  const hasScopeTable = await knex.schema.hasTable('user_province_scope');
+  if (hasScopeTable) {
+    return;
+  }
+
+  const hasSystemUsers = await knex.schema.hasTable('system_users');
+  const hasProvinces = await knex.schema.hasTable('provinces');
+  if (!hasSystemUsers || !hasProvinces) {
+    return;
+  }
+
   await knex.schema.createTable('user_province_scope', (table) => {
     table.increments('id').primary();
     table

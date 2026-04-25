@@ -1,10 +1,10 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { authStore } from '@/stores/auth'
 
-const login = () => import('@/pages/Login.vue')
+const login = () => import('@/pages/login.vue')
 const forgotPassword = () => import('@/pages/forgot-password.vue')
 const resetPassword = () => import('@/pages/reset-password.vue')
-const dashboard = () => import('@/pages/Dashboard.vue')
+const dashboard = () => import('@/pages/dashboard.vue')
 const agency = () => import('@/pages/agency.vue')
 const station = () => import('@/pages/station.vue')
 const stationDetail = () => import('@/pages/station-detail.vue')
