@@ -7,6 +7,7 @@ import express from 'express';
 import { fileURLToPath } from 'url';
 import { SystemAuthService } from './services/system-auth.service.js';
 import { mqttService } from './services/mqtt.service.js';
+import { ensureLocationData } from './bootstrap/location-bootstrap.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -22,6 +23,7 @@ async function startServer() {
     } catch (migrateErr) {
       console.warn('⚠️  Migration warning (non-fatal):', migrateErr);
     }
+    await ensureLocationData();
     // Đảm bảo tạo bảng và seed tài khoản nếu chưa có
     await SystemAuthService.bootstrapDefaultAccounts();
     await mqttService.initialize();

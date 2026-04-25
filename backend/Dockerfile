@@ -21,6 +21,7 @@ COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/ca.pem ./ca.pem
 COPY --from=builder /app/knexfile.cjs ./knexfile.cjs
 COPY --from=builder /app/migrations ./migrations
+COPY --from=builder /app/wards.json ./wards.json
 
 EXPOSE 3000
 
