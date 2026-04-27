@@ -1,4 +1,5 @@
 import type { NextFunction, Request, Response } from 'express';
+import rateLimit from 'express-rate-limit';
 import config from '../config/index.js';
 
 type AttemptState = {
@@ -207,3 +208,60 @@ export function registerLoginSuccess(req: Request) {
     userLocks.delete(email);
   }
 }
+
+/**
+ * Giới hạn chung cho toàn bộ API (200 requests / phút)
+ */
+export const apiRateLimit = rateLimit({
+  windowMs: 1 * 60 * 1000, 
+  max: 200,
+  message: { message: 'Bạn đã gửi quá nhiều yêu cầu. Vui lòng thử lại sau 1 phút.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+/**
+ * Giới hạn cho các thao tác nhạy cảm (Quên mật khẩu, đổi mật khẩu - 5 requests / 15 phút)
+ */
+export const authActionRateLimit = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 5,
+  message: { message: 'Thao tác quá nhanh. Vui lòng thử lại sau 15 phút.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+/**
+ * Giới hạn cho Webhook nhận tiền (60 requests / phút)
+ */
+export const webhookRateLimit = rateLimit({
+  windowMs: 1 * 60 * 1000,
+  max: 60,
+  message: { error: 'Too many webhook requests' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+/**
+ * Giới hạn số lượng yêu cầu đồng thời từ một IP (Max 30 kết nối)
+ */
+const activeRequestsPerIp = new Map<string, number>();
+export const simultaneousConnectionLimit = (req: Request, res: Response, next: NextFunction) => {
+  const ip = getClientIp(req);
+  const current = activeRequestsPerIp.get(ip) || 0;
+  
+  if (current >= 30) { 
+    return res.status(429).json({ message: 'Quá nhiều kết nối đồng thời từ IP của bạn.' });
+  }
+  
+  activeRequestsPerIp.set(ip, current + 1);
+  
+  res.on('finish', () => {
+    const latest = activeRequestsPerIp.get(ip) || 1;
+    if (latest <= 1) activeRequestsPerIp.delete(ip);
+    else activeRequestsPerIp.set(ip, latest - 1);
+  });
+  
+  next();
+};
+

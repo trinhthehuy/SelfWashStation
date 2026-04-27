@@ -13,8 +13,15 @@
     "dev:selfwash": "concurrently --kill-others-on-fail -n backend,frontend -c cyan,green \"npm --workspace Backend run dev\" \"npm --workspace Frontend run dev -- --port 5173\"",
     "dev:selfwash-backend": "npm --workspace Backend run dev",
     "dev:selfwash-frontend": "npm --workspace Frontend run dev",
-    "build:selfwash-backend": "npm --workspace Backend run build",
-    "build:selfwash-frontend": "npm --workspace Frontend run build",
+    "build:selfwash-backend": "npm run clean:backend && npm --workspace Backend run build",
+    "build:selfwash-frontend": "npm run clean:frontend && npm --workspace Frontend run build",
+    "clean": "node scripts/cleanup.mjs clean",
+    "clean:frontend": "node -e \"require('fs').rmSync('Frontend/dist', {recursive:true,force:true})\"",
+    "clean:backend": "node -e \"require('fs').rmSync('Backend/dist', {recursive:true,force:true}); require('fs').rmSync('Backend/tsconfig.tsbuildinfo', {force:true})\"",
+    "clear-cache": "node scripts/cleanup.mjs clear-cache && npm cache clean --force",
+    "cleanup:maps": "node scripts/cleanup.mjs cleanup-maps",
+    "postbuild": "npm run cleanup:maps",
+    "deep-clean": "node scripts/cleanup.mjs deep-clean",
     "lint:selfwash-backend": "npm --workspace Backend run lint"
   },
   "engines": {

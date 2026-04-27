@@ -80,7 +80,7 @@ export class AgencyService {
       query.limit(limit);
     } else if (keyword && keyword.trim() !== '') {
       // Nếu có search keyword mà không có limit, mặc định limit để tránh trả về quá nhiều
-      query.limit(20);
+      query.limit(1000);
     }
 
     try {

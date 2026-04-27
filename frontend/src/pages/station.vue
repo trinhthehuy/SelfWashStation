@@ -95,7 +95,7 @@
                 </el-select>
               </el-form-item>
 
-              <el-form-item :label="isMobile ? '' : 'Xã'" :class="{ 'no-label': isMobile }">
+              <el-form-item :label="isMobile ? '' : 'Xã/Phường'" :class="{ 'no-label': isMobile }">
                 <el-select
                   v-model="filterForm.ward_id"
                   filterable remote clearable

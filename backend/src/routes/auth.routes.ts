@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { authenticateToken, authorizeRoles, type AuthRequest } from '../middleware/auth.js';
-import { loginRateLimit, registerLoginFailure, registerLoginSuccess } from '../middleware/rate-limit.js';
+import { loginRateLimit, registerLoginFailure, registerLoginSuccess, authActionRateLimit } from '../middleware/rate-limit.js';
 import config from '../config/index.js';
 import { SystemAuthService } from '../services/system-auth.service.js';
 import { ScopeService } from '../services/scope.service.js';
@@ -46,7 +46,7 @@ router.post('/login', loginRateLimit, async (req, res) => {
   }
 });
 
-router.post('/forgot-password', async (req, res) => {
+router.post('/forgot-password', authActionRateLimit, async (req, res) => {
   const email = String(req.body?.email || '').trim();
   if (!email) {
     res.status(400).json({ message: 'Vui lòng nhập email tài khoản' });
@@ -87,7 +87,7 @@ router.get('/reset-password/:token', async (req, res) => {
   res.json({ valid });
 });
 
-router.post('/reset-password', async (req, res) => {
+router.post('/reset-password', authActionRateLimit, async (req, res) => {
   const token = String(req.body?.token || '').trim();
   const newPassword = String(req.body?.newPassword || '');
 

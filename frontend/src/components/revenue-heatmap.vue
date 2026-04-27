@@ -13,7 +13,7 @@
               <rect x="9" y="5" width="2" height="2" rx="1" fill="currentColor"/>
             </svg>
             <span class="heatmap-tooltip-content">
-              Thống kê dữ liệu {{ timeRange }} ngày gần nhất. Theo yêu cầu: Màu càng sẫm/đậm thể hiện doanh thu càng cao.
+              Thống kê dữ liệu {{ timeRange }} ngày gần nhất.
             </span>
           </span>
         </span>

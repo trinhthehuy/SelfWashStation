@@ -1,5 +1,6 @@
 import { Router, type Request, type Response } from 'express';
 import { authenticateToken, authorizeRoles, type AuthRequest } from '../middleware/auth.js';
+import { webhookRateLimit } from '../middleware/rate-limit.js';
 import { ApiTokenService } from '../services/api-token.service.js';
 import { BankTransferService } from '../services/bank-transfer.service.js';
 import { DevModeService } from '../services/dev-mode.service.js';
@@ -105,7 +106,7 @@ async function handleWebhookAuth(req: Request, res: Response) {
   return true;
 }
 
-router.post('/webhook/bank-transfer', async (req, res) => {
+router.post('/webhook/bank-transfer', webhookRateLimit, async (req, res) => {
   const requestId = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
   const payload = resolveWebhookPayload(req);
   const isDevTestHeader = String(req.headers['x-dev-test'] || '').toLowerCase() === 'true';
@@ -174,7 +175,7 @@ router.post('/webhook/bank-transfer', async (req, res) => {
   }
 });
 
-router.post('/webhook/outgoing-payment', async (req, res) => {
+router.post('/webhook/outgoing-payment', webhookRateLimit, async (req, res) => {
   if (!(await handleWebhookAuth(req, res))) {
     return;
   }

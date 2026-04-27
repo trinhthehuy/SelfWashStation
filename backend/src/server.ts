@@ -83,6 +83,11 @@ async function startServer() {
       console.log('---');
     });
 
+    // Security: Limit connection timeouts to prevent Slowloris attacks
+    server.timeout = 60000; // 60s
+    server.keepAliveTimeout = 65000;
+    server.headersTimeout = 66000;
+
     server.on('clientError', (err: any, socket: any) => {
       if (err.code === 'HPE_HEADER_OVERFLOW') {
         console.error('⚠️  Header Overflow detected (431). Increase --max-http-header-size.');

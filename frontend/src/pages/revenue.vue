@@ -6,7 +6,7 @@
           <span class="filter-label">Thống kê</span>
           <el-select v-model="filterForm.level" @change="handleLevelFilter" size="small" class="level-select">
             <el-option label="Theo Tỉnh" value="province" />
-            <el-option label="Theo Xã" value="ward" />
+            <el-option label="Theo Xã/Phường" value="ward" />
             <el-option label="Theo Đại lý" value="agency" />
             <el-option label="Theo Trạm" value="station" />
             <el-option label="Theo Trụ" value="bay" />
@@ -102,7 +102,7 @@
         </div>
 
         <div v-if="!isMobile" class="desktop-filter-field ward-field">
-          <span class="desktop-filter-label">Xã</span>
+          <span class="desktop-filter-label">Xã/Phường</span>
           <el-select
             v-model="filterForm.ward_id"
             :disabled="['province','agency'].includes(filterForm.level)"
@@ -872,7 +872,7 @@ const fetchAgencies = async (keyword = '') => {
     selectLoading.agency = true
     const res = await agencyApi.getAgencies({
       keyword: q,
-      limit: 20
+      limit: 1000
     })
     const data = res.data?.data || res.data || []
     options.agencies = data.map((i) => ({
@@ -913,7 +913,7 @@ const fetchStations = async (provinceId, wardId, agencyId, keyword = '') => {
       ward_id: wardId,
       agency_id: agencyId,
       keyword: q,
-      limit: 20
+      limit: 1000
     })
 
     const data = res.data?.data || []

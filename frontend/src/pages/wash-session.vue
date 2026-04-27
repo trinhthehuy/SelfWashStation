@@ -280,7 +280,7 @@ const remoteFetchStations = (query) => {
 const fetchStations = async (keyword = '') => {
   try {    
     stationsLoading.value = true;
-    const res = await stationApi.getFilterStations({ keyword, limit: 20 });
+    const res = await stationApi.getFilterStations({ keyword, limit: 1000 });
     stationOptions.value = res.data.data || [];
   } catch (error) {
     console.error('Lỗi khi lấy danh sách trạm:', error)

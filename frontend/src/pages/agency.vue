@@ -227,7 +227,7 @@
             </el-form-item>
           </el-col>
           <el-col :span="12">
-            <el-form-item label="Quận/Huyện" required>
+            <el-form-item label="Xã/Phường" required>
               <el-select 
                 v-model="formData.ward_id" 
                 :disabled="!formData.province_id || loadingWards" 

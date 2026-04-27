@@ -29,7 +29,7 @@
           </el-form-item>
         </el-col>
         <el-col :span="12">
-          <el-form-item label="Quận/Huyện" required>
+          <el-form-item label="Xã/Phường" required>
             <el-select 
               v-model="form.ward_id" 
               :loading="loadingWards"
