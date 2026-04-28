@@ -463,8 +463,8 @@ onMounted(fetchData)
   --row-height: 56px;
   height: 100%;
   background: var(--bg-card);
-  padding: 20px 20px 14px;
-  border-radius: 20px;
+  padding: 20px 24px 16px;
+  border-radius: 16px;
   box-shadow: var(--shadow-card);
   display: flex;
   flex-direction: column;
@@ -516,7 +516,7 @@ onMounted(fetchData)
 select {
   padding: 4px 10px;
   padding-right: 28px;
-  border-radius: 20px;
+  border-radius: 8px;
   border: none;
   box-shadow: inset 0 0 0 1px rgba(128, 128, 128, 0.18);
   font-size: 11px;
@@ -548,7 +548,7 @@ select:hover {
   display: flex;
   gap: 3px;
   background: var(--bg-surface);
-  border-radius: 20px;
+  border-radius: 10px;
   padding: 3px;
   transition: background 0.2s ease;
 }
@@ -557,7 +557,7 @@ select:hover {
   padding: 3px 12px;
   border: none;
   background: transparent;
-  border-radius: 20px;
+  border-radius: 8px;
   font-size: 11px;
   font-weight: 600;
   font-family: inherit;
@@ -903,7 +903,7 @@ tbody tr.top-3 .rank-num { color: #34d399; }
 
 @media (max-width: 768px) {
   .card {
-    padding: 14px 12px 10px;
+    padding: 16px 18px 12px;
     border-radius: 14px;
   }
 
@@ -986,7 +986,7 @@ tbody tr.top-3 .rank-num { color: #34d399; }
   overflow-y: auto;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 12px;
   padding: 2px 0;
   scrollbar-width: none;
 }
@@ -995,8 +995,8 @@ tbody tr.top-3 .rank-num { color: #34d399; }
 .top-card {
   display: flex;
   align-items: flex-start;
-  gap: 10px;
-  padding: 12px;
+  gap: 12px;
+  padding: 14px;
   border-radius: 12px;
   background: var(--bg-surface);
   border: 1px solid var(--border-subtle);

@@ -292,7 +292,7 @@ const option = computed(() => {
 .card {
   background: var(--bg-card);
   border-radius: 16px;
-  padding: 16px 18px 10px;
+  padding: 20px 24px 16px;
   display: flex;
   flex-direction: column;
   height: 100%;
@@ -337,7 +337,7 @@ const option = computed(() => {
 .tabs button {
   border: none;
   padding: 4px 12px;
-  border-radius: 7px;
+  border-radius: 8px;
   background: var(--bg-surface);
   cursor: pointer;
   font-size: 11px;
@@ -437,8 +437,8 @@ const option = computed(() => {
 
 @media (max-width: 768px) {
   .card {
-    padding: 12px 12px 8px;
-    border-radius: 12px;
+    padding: 16px 18px 12px;
+    border-radius: 14px;
     height: 260px; /* explicit height so ECharts can measure DOM */
   }
 

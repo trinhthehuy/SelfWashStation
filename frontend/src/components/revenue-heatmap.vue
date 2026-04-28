@@ -275,8 +275,8 @@ const option = computed(()=>({
   height:380px;
   min-width:0;
   background: var(--bg-card);
-  border-radius:12px;
-  padding:20px;
+  border-radius: 16px;
+  padding: 20px 24px 16px;
   box-shadow: var(--shadow-card);
   transition: background 0.2s ease, box-shadow 0.2s ease;
   overflow:hidden;
@@ -324,7 +324,7 @@ const option = computed(()=>({
 .tabs button {
   border: none;
   padding: 4px 12px;
-  border-radius: 7px;
+  border-radius: 8px;
   background: var(--bg-surface);
   cursor: pointer;
   font-size: 11px;
@@ -370,8 +370,8 @@ const option = computed(()=>({
 @media (max-width: 768px) {
   .card {
     height: 320px;
-    padding: 12px 12px 8px;
-    border-radius: 12px;
+    padding: 16px 18px 12px;
+    border-radius: 14px;
   }
   .header {
     flex-direction: column;

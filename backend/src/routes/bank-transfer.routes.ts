@@ -96,14 +96,14 @@ function resolveWebhookPayload(req: Request) {
 }
 
 async function handleWebhookAuth(req: Request, res: Response) {
-  const authorized = await ApiTokenService.authenticateWebhookRequest(req);
+  const tokenData = await ApiTokenService.authenticateWebhookRequest(req);
 
-  if (!authorized) {
+  if (!tokenData) {
     res.status(401).json({ error: 'Token API không hợp lệ hoặc chưa được cấu hình' });
-    return false;
+    return null;
   }
 
-  return true;
+  return tokenData;
 }
 
 router.post('/webhook/bank-transfer', webhookRateLimit, async (req, res) => {
@@ -145,7 +145,8 @@ router.post('/webhook/bank-transfer', webhookRateLimit, async (req, res) => {
     return;
   }
 
-  if (!(await handleWebhookAuth(req, res))) {
+  const tokenData = await handleWebhookAuth(req, res);
+  if (!tokenData) {
     console.warn('[WEBHOOK][REJECTED]', { requestId, reason: 'auth_failed' });
     return;
   }
@@ -154,6 +155,7 @@ router.post('/webhook/bank-transfer', webhookRateLimit, async (req, res) => {
     const result = await BankTransferService.processIncomingTransfer(payload, {
       isTest: isDevTestHeader || payload?.isTest === true,
       requestId,
+      tokenAgencyId: (tokenData as any).agency_id
     });
     console.log('[WEBHOOK][DONE]', {
       requestId,
@@ -201,14 +203,18 @@ router.get('/tokens', authorizeRoles(['sa', 'engineer']), async (_req, res, next
 
 router.post('/tokens/create', authorizeRoles(['sa', 'engineer']), async (req, res) => {
   try {
-    const { name, expiresInDays } = req.body;
+    const { name, expiresInDays, agencyId } = req.body;
 
     if (!name) {
       res.status(400).json({ success: false, error: 'Tên token không được để trống' });
       return;
     }
 
-    const { plainToken, tokenData } = await ApiTokenService.createToken(String(name), Number(expiresInDays) || undefined);
+    const { plainToken, tokenData } = await ApiTokenService.createToken(
+      String(name), 
+      Number(expiresInDays) || undefined,
+      Number(agencyId) || undefined
+    );
     res.json({
       success: true,
       token: plainToken,

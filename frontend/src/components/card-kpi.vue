@@ -232,7 +232,7 @@ function formatMoney(v) {
 .kpi-grid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  gap: 15px;
+  gap: 16px;
 }
 
 @media (max-width: 900px) {
@@ -243,11 +243,11 @@ function formatMoney(v) {
 }
 
 .kpi-card {
-  border-radius: 14px;
-  padding: 18px 20px 14px;
+  border-radius: 16px;
+  padding: 20px 24px 18px;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 10px;
   position: relative;
   color: white;
   min-height: 140px;
@@ -450,13 +450,13 @@ function formatMoney(v) {
 @media (max-width: 768px) {
   .kpi-grid {
     grid-template-columns: repeat(2, 1fr);
-    gap: 10px;
+    gap: 12px;
   }
 
   .kpi-card {
-    padding: 14px 14px 10px;
+    padding: 16px 18px 12px;
     min-height: 120px;
-    border-radius: 12px;
+    border-radius: 14px;
   }
 
   .value {

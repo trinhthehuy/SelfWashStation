@@ -33,15 +33,7 @@ export class AgencyService {
       .select(
         'p.province_name',
         'w.ward_name',
-        'a.*',
-        db.raw(`(
-          SELECT su.avatar 
-          FROM system_users su 
-          WHERE su.agency_id = a.id 
-            AND su.role = 'agency' 
-          ORDER BY su.id ASC 
-          LIMIT 1
-        ) as user_avatar`)
+        'a.*'
       )
       .leftJoin('provinces as p', 'a.province_id', 'p.id')
       .leftJoin('wards as w', 'a.ward_id', 'w.id');
@@ -85,11 +77,7 @@ export class AgencyService {
 
     try {
       const agencies = await query;
-      // Trả về avatar là user_avatar (từ system_users), không dùng agency.avatar nữa
-      return agencies.map(a => ({
-        ...a,
-        avatar: a.user_avatar || null
-      }));
+      return agencies;
     } catch (error) {
       console.error(`[AGENCY SERVICE] ❌ Lỗi DB:`, error);
       throw error;

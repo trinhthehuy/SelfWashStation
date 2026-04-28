@@ -68,6 +68,9 @@ export const authStore = {
   get isAuthenticated() {
     return Boolean(state.token && state.user)
   },
+  get isAdmin() {
+    return state.user?.role === 'sa'
+  },
   setSession(session, options = {}) {
     if (typeof options.rememberMe === 'boolean') {
       state.rememberMe = options.rememberMe

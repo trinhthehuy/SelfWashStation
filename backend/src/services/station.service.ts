@@ -80,7 +80,26 @@ export class StationService {
     const offset = (safePage - 1) * safeLimit;
 
     const baseQuery = this.buildStationListQuery(scope, filters);
-    const countRows = await baseQuery.clone().clearSelect().clearOrder().count({ total: 's.id' });
+
+    // Optimize count query: removing joins for count if they don't affect row count
+    // (Standard left joins to master tables don't change the count of the primary table)
+    const countQuery = db('stations as s');
+    
+    // Apply the same filters to countQuery
+    if (filters.provinceId) countQuery.where('s.province_id', filters.provinceId);
+    if (filters.wardId) countQuery.where('s.ward_id', filters.wardId);
+    if (filters.agencyId) countQuery.where('s.agency_id', filters.agencyId);
+    if (filters.stationId) countQuery.where('s.id', filters.stationId);
+
+    if (scope?.agencyId) {
+      countQuery.where('s.agency_id', scope.agencyId);
+    } else if (scope?.provinceIds?.length) {
+      countQuery.whereIn('s.province_id', scope.provinceIds);
+    } else if (scope?.stationIds?.length) {
+      countQuery.whereIn('s.id', scope.stationIds);
+    }
+
+    const countRows = await countQuery.count({ total: 's.id' });
     const total = Number(countRows[0]?.total ?? 0);
 
     const stations = await baseQuery

@@ -44,14 +44,16 @@ import RevenueHeatmap from "../components/revenue-heatmap.vue"
 
 <style scoped>
 
-.dashboard{
-height:100%;
-display:flex;
-flex-direction:column;
-gap:15px;
-background: var(--bg-body);
-font-family:Inter,system-ui,Arial;
-transition: background 0.2s ease;
+.dashboard {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 16px;
+  background: var(--bg-body);
+  font-family: Inter, system-ui, Arial;
+  transition: background 0.2s ease, padding 0.2s ease;
+  box-sizing: border-box;
 }
 
 /* KPI */
@@ -62,12 +64,12 @@ flex-shrink:0;
 
 /* Main 2-column layout */
 
-.main-grid{
-display:grid;
-grid-template-columns:1.618fr 1fr;
-gap:15px;
-flex:1;
-min-height:0;
+.main-grid {
+  display: grid;
+  grid-template-columns: 1.618fr 1fr;
+  gap: 16px;
+  flex: 1;
+  min-height: 0;
 }
 
 /* Left panel: TopTable full height */
@@ -87,12 +89,12 @@ min-width:0;
 
 /* Right panel: stacked */
 
-.right-panel{
-display:flex;
-flex-direction:column;
-gap:16x;
-min-height:0;
-min-width:0;
+.right-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-height: 0;
+  min-width: 0;
 }
 
 .right-panel > *{
@@ -118,7 +120,8 @@ grid-template-columns:1fr;
 @media (max-width: 768px) {
   .dashboard {
     height: 100%;
-    gap: 10px;
+    gap: 12px;
+    padding: 12px;
     overflow-y: auto;
     overflow-x: hidden;
   }
@@ -133,7 +136,7 @@ grid-template-columns:1fr;
     flex-direction: column;
     flex: none;
     min-height: auto;
-    gap: 10px;
+    gap: 12px;
   }
 
   .left-panel {
@@ -148,7 +151,7 @@ grid-template-columns:1fr;
 
   .right-panel {
     flex: none;
-    gap: 10px;
+    gap: 12px;
   }
 
   /* Right panel children control their own height via component CSS */

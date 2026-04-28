@@ -124,14 +124,21 @@
           <el-card shadow="never" class="api-card">
             <el-empty v-if="!tokens.length && !tokensLoading" description="Chưa có token nào" />
             <el-table v-else :data="tokens" v-loading="tokensLoading" stripe>
-              <el-table-column prop="name" label="Tên token" min-width="180" />
-              <el-table-column prop="token" label="Mã hash" min-width="190" />
-              <el-table-column label="Trạng thái" width="130">
+              <el-table-column prop="name" label="Tên token" min-width="150" />
+              <el-table-column prop="agencyName" label="Đại lý" min-width="140">
                 <template #default="{ row }">
-                  <el-tag :type="row.isActive ? 'success' : 'danger'">{{ row.isActive ? 'Đang hoạt động' : 'Hết hạn' }}</el-tag>
+                  <el-tag :type="row.agencyId ? 'info' : 'warning'" size="small" effect="plain">
+                    {{ row.agencyName }}
+                  </el-tag>
                 </template>
               </el-table-column>
-              <el-table-column label="Sử dụng" width="100" align="right">
+              <el-table-column prop="token" label="Mã hash" min-width="170" />
+              <el-table-column label="Trạng thái" width="110">
+                <template #default="{ row }">
+                  <el-tag :type="row.isActive ? 'success' : 'danger'" size="small">{{ row.isActive ? 'Bật' : 'Hết hạn' }}</el-tag>
+                </template>
+              </el-table-column>
+              <el-table-column label="Sử dụng" width="80" align="right">
                 <template #default="{ row }">{{ row.usageCount || 0 }}</template>
               </el-table-column>
               <el-table-column label="Thao tác" width="100" fixed="right">
@@ -221,6 +228,16 @@
         <el-form-item label="Tên token">
           <el-input v-model="newTokenForm.name" placeholder="Ví dụ: sepay-production" />
         </el-form-item>
+        <el-form-item label="Liên kết đại lý" v-if="authStore.isAdmin">
+          <el-select v-model="newTokenForm.agencyId" placeholder="Chọn đại lý (để trống nếu dùng chung)" clearable filterable class="w-full">
+            <el-option v-for="a in agencies" :key="a.id" :label="a.agency_name" :value="a.id">
+              <div class="agency-option-row">
+                <span class="agency-option-name">{{ a.agency_name }}</span>
+                <span class="agency-option-id">ID: {{ a.identity_number }}</span>
+              </div>
+            </el-option>
+          </el-select>
+        </el-form-item>
         <el-form-item label="Số ngày hiệu lực">
           <el-input v-model="newTokenForm.expiresInDays" type="number" placeholder="30" />
         </el-form-item>
@@ -245,6 +262,8 @@
 import { computed, onMounted, reactive, ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import { systemApi } from '@/api/system'
+import { agencyApi } from '@/api/agency'
+import { authStore } from '@/stores/auth'
 import { confirmPopup } from '@/utils/popup'
 
 // --- State chung ---
@@ -266,7 +285,8 @@ const tokenSubmitting = ref(false)
 const showTokenDialog = ref(false)
 const createdToken = ref('')
 const tokens = ref([])
-const newTokenForm = reactive({ name: '', expiresInDays: '30' })
+const agencies = ref([])
+const newTokenForm = reactive({ name: '', expiresInDays: '30', agencyId: null })
 const endpoints = [
   { method: 'GET', path: '/api/tokens', title: 'Danh sách token', desc: 'Lấy danh sách token API đã tạo.' },
   { method: 'POST', path: '/api/tokens/create', title: 'Tạo token', desc: 'Tạo token mới.' },
@@ -366,7 +386,8 @@ const createToken = async () => {
   try {
     const res = await systemApi.createApiToken({
       name: newTokenForm.name,
-      expiresInDays: Number(newTokenForm.expiresInDays)
+      expiresInDays: Number(newTokenForm.expiresInDays),
+      agencyId: newTokenForm.agencyId
     })
     createdToken.value = res.data.fullToken
     await fetchTokens()
@@ -425,8 +446,16 @@ const copy = async (text) => {
   ElMessage.success('Đã sao chép')
 }
 
+const fetchAgencies = async () => {
+  if (!authStore.isAdmin) return
+  try {
+    const res = await agencyApi.getAgencies({ limit: 1000 })
+    agencies.value = res.data.data || []
+  } catch (err) { console.error('Error fetching agencies:', err) }
+}
+
 onMounted(() => {
-  Promise.all([fetchStatus(), fetchSmtpSettings(), fetchTokens(), fetchHistory()])
+  Promise.all([fetchStatus(), fetchSmtpSettings(), fetchTokens(), fetchHistory(), fetchAgencies()])
 })
 </script>
 
@@ -483,7 +512,7 @@ onMounted(() => {
 
 .tab-content-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; }
 .full-width { grid-column: 1 / -1; }
-.config-card { border-radius: 18px; }
+.config-card { border-radius: 16px; }
 
 .tab-actions-header {
   display: flex;
@@ -497,7 +526,7 @@ onMounted(() => {
 .test-grid { grid-template-columns: 0.9fr 1.1fr; }
 
 .endpoint-list { display: grid; gap: 12px; }
-.endpoint-item { padding: 12px; border-radius: 14px; background: var(--bg-surface); border: 1px solid var(--border); }
+.endpoint-item { padding: 12px; border-radius: 12px; background: var(--bg-surface); border: 1px solid var(--border); }
 .endpoint-head { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
 .endpoint-item h4 { margin: 0 0 4px; font-size: 14px; }
 .endpoint-item p { margin: 0; color: var(--text-muted); font-size: 13px; }
@@ -514,7 +543,7 @@ onMounted(() => {
 
 .result-box { margin-top: 15px; }
 .mqtt-command-box {
-  margin-top: 15px; padding: 12px; border-radius: 10px;
+  margin-top: 15px; padding: 12px; border-radius: 12px;
   background: var(--bg-surface); border: 1px solid var(--border);
 }
 .mqtt-command-title { margin: 0 0 8px; font-weight: 600; color: var(--accent); }
@@ -523,6 +552,27 @@ onMounted(() => {
 
 .created-token-box { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
 .token-alert { margin-top: 10px; }
+
+.agency-option-row {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  height: 100%;
+  line-height: 1.2;
+}
+.agency-option-name {
+  font-size: 14px;
+  font-weight: 500;
+}
+.agency-option-id {
+  font-size: 11px;
+  color: var(--el-text-color-secondary);
+  opacity: 0.8;
+}
+:deep(.el-select-dropdown__item) {
+  height: auto !important;
+  padding: 8px 12px !important;
+}
 
 @media (max-width: 960px) {
   .tab-content-grid, .api-grid, .test-grid { grid-template-columns: 1fr; }

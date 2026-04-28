@@ -24,11 +24,16 @@ export class ApiTokenService {
   }
 
   static async getTokensDisplay() {
-    const tokens = await db('api_tokens').select('*').orderBy('created_at', 'desc');
+    const tokens = await db('api_tokens as t')
+      .select('t.*', 'a.agency_name')
+      .leftJoin('agency as a', 't.agency_id', 'a.id')
+      .orderBy('t.created_at', 'desc');
 
     return tokens.map((token) => ({
       id: token.id,
       name: token.name,
+      agencyId: token.agency_id,
+      agencyName: token.agency_name || 'Global',
       token: maskToken(token.token_hash),
       createdAt: token.created_at,
       expiresAt: token.expires_at || null,
@@ -38,7 +43,7 @@ export class ApiTokenService {
     }));
   }
 
-  static async createToken(name: string, expiresInDays?: number) {
+  static async createToken(name: string, expiresInDays?: number, agencyId?: number) {
     const plainToken = this.generateToken(32);
     const id = Date.now().toString();
     const expiresAt = expiresInDays ? new Date(Date.now() + expiresInDays * 86400000) : null;
@@ -46,7 +51,7 @@ export class ApiTokenService {
     await db('api_tokens').insert({
       id,
       name,
-      token: plainToken,
+      agency_id: agencyId || null,
       token_hash: hashToken(plainToken),
       permissions: null,
       usage_count: 0,
@@ -70,20 +75,20 @@ export class ApiTokenService {
 
   static async validateToken(token: string) {
     if (!token) {
-      return false;
+      return null;
     }
 
     const tokenRow = await db('api_tokens').where('token_hash', hashToken(token)).first();
 
     if (!tokenRow) {
-      return false;
+      return null;
     }
 
     if (tokenRow.expires_at && new Date(tokenRow.expires_at) <= new Date()) {
-      return false;
+      return null;
     }
 
-    return true;
+    return tokenRow;
   }
 
   static async recordTokenUsage(token: string) {
@@ -100,13 +105,13 @@ export class ApiTokenService {
     const hasDevTestHeader = String(req.headers['x-dev-test'] || '').toLowerCase() === 'true';
 
     if (DevModeService.isEnabled() && hasDevTestHeader) {
-      return true;
+      return { isDev: true };
     }
 
     const hasAnyToken = await db('api_tokens').first('id');
 
     if (!hasAnyToken) {
-      return false;
+      return null;
     }
 
     const authHeader = String(req.headers['authorization'] || '').trim();
@@ -138,13 +143,13 @@ export class ApiTokenService {
       hasToken: Boolean(token),
     });
 
-    const isValid = await this.validateToken(token);
-    if (isValid) {
+    const tokenRow = await this.validateToken(token);
+    if (tokenRow) {
       await this.recordTokenUsage(token);
     }
 
-    console.log('[WEBHOOK][AUTH_RESULT]', { isValid });
+    console.log('[WEBHOOK][AUTH_RESULT]', { isValid: Boolean(tokenRow) });
 
-    return isValid;
+    return tokenRow;
   }
 }

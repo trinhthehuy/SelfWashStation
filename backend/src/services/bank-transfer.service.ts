@@ -173,8 +173,9 @@ export class BankTransferService {
     }
   }
 
-  static async processIncomingTransfer(payload: any, options?: { isTest?: boolean; requestId?: string }) {
+  static async processIncomingTransfer(payload: any, options?: { isTest?: boolean; requestId?: string; tokenAgencyId?: number }) {
     const requestId = options?.requestId || `local-${Date.now()}`;
+    const tokenAgencyId = options?.tokenAgencyId;
     const logCtx = (step: string, extra?: Record<string, unknown>) => {
       console.log('[WEBHOOK][FLOW]', { requestId, step, ...(extra || {}) });
     };
@@ -283,6 +284,16 @@ export class BankTransferService {
         success: true,
         ignored: true,
         message: 'Không tìm thấy mã trạm trong nội dung chuyển khoản'
+      };
+    }
+
+    // Security: Nếu Token được gán cho một đại lý cụ thể, trạm được tìm thấy phải thuộc đại lý đó
+    if (tokenAgencyId && matchedStation.agencyId !== tokenAgencyId) {
+      logCtx('ignored_agency_mismatch', { tokenAgencyId, stationAgencyId: matchedStation.agencyId });
+      return {
+        success: true,
+        ignored: true,
+        message: 'Token không có quyền điều khiển trạm của đại lý này'
       };
     }
 
