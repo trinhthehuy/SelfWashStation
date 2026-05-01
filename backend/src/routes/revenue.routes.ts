@@ -16,4 +16,7 @@ router.get('/stats', revenueController.getStats);
 // GET /api/revenue/station-pie  — top 6 trạm doanh thu 30 ngày
 router.get('/station-pie', revenueController.getStationPie);
 
+// GET /api/revenue/export  — xuất báo cáo doanh thu ra file Excel
+router.get('/export', revenueController.exportReport);
+
 export default router;

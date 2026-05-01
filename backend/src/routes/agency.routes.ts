@@ -1,4 +1,4 @@
-//ward.routes.ts
+//agency.routes.ts
 import { Router } from 'express';
 import { authorizeRoles } from '../middleware/auth.js';
 import { AgencyController } from '../controllers/agency.controller.js';

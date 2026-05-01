@@ -123,7 +123,7 @@
         <div class="api-grid">
           <el-card shadow="never" class="api-card">
             <el-empty v-if="!tokens.length && !tokensLoading" description="Chưa có token nào" />
-            <el-table v-else :data="tokens" v-loading="tokensLoading" stripe>
+            <el-table v-else :data="tokens" v-loading="tokensLoading" border stripe>
               <el-table-column prop="name" label="Tên token" min-width="150" />
               <el-table-column prop="agencyName" label="Đại lý" min-width="140">
                 <template #default="{ row }">
@@ -211,7 +211,7 @@
 
           <el-card shadow="never" class="test-card">
             <template #header><span>Lịch sử test gần nhất</span></template>
-            <el-table :data="testTransactions" stripe v-loading="loadingHistory" height="400">
+            <el-table :data="testTransactions" border stripe v-loading="loadingHistory" height="400">
               <el-table-column prop="created_at" label="Thời gian" min-width="150" />
               <el-table-column prop="content" label="Nội dung" min-width="160" />
               <el-table-column prop="amount" label="Số tiền" width="100" align="right" />

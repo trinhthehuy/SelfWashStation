@@ -1,7 +1,7 @@
 <template>
   <div class="header">
     <!-- Mobile hamburger -->
-    <button class="hamburger-btn" @click="layoutStore.toggle()" title="Menu">
+    <button class="hamburger-btn icon-btn" @click="layoutStore.toggle()" title="Menu">
       <Menu :size="20" />
     </button>
 
@@ -74,7 +74,7 @@
       </el-popover>
 
       <!-- Theme toggle -->
-      <button class="icon-btn" @click="themeStore.toggle()" :title="themeStore.isDark ? 'Chuyển sang sáng' : 'Chuyển sang tối'">
+      <button class="icon-btn theme-toggle-btn" @click="themeStore.toggle()" :title="themeStore.isDark ? 'Chuyển sang sáng' : 'Chuyển sang tối'">
         <Sun v-if="themeStore.isDark" :size="17" />
         <Moon v-else :size="17" />
       </button>
@@ -311,31 +311,16 @@ const logout = () => {
   gap: 12px;
 }
 
-/* ── THEME TOGGLE ────────────────────────────────────────── */
-.theme-toggle {
-  width: 36px;
-  height: 36px;
-  border: none;
-  border-radius: 10px;
-  background: var(--bg-surface);
-  color: var(--text-muted);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  transition: background 0.2s, color 0.2s, transform 0.2s, box-shadow 0.2s;
-  flex-shrink: 0;
+/* ── ACTIONS SEPARATOR ───────────────────────────────────── */
+.actions-sep {
+  width: 1px;
+  height: 20px;
+  background: var(--border-subtle);
+  margin: 0 4px;
 }
 
-.theme-toggle:hover {
-  background: var(--bg-hover);
-  color: var(--accent);
-  transform: rotate(15deg);
-}
-
-:global([data-theme="dark"]) .theme-toggle:hover {
-  box-shadow: 0 0 14px rgba(99, 102, 241, 0.5);
-  color: #a5b4fc;
+.theme-toggle-btn:hover {
+  transform: rotate(15deg) translateY(-1px);
 }
 
 /* ── USER ────────────────────────────────────────────────── */
@@ -386,9 +371,9 @@ const logout = () => {
   border-radius: 50%;
 }
 
-.avatar-sa      { background: rgba(99,102,241,0.18); color: #818cf8; }
-.avatar-engineer{ background: rgba(16,185,129,0.18); color: #34d399; }
-.avatar-agency  { background: rgba(245,158,11,0.18);  color: #fbbf24; }
+.avatar-sa      { background: rgba(255, 77, 79, 0.15);  color: #FF4D4F; }
+.avatar-engineer{ background: rgba(46, 204, 113, 0.15); color: #2ECC71; }
+.avatar-agency  { background: rgba(241, 196, 15, 0.15); color: #F1C40F; }
 
 .user-info {
   display: flex;
@@ -415,9 +400,9 @@ const logout = () => {
   transition: color 0.2s ease;
 }
 
-.role-sa       { background: rgba(99,102,241,0.15); color: #818cf8; }
-.role-engineer { background: rgba(16,185,129,0.15); color: #34d399; }
-.role-agency   { background: rgba(245,158,11,0.15);  color: #fbbf24; }
+.role-sa       { background: rgba(255, 77, 79, 0.13);  color: #FF4D4F; }
+.role-engineer { background: rgba(46, 204, 113, 0.13); color: #2ECC71; }
+.role-agency   { background: rgba(241, 196, 15, 0.13); color: #F1C40F; }
 
 /* ── NOTIFICATION POPOVER ──────────────────────────────────── */
 .notif-panel {
@@ -505,26 +490,8 @@ const logout = () => {
   text-align: center;
 }
 
-/* ── HAMBURGER (mobile only) ────────────────────────────── */
 .hamburger-btn {
   display: none;
-  align-items: center;
-  justify-content: center;
-  width: 36px;
-  height: 36px;
-  border: none;
-  border-radius: 8px;
-  background: transparent;
-  color: var(--text-muted);
-  cursor: pointer;
-  flex-shrink: 0;
-  transition: background 0.15s, color 0.15s;
-  -webkit-tap-highlight-color: transparent;
-}
-
-.hamburger-btn:hover {
-  background: var(--bg-hover);
-  color: var(--accent);
 }
 
 @media (max-width: 768px) {

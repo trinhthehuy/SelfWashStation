@@ -98,7 +98,6 @@
           height="100%"
           border
           stripe
-          :header-cell-style="{ background: '#f5f7fa', color: '#606266' }"
         >
           <el-table-column prop="id" label="ID" width="70" align="right" header-align="right" />
           
@@ -601,24 +600,9 @@ onMounted(async () => {
 </script>
 
 <style scoped>
-.page-container {
-  padding: 12px 16px;
-  background: var(--bg-body);
-  height: 100%;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  color: var(--text-main);
-  transition: background 0.2s ease;
-  overflow: hidden;
-  box-sizing: border-box;
-}
 
-.header-card {
-  border-radius: 8px;
-  flex-shrink: 0;
-}
-:deep(.header-card .el-card__body) { padding: 10px 16px; }
+
+
 
 .header-content {
   display: flex;
@@ -659,10 +643,6 @@ onMounted(async () => {
 }
 
 .filter-item {
-  width: 100%;
-}
-
-.clear-filter-btn {
   width: 100%;
 }
 
@@ -714,68 +694,18 @@ onMounted(async () => {
   justify-content: flex-start;
 }
 
-/* Mobile card list */
-.mobile-card-list {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  padding: 2px 0;
-}
-.mobile-card {
-  background: var(--bg-card, #fff);
-  border: 1px solid var(--border-subtle, #e4e7ed);
-  border-radius: 8px;
-  padding: 12px;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-}
-.mc-header {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 8px;
-  margin-bottom: 8px;
-}
-.mc-title {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  min-width: 0;
-}
-.mc-name {
-  font-weight: 600;
-  font-size: 14px;
-  color: var(--el-color-primary);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.mc-sub {
-  font-size: 11px;
-  color: var(--text-faint, #909399);
-}
-.mc-strategy {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
-  margin-bottom: 4px;
-}
-.mc-empty {
-  text-align: center;
-  color: #909399;
-  padding: 32px 0;
-  font-size: 14px;
-}
+
 
 .table-card {
   flex: 1;
   min-height: 0;
   display: flex;
   flex-direction: column;
-  background-color: var(--el-bg-color-overlay);
-  border: 1px solid var(--el-border-color-light);
+  background-color: var(--bg-card);
+  border: 1px solid var(--border);
   border-radius: 8px;
   padding: 12px;
-  box-shadow: 0 1px 4px rgba(0,0,0,0.05);
+  box-shadow: var(--shadow-card);
 }
 
 .table-card.is-mobile-card {
@@ -786,25 +716,7 @@ onMounted(async () => {
   overflow: visible;
 }
 
-.table-main {
-  flex: 1;
-  min-height: 0;
-  display: flex;
-  flex-direction: column;
-}
-.pagination-footer {
-  margin-top: 8px;
-  display: flex;
-  justify-content: flex-end;
-  flex-shrink: 0;
-}
-.mobile-card-list {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  overflow-y: auto;
-}
+
 
 @media (max-width: 768px) {
   .page-container {
@@ -826,20 +738,7 @@ onMounted(async () => {
     align-items: center;
   }
 
-  .filter-toggle-btn {
-    flex-shrink: 0;
-    height: 32px;
-  }
 
-  .filter-count-mini {
-    background: var(--el-color-primary);
-    color: #fff;
-    padding: 0 5px;
-    border-radius: 6px;
-    font-size: 10px;
-    margin-left: 4px;
-    line-height: 1.4;
-  }
 
   .is-mobile-filters {
     display: grid !important;
@@ -854,17 +753,5 @@ onMounted(async () => {
   }
 }
 
-/* Transitions for expand */
-.expand-enter-active,
-.expand-leave-active {
-  transition: all 0.3s ease-in-out;
-  overflow: hidden;
-  max-height: 200px;
-}
 
-.expand-enter-from,
-.expand-leave-to {
-  max-height: 0;
-  opacity: 0;
-}
-</style>
+</style>

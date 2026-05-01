@@ -1,5 +1,5 @@
 <template>
-  <div class="accounts-page">
+  <div class="page-container">
     <el-card shadow="never" class="settings-hero">
       <div class="header-content">
         <h2 class="page-title">Tài khoản hệ thống</h2>
@@ -31,6 +31,7 @@
         v-if="!isMobile"
         ref="tableRef"
         :data="filteredUsers" 
+        border
         stripe 
         v-loading="loading"
         height="100%"
@@ -535,21 +536,9 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
-.accounts-page {
-  --report-border: rgba(144, 169, 204, 0.24);
-  --report-card-radius: 10px;
-  padding: 12px 14px;
-  background-color: var(--bg-body);
-  height: 100%;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  box-sizing: border-box;
-  overflow: hidden;
-}
+
 .settings-hero { 
-  border-radius: var(--report-card-radius); 
-  border: 1px solid var(--report-border);
+  border-radius: 8px; 
 }
 :deep(.settings-hero .el-card__body) { padding: 8px 16px; }
 .page-title { margin: 0; font-size: 18px; font-weight: 600; color: var(--el-text-color-primary); }
@@ -560,8 +549,7 @@ onUnmounted(() => {
   min-height: 0; 
   display: flex; 
   flex-direction: column; 
-  border-radius: var(--report-card-radius);
-  border: 1px solid var(--report-border);
+  border-radius: 8px;
 }
 :deep(.user-list-card .el-card__body) { 
   flex: 1; 
@@ -576,8 +564,7 @@ onUnmounted(() => {
 .pagination-wrap { margin-top: 8px; display: flex; justify-content: flex-end; flex-shrink: 0; }
 
 .pwd-card { 
-  border-radius: var(--report-card-radius); 
-  border: 1px solid var(--report-border);
+  border-radius: 8px; 
   flex-shrink: 0; 
 }
 :deep(.pwd-card .el-card__header) { padding: 8px 16px; }
@@ -585,67 +572,10 @@ onUnmounted(() => {
 .pwd-form-inline .el-form-item { margin-bottom: 0; }
 
 /* Mobile styles */
-.mobile-user-list {
-  flex: 1;
-  overflow-y: auto;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  padding: 4px;
-}
-.mobile-user-card {
-  background: var(--bg-card);
-  border: 1px solid var(--report-border);
-  border-radius: var(--report-card-radius);
-  padding: 12px;
-  transition: border-color 0.2s;
-}
-.mobile-user-card:active {
-  border-color: var(--el-color-primary);
-}
-.m-card-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  margin-bottom: 10px;
-  padding-bottom: 8px;
-  border-bottom: 1px dashed var(--el-border-color-lighter);
-}
-.m-card-title {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-.m-card-title strong {
-  font-size: 15px;
-  color: var(--el-text-color-primary);
-}
-.m-card-actions {
-  display: flex;
-  gap: 4px;
-}
-.m-info-row {
-  display: flex;
-  justify-content: space-between;
-  margin-bottom: 6px;
-  font-size: 13px;
-}
-.m-label {
-  color: var(--el-text-color-secondary);
-}
-.m-val {
-  color: var(--el-text-color-primary);
-  font-weight: 500;
-  text-align: right;
-}
 
-@media (max-width: 768px) {
-  .accounts-page {
+
+  .page-container {
     padding: 10px;
-    height: auto;
-    min-height: 100%;
-    overflow: auto;
-    display: block;
   }
   .settings-hero { margin-bottom: 10px; }
   .user-list-card { 

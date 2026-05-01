@@ -1,5 +1,5 @@
 <template>
-  <div class="page">
+  <div class="page-container">
 
     <div class="page-header" :class="{ 'is-mobile': isMobile }">
       <div class="header-title">
@@ -714,17 +714,7 @@ const handleDelete = async () => {
   font-size: 12px;
 }
 
-.page {
-  padding: 16px 24px;
-  background: var(--bg-body);
-  height: 100%;
-  display: flex;
-  flex-direction: column;
-  color: var(--text-main);
-  transition: background 0.2s ease;
-  overflow: hidden;
-  box-sizing: border-box;
-}
+
 
 .page-header {
   display: flex;
@@ -957,11 +947,6 @@ const handleDelete = async () => {
   width: 100%;
 }
 
-.right-buttons {
-  display: flex;
-  gap: 12px;
-}
-
 .w-full {
   width: 100%;
 }
@@ -994,154 +979,7 @@ const handleDelete = async () => {
     gap: 10px;
   }
 
-  .mobile-card-list {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-    overflow-y: auto;
-  }
 
-  .mobile-card {
-    background: var(--bg-card, #fff);
-    border-radius: 8px;
-    padding: 10px 12px;
-    border: 1px solid var(--border-subtle, #eee);
-    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-    transition: all 0.2s ease;
-  }
-
-  .mobile-card:active {
-    transform: scale(0.98);
-    border-color: var(--el-color-primary);
-  }
-
-  .mc-header {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    margin-bottom: 8px;
-  }
-
-  .mc-avatar {
-    border: 1px solid var(--border-subtle);
-  }
-
-  .mc-title {
-    display: flex;
-    flex-direction: column;
-    flex: 1;
-    min-width: 0;
-  }
-
-  .mc-name {
-    font-weight: 600;
-    font-size: 14px;
-    color: var(--el-color-primary);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-
-  .mc-sub {
-    font-size: 11px;
-    color: var(--text-faint);
-  }
-
-  .mc-right-meta {
-    display: flex;
-    align-items: center;
-  }
-
-  .mc-expand-icon {
-    transition: transform 0.3s ease;
-    color: var(--text-placeholder);
-    font-size: 16px;
-  }
-
-  .mc-expand-icon.is-active {
-    transform: rotate(180deg);
-    color: var(--el-color-primary);
-  }
-
-  .mc-brief {
-    display: flex;
-    gap: 12px;
-    margin-bottom: 4px;
-  }
-
-  .mc-brief-item {
-    font-size: 11px;
-    color: var(--text-muted);
-    display: flex;
-    align-items: center;
-    gap: 4px;
-  }
-
-  .mc-detail {
-    padding: 8px 0;
-    border-top: 1px dashed var(--el-border-color-lighter);
-    margin-top: 6px;
-  }
-
-  .mc-detail-row {
-    display: flex;
-    justify-content: space-between;
-    gap: 12px;
-    font-size: 11px;
-    line-height: 1.8;
-  }
-
-  .mc-detail-row span:first-child {
-    color: var(--text-faint);
-    flex-shrink: 0;
-  }
-
-  .mc-detail-row span:last-child {
-    color: var(--text-main);
-    font-weight: 500;
-    text-align: right;
-  }
-
-  .mc-actions {
-    display: flex;
-    gap: 8px;
-    border-top: 1px solid var(--el-border-color-lighter);
-    padding-top: 8px;
-    margin-top: 6px;
-  }
-
-  .mc-actions :deep(.el-button) {
-    flex: 1;
-    height: 28px;
-    font-size: 11px;
-  }
-
-  .grid-wrapper.is-mobile {
-    gap: 2px;
-  }
-
-  .mobile-pagination {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    margin-top: 0;
-    margin-bottom: 2px;
-  }
-
-  /* Transition for expand */
-  .expand-enter-active,
-  .expand-leave-active {
-    transition: all 0.3s ease-in-out;
-    overflow: hidden;
-    max-height: 200px;
-  }
-
-  .expand-enter-from,
-  .expand-leave-to {
-    max-height: 0;
-    opacity: 0;
-  }
 }
 
 @media (max-width: 900px) and (orientation: landscape) {

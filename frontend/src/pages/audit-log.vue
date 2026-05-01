@@ -83,6 +83,7 @@
           ref="tableRef"
           v-loading="loading"
           :data="logs"
+          border
           stripe
           style="width: 100%"
           height="100%"
@@ -378,25 +379,12 @@ const entityTypeLabel = (type) => ENTITY_LABELS[type] || type
 </script>
 
 <style scoped>
-.page-container {
-  --report-border: rgba(144, 169, 204, 0.24);
-  --report-card-radius: 10px;
-  padding: 12px 14px;
-  background-color: var(--bg-body);
-  height: 100%;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  overflow: hidden;
-  box-sizing: border-box;
-}
+
 
 .header-card {
-  border: 1px solid var(--report-border);
-  border-radius: var(--report-card-radius);
+  border-radius: 8px;
   flex-shrink: 0;
 }
-:deep(.header-card .el-card__body) { padding: 8px 16px; }
 
 .section-kicker {
   font-size: 12px;
@@ -426,15 +414,12 @@ const entityTypeLabel = (type) => ENTITY_LABELS[type] || type
 }
 
 .filter-card {
-  border: 1px solid var(--report-border);
-  border-radius: var(--report-card-radius);
+  border-radius: 8px;
   flex-shrink: 0;
 }
-:deep(.filter-card .el-card__body) { padding: 10px 16px; }
 
 .table-card {
-  border: 1px solid var(--report-border);
-  border-radius: var(--report-card-radius);
+  border-radius: 8px;
   flex: 1;
   min-height: 0;
   display: flex;
@@ -479,10 +464,6 @@ const entityTypeLabel = (type) => ENTITY_LABELS[type] || type
 
 .filter-select {
   flex: 1;
-}
-
-.reset-btn {
-  flex-shrink: 0;
 }
 
 .w-full {
@@ -540,33 +521,7 @@ const entityTypeLabel = (type) => ENTITY_LABELS[type] || type
   flex-shrink: 0;
 }
 
-/* ── Mobile card list ────────────────────────────── */
-.mobile-card-list { 
-  flex: 1; 
-  display: flex; 
-  flex-direction: column; 
-  gap: 10px; 
-  overflow-y: auto; 
-}
-.mobile-card {
-  background: var(--bg-card);
-  border-radius: var(--report-card-radius);
-  padding: 10px 12px;
-  border: 1px solid var(--report-border);
-  transition: border-color 0.2s;
-}
-.mobile-card:active {
-  border-color: var(--el-color-primary);
-}
-.mc-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; margin-bottom: 6px; }
-.mc-title { display: flex; flex-direction: column; gap: 2px; flex: 1; overflow: hidden; }
-.mc-name { font-size: 13px; font-weight: 600; color: var(--el-text-color-primary); }
-.mc-sub { font-size: 11px; color: var(--el-text-color-secondary); }
-.mc-entity { font-size: 12px; color: var(--el-text-color-secondary); margin-bottom: 4px; }
-.mc-details { font-size: 11px; color: var(--el-text-color-placeholder); word-break: break-word; margin-bottom: 4px; }
-.mc-ip { font-size: 11px; color: var(--el-text-color-placeholder); }
-.mcs-label { font-weight: 500; }
-.mc-empty { text-align: center; padding: 40px 0; color: var(--el-text-color-placeholder); font-size: 14px; }
+
 
 @media (max-width: 768px) {
   .page-container { padding: 8px 4px; gap: 8px; }
@@ -595,19 +550,6 @@ const entityTypeLabel = (type) => ENTITY_LABELS[type] || type
     width: 100% !important;
     max-width: 100% !important;
     min-width: 0 !important;
-  }
-  .reset-btn {
-    width: auto;
-    padding: 0 8px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-  .reset-btn :deep(span) {
-    display: none;
-  }
-  .reset-btn :deep(i) {
-    margin: 0 !important;
   }
   .pagination-wrap { justify-content: center; }
 }

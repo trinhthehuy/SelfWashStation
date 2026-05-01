@@ -503,14 +503,12 @@ onMounted(async () => {
 }
 
 .right-buttons {
-  display: flex;
-  gap: 8px;
   margin-left: auto;
 }
 
 /* Premium Inputs */
 :deep(.el-input__wrapper), :deep(.el-select__wrapper) {
-  box-shadow: 0 0 0 1px #e4e7ed inset;
+  box-shadow: 0 0 0 1px var(--el-border-color) inset;
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
   border-radius: 8px;
   padding: 4px 12px !important;
@@ -533,7 +531,7 @@ onMounted(async () => {
 }
 
 :deep(.el-input.is-disabled .el-input__wrapper) {
-  background-color: #f5f7fa;
+  background-color: var(--el-fill-color-light);
 }
 /* Giảm khoảng cách chỉ cho prefix */
 .prefix-form-item {

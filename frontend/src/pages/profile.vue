@@ -332,9 +332,9 @@ const userInitials = computed(() => {
 }
 
 
-.ring-sa       { background: rgba(99,102,241,0.15); color: #818cf8; border-color: rgba(99,102,241,0.4); }
-.ring-engineer { background: rgba(16,185,129,0.15); color: #34d399; border-color: rgba(16,185,129,0.4); }
-.ring-agency   { background: rgba(245,158,11,0.15);  color: #fbbf24; border-color: rgba(245,158,11,0.4); }
+.ring-sa       { background: rgba(255, 77, 79, 0.13);  color: #FF4D4F; border-color: rgba(255, 77, 79, 0.35); }
+.ring-engineer { background: rgba(46, 204, 113, 0.13); color: #2ECC71; border-color: rgba(46, 204, 113, 0.35); }
+.ring-agency   { background: rgba(241, 196, 15, 0.13); color: #F1C40F; border-color: rgba(241, 196, 15, 0.35); }
 
 .avatar-img {
   width: 100%;
@@ -370,16 +370,16 @@ const userInitials = computed(() => {
   width: 24px;
   height: 24px;
   border-radius: 50%;
-  background: #f56c6c;
+  background: var(--color-danger);
   color: #fff;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  border: 2px solid #fff;
+  border: 2px solid var(--bg-card);
   padding: 0;
   z-index: 2;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  box-shadow: var(--shadow-card);
   transition: transform 0.2s;
 }
 .avatar-cancel-btn:hover { transform: scale(1.1); }
@@ -426,10 +426,9 @@ const userInitials = computed(() => {
   }
 }
 
-.role-sa       { background: rgba(99,102,241,0.15); color: #818cf8; }
-
-.role-engineer { background: rgba(16,185,129,0.15); color: #34d399; }
-.role-agency   { background: rgba(245,158,11,0.15);  color: #fbbf24; }
+.role-sa       { background: rgba(255, 77, 79, 0.13);  color: #FF4D4F; }
+.role-engineer { background: rgba(46, 204, 113, 0.13); color: #2ECC71; }
+.role-agency   { background: rgba(241, 196, 15, 0.13); color: #F1C40F; }
 
 /* ── Section cards ───────────────────────────────────────── */
 .section-card { background: var(--bg-card); }

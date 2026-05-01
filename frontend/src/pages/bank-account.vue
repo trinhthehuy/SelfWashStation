@@ -112,7 +112,6 @@
           height="100%"
           border
           stripe
-          :header-cell-style="{ background: '#f5f7fa', color: '#606266' }"
         >
           <el-table-column prop="id" label="ID" width="70" align="right" header-align="right" />
   
@@ -983,10 +982,6 @@ onMounted(async () => {
   width: 100%;
 }
 
-.clear-filter-btn {
-  width: 100%;
-}
-
 .agency-dual {
   display: flex;
   flex-direction: column;
@@ -1004,7 +999,7 @@ onMounted(async () => {
 
 .agency-cell .primary-text {
   font-weight: 600;
-  color: #409eff;
+  color: var(--color-info);
 }
 
 .bank-details .account-number {
@@ -1037,7 +1032,7 @@ onMounted(async () => {
 }
 
 .required-marker {
-  color: #ef4444;
+  color: var(--color-danger);
 }
 
 .qr-inline-fields {
@@ -1126,11 +1121,6 @@ onMounted(async () => {
     margin-bottom: 0;
   }
 
-  .filter-toggle-btn {
-    flex-shrink: 0;
-    height: 32px;
-  }
-
   .filter-count-mini {
     background: var(--el-color-primary);
     color: #fff;
@@ -1155,7 +1145,7 @@ onMounted(async () => {
     border-radius: 8px;
     padding: 10px 12px;
     border: 1px solid var(--border-subtle, #eee);
-    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    box-shadow: var(--shadow-card-hover);
     transition: all 0.2s ease;
   }
 
@@ -1304,11 +1294,11 @@ onMounted(async () => {
   min-height: 0;
   display: flex;
   flex-direction: column;
-  background-color: var(--el-bg-color-overlay);
-  border: 1px solid var(--el-border-color-light);
+  background-color: var(--bg-card);
+  border: 1px solid var(--border);
   border-radius: 8px;
   padding: 12px;
-  box-shadow: 0 1px 4px rgba(0,0,0,0.05);
+  box-shadow: var(--shadow-card);
 }
 
 .table-card.is-mobile-card {

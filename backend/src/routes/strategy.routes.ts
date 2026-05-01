@@ -1,6 +1,5 @@
 //strategy.routes.ts
 import { Router } from 'express';
-import { authenticateToken } from '../middleware/auth.js';
 import { StrategyController } from '../controllers/strategy.controller.js';
 
 const router = Router();

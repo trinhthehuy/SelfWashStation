@@ -1,6 +1,5 @@
 //bay.routes.ts
 import { Router } from 'express';
-import { authenticateToken } from '../middleware/auth.js';
 import { BayController } from '../controllers/bay.controller.js';
 
 const router = Router();

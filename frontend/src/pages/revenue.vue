@@ -1,5 +1,5 @@
 <template>
-  <div class="revenue-report-container">
+  <div class="page-container">
     <el-card shadow="never" class="filter-card">
       <div class="filter-row top-filter-row">
         <div class="filter-item level-filter-item">
@@ -60,6 +60,17 @@
               />
             </div>
           </transition>
+
+          <el-button 
+            type="success" 
+            size="small" 
+            :icon="Download" 
+            :loading="exportLoading"
+            @click="handleExport"
+            class="export-btn"
+          >
+            {{ isMobile ? '' : 'Xuất Excel' }}
+          </el-button>
         </div>
       </div>
 
@@ -309,6 +320,7 @@
         v-if="!isMobile"
         ref="tableRef"
         :data="tableData"
+        border
         stripe
         style="width: 100%; margin-top: 16px"
         height="100%"
@@ -458,7 +470,7 @@
 
 <script setup>
 import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
-import { ArrowDown, Filter, Search, Calendar } from '@element-plus/icons-vue'
+import { ArrowDown, Filter, Search, Calendar, Download } from '@element-plus/icons-vue'
 import { revenueApi } from '@/api/revenue'
 import { ElMessage } from 'element-plus'
 import { wardApi } from '@/api/ward'
@@ -475,6 +487,7 @@ const currentPage = ref(1)
 const pageSize = ref(20)
 const tableData = ref([])
 const loading = ref(false)
+const exportLoading = ref(false)
 const tableRef = ref(null)
 const expandedCard = ref(null)
 const displayMode = ref('compact')
@@ -1051,6 +1064,43 @@ const handleCurrentChange = (val) => {
   fetchData()
 }
 
+const handleExport = async () => {
+  try {
+    exportLoading.value = true
+    const params = {
+      level: filterForm.level,
+      time_unit: filterForm.timeType,
+      start_date: filterForm.dateRange?.[0] || null,
+      end_date: filterForm.dateRange?.[1] || null,
+      province_id: filterForm.province_id,
+      ward_id: filterForm.ward_id,
+      agency_id: filterForm.agency_id,
+      station_id: filterForm.station_id,
+      bay_code: filterForm.bay_code
+    }
+    
+    const response = await revenueApi.exportRevenueExcel(params)
+    
+    const url = window.URL.createObjectURL(new Blob([response.data]))
+    const link = document.createElement('a')
+    link.href = url
+    const filename = `bao_cao_doanh_thu_${filterForm.level}_${new Date().toISOString().slice(0, 10)}.xlsx`
+    link.setAttribute('download', filename)
+    document.body.appendChild(link)
+    link.click()
+    
+    document.body.removeChild(link)
+    window.URL.revokeObjectURL(url)
+    
+    ElMessage.success('Xuất báo cáo thành công')
+  } catch (error) {
+    console.error('Lỗi xuất báo cáo:', error)
+    ElMessage.error('Không thể xuất báo cáo')
+  } finally {
+    exportLoading.value = false
+  }
+}
+
 const indexMethod = (index) => {
   return (currentPage.value - 1) * pageSize.value + index + 1
 }
@@ -1095,22 +1145,23 @@ onMounted(async () => {
 
 <style scoped>
 .revenue-report-container {
-  --report-text-main: #e7eefb;
-  --report-text-sub: #9eb1cc;
-  --report-text-dim: #7f93b1;
-  --report-accent: #53a8ff;
-  --report-success: #67c98c;
-  --report-border: rgba(144, 169, 204, 0.24);
-  --report-soft-bg: rgba(18, 39, 74, 0.35);
+  /* Local design tokens — map to globals for theme consistency */
+  --report-text-main: var(--text-main);
+  --report-text-sub:  var(--text-muted);
+  --report-text-dim:  var(--text-faint);
+  --report-accent:    #53a8ff;
+  --report-success:   var(--color-success);
+  --report-border:    var(--border-subtle);
+  --report-soft-bg:   var(--bg-surface);
   --report-card-radius: 10px;
   padding: 12px 14px;
   background: var(--bg-body);
   min-height: 100%;
-  color: var(--report-text-main);
+  color: var(--text-main);
   transition: background 0.2s ease;
 }
-.text-success { color: var(--report-success); font-weight: 700; }
-.text-danger  { color: #f0828f; font-weight: 700; }
+.text-success { color: var(--color-success); font-weight: 700; }
+.text-danger  { color: var(--color-danger);  font-weight: 700; }
 .pagination-container { display: flex; justify-content: flex-end; }
 
 /* ── Filter card ─────────────────────────────────── */
@@ -1448,35 +1499,7 @@ onMounted(async () => {
   overflow: hidden;
 }
 
-:deep(.el-table th.el-table__cell),
-:deep(.el-table td.el-table__cell) {
-  padding: 10px 12px;
-}
 
-:deep(.el-table th.el-table__cell) {
-  color: var(--report-text-main);
-  font-weight: 600;
-}
-
-:deep(.el-table th.el-table__cell .cell) {
-  white-space: nowrap;
-}
-
-:deep(.el-table .el-table__fixed th.el-table__cell:first-child .cell),
-:deep(.el-table th.el-table__cell:first-child .cell),
-:deep(.el-table td.el-table__cell:first-child .cell) {
-  padding-left: 4px;
-  padding-right: 4px;
-}
-
-:deep(.el-table td.el-table__cell) {
-  color: var(--report-text-main);
-}
-
-:deep(.el-table__footer-wrapper td.el-table__cell) {
-  color: var(--report-text-sub);
-  font-weight: 600;
-}
 
 :deep(.el-radio-button__inner) {
   padding: 5px 10px !important;
@@ -1490,7 +1513,7 @@ onMounted(async () => {
 
 .revenue-secondary {
   font-weight: 600;
-  color: #79bcff;
+  color: var(--report-accent);
 }
 
 .money-unit {
@@ -1514,217 +1537,10 @@ onMounted(async () => {
 }
 
 
-/* ── Mobile card list ────────────────────────────── */
-.mobile-card-list {
-  margin-top: 8px;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
 
-.mobile-card {
-  background: var(--bg-card);
-  border-radius: var(--report-card-radius);
-  padding: 8px 10px;
-  cursor: pointer;
-  border: 1px solid var(--report-border);
-  transition: border-color 0.2s;
-}
-.mobile-card:active { border-color: var(--report-accent); }
-.mobile-card:focus-visible {
-  outline: 2px solid var(--report-accent);
-  outline-offset: 2px;
-}
-
-.mc-top-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 8px;
-  margin-bottom: 2px;
-}
-.mc-right-meta {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
-.mc-expand-icon {
-  font-size: 14px;
-  color: var(--report-text-sub);
-  transition: transform 0.3s ease;
-}
-.mc-expand-icon.is-active {
-  transform: rotate(180deg);
-}
-.mc-header {
-  display: flex;
-  align-items: flex-start;
-  gap: 4px;
-  flex: 1;
-  min-width: 0;
-}
-.mc-stt {
-  font-size: 11px;
-  color: var(--report-text-sub);
-  min-width: 18px;
-  padding-top: 2px;
-}
-.mc-title {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  overflow: hidden;
-}
-.mc-name {
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--report-text-main);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.mc-sub {
-  font-size: 10px;
-  color: var(--report-text-sub);
-  opacity: 0.8;
-}
-.mc-bottom-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 8px;
-}
-.mc-time {
-  font-size: 11px;
-  color: var(--report-text-sub);
-  white-space: nowrap;
-}
-
-.mc-revenue {
-  font-size: 15px;
-  font-weight: 700;
-  color: var(--report-accent);
-  white-space: nowrap;
-}
-
-.mc-stats {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-  flex: 1;
-}
-.mc-stat {
-  display: flex;
-  flex-direction: row;
-  align-items: center;
-  gap: 2px;
-}
-.mcs-label {
-  font-size: 10px;
-  color: var(--report-text-sub);
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
-}
-.mcs-val {
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--report-text-main);
-}
-.mcs-val.money { color: var(--report-success); }
-
-.mc-detail {
-  border-top: 1px solid var(--report-border);
-  margin-top: 6px;
-  padding-top: 8px;
-  display: flex;
-  flex-direction: column;
-  gap: 5px;
-}
-.mc-detail-row {
-  display: flex;
-  justify-content: space-between;
-  font-size: 12px;
-  color: var(--report-text-main);
-}
-.mc-detail-row span:first-child { color: var(--report-text-sub); }
-.mc-detail-row span:last-child { text-align: right; margin-left: 12px; }
-
-.mc-expand-hint {
-  text-align: center;
-  font-size: 10px;
-  color: var(--report-text-dim);
-  margin-top: 6px;
-  letter-spacing: 0.05em;
-}
-
-/* Expand animation */
-.expand-enter-active, .expand-leave-active {
-  transition: opacity 0.2s, max-height 0.25s ease;
-  overflow: hidden;
-  max-height: 300px;
-}
-.expand-enter-from, .expand-leave-to {
-  opacity: 0;
-  max-height: 0;
-}
-
-.mc-empty {
-  text-align: center;
-  padding: 40px 0;
-  color: var(--report-text-sub);
-  font-size: 14px;
-}
-.revenue-report-container {
-  padding: 12px 16px;
-  background-color: var(--el-bg-color-page);
-  height: 100%;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  overflow: hidden;
-  box-sizing: border-box;
-}
-
-.filter-card {
-  border-radius: 8px;
-  flex-shrink: 0;
-}
-:deep(.filter-card .el-card__body) { padding: 10px 16px; }
-
-
-.display-mode-switch {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin-top: 5px;
-  flex-shrink: 0;
-}
-
-.pagination-container {
-  margin-top: 10px;
-  display: flex;
-  justify-content: flex-end;
-  flex-shrink: 0;
-}
-
-.table-main {
-  flex: 1;
-  min-height: 0;
-  display: flex;
-  flex-direction: column;
-}
-
-.mobile-card-list {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  overflow-y: auto;
-}
 
 @media (max-width: 768px) {
-  .revenue-report-container { padding: 8px; gap: 4px; }
+  .page-container { padding: 8px; gap: 4px; }
   :deep(.filter-card .el-card__body) { padding: 8px 10px; }
   
   .level-filter-item {
@@ -1732,12 +1548,6 @@ onMounted(async () => {
     align-items: center;
     gap: 8px;
     width: 100%;
-  }
-
-  .filter-toggle-btn-inline {
-    flex-shrink: 0;
-    font-weight: 600;
-    border-radius: 8px;
   }
 
   .filter-count-mini {
@@ -1781,27 +1591,6 @@ onMounted(async () => {
   .time-group {
     margin-left: 0;
     flex: 1;
-  }
-
-  .date-toggle-btn {
-    flex-shrink: 0;
-    font-weight: 600;
-    font-size: 11px;
-    padding: 0 10px;
-    height: 24px;
-    border-radius: 6px;
-    border: 1px dashed var(--el-color-primary-light-5);
-    background: var(--el-color-primary-light-9);
-    color: var(--el-color-primary);
-    transition: all 0.3s ease;
-  }
-
-  .date-toggle-btn.is-active {
-    background: var(--el-color-primary);
-    color: #fff;
-    border-style: solid;
-    border-color: var(--el-color-primary);
-    box-shadow: 0 2px 8px rgba(64, 158, 255, 0.3);
   }
 
   :deep(.time-group .el-radio-button) {

@@ -1,6 +1,7 @@
 // revenue.service.ts
 import db from '../db/index.js';
 import dayjs from 'dayjs';
+import ExcelJS from 'exceljs';
 import type { RequestScope } from '../middleware/auth.js';
 
 export class RevenueService {
@@ -305,5 +306,119 @@ export class RevenueService {
             console.error('StationRevenuePie Error:', error);
             throw error;
         }
+    }
+
+    async exportRevenueReport(params: any, scope?: RequestScope | null): Promise<Buffer> {
+        const {
+            level = 'province',
+            time_unit = 'day',
+            start_date,
+            end_date,
+            keyword,
+            province_id,
+            ward_id,
+            agency_id,
+            station_id,
+            bay_code,
+        } = params;
+
+        // Reuse the same query logic as getRevenueReport but fetch ALL rows (no pagination)
+        const exportParams = {
+            ...params,
+            page: 1,
+            limit: 100_000,
+            include_total: false,
+            ...(scope?.agencyId != null && { agency_id: scope.agencyId }),
+            ...(scope?.provinceIds?.length && { scoped_province_ids: scope.provinceIds }),
+            ...(scope?.stationIds?.length && { scoped_station_ids: scope.stationIds }),
+        };
+
+        const { data } = await this.getRevenueReport(exportParams);
+        const rows: any[] = data.list;
+
+        const levelLabels: Record<string, string> = {
+            province: 'Tỉnh/Thành phố',
+            ward: 'Quận/Huyện',
+            agency: 'Đại lý',
+            station: 'Trạm',
+            bay: 'Trụ rửa',
+        };
+
+        const workbook = new ExcelJS.Workbook();
+        workbook.creator = 'SelfWashStation';
+        const sheet = workbook.addWorksheet('Doanh thu', { views: [{ state: 'frozen', ySplit: 1 }] });
+
+        // --- Build columns dynamically by level ---
+        const baseCols: Partial<ExcelJS.Column>[] = [
+            { header: 'Thời gian', key: 'Time', width: 14 },
+            { header: 'Doanh thu (đ)', key: 'revenue', width: 18, style: { numFmt: '#,##0' } },
+            { header: 'Số lượt rửa', key: 'total_sessions', width: 14, style: { numFmt: '#,##0' } },
+            { header: 'Thời gian vận hành (s)', key: 'total_op_time', width: 22, style: { numFmt: '#,##0' } },
+        ];
+
+        const entityCols: Record<string, Partial<ExcelJS.Column>[]> = {
+            province: [
+                { header: 'Tỉnh/Thành phố', key: 'province_name', width: 20 },
+                { header: 'Số đại lý', key: 'agency_count', width: 12 },
+                { header: 'Số trạm', key: 'station_count', width: 12 },
+                { header: 'Số trụ', key: 'bay_count', width: 10 },
+            ],
+            ward: [
+                { header: 'Tỉnh/Thành phố', key: 'province_name', width: 20 },
+                { header: 'Quận/Huyện', key: 'ward_name', width: 20 },
+                { header: 'Số trạm', key: 'station_count', width: 12 },
+                { header: 'Số trụ', key: 'bay_count', width: 10 },
+            ],
+            agency: [
+                { header: 'Tên đại lý', key: 'agency_name', width: 24 },
+                { header: 'MST', key: 'identity_number', width: 16 },
+                { header: 'Tỉnh/Thành phố', key: 'province_name', width: 20 },
+                { header: 'Số trạm', key: 'station_count', width: 12 },
+                { header: 'Số trụ', key: 'bay_count', width: 10 },
+            ],
+            station: [
+                { header: 'Tên trạm', key: 'station_code', width: 24 },
+                { header: 'Đại lý', key: 'agency_name', width: 24 },
+                { header: 'Tỉnh/Thành phố', key: 'province_name', width: 20 },
+                { header: 'Quận/Huyện', key: 'ward_name', width: 20 },
+                { header: 'Địa chỉ', key: 'address', width: 30 },
+                { header: 'Số trụ', key: 'bay_count', width: 10 },
+            ],
+            bay: [
+                { header: 'Mã trụ', key: 'bay_code', width: 14 },
+                { header: 'Tên trạm', key: 'station_code', width: 24 },
+                { header: 'Tỉnh/Thành phố', key: 'province_name', width: 20 },
+                { header: 'Địa chỉ', key: 'address', width: 30 },
+            ],
+        };
+
+        sheet.columns = [...(entityCols[level] ?? []), ...baseCols];
+
+        // Header row styling
+        const headerRow = sheet.getRow(1);
+        headerRow.font = { bold: true, color: { argb: 'FFFFFFFF' } };
+        headerRow.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1565C0' } };
+        headerRow.alignment = { vertical: 'middle', horizontal: 'center' };
+        headerRow.height = 20;
+
+        // Data rows
+        for (const row of rows) {
+            sheet.addRow(row);
+        }
+
+        // Alternate row shading
+        sheet.eachRow((row, rowNumber) => {
+            if (rowNumber > 1) {
+                row.eachCell((cell) => {
+                    cell.alignment = { vertical: 'middle' };
+                    if (rowNumber % 2 === 0) {
+                        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF5F5F5' } };
+                    }
+                });
+            }
+        });
+
+        const buffer = await workbook.xlsx.writeBuffer();
+        return Buffer.from(buffer);
     }
 }

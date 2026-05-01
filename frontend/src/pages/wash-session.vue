@@ -1,5 +1,5 @@
 <template>
-  <div class="wash-session-container">
+  <div class="page-container">
     <el-card shadow="never" class="header-card title-only-card">
       <div class="header-content">
         <h2 class="page-title">Lịch sử phiên rửa</h2>
@@ -93,6 +93,7 @@
         v-if="!isMobile" 
         ref="tableRef"
         :data="tableData" 
+        border
         stripe 
         style="width: 100%" 
         height="100%"
@@ -121,7 +122,7 @@
         <el-table-column label="Thông số">
           <template #default="scope">
             <div>Vận hành: <b>{{ scope.row.op }}s</b></div>
-            <div :style="{ fontSize: '12px', color: '#909399' }">
+            <div :style="{ fontSize: '12px', color: 'var(--text-faint)' }">
               Bọt tuyết: {{ scope.row.foam }}s
             </div>
           </template>
@@ -129,7 +130,7 @@
   
         <el-table-column label="Số tiền" align="right" header-align="right">
           <template #default="scope">
-            <span style="color: #f56c6c; font-weight: bold">
+            <span style="color: var(--color-danger); font-weight: bold">
               {{ formatMoney(scope.row.amount) }}
             </span>
           </template>
@@ -497,49 +498,12 @@ watch([pageSize], () => {
   align-items: center;
 }
 
-.filter-toggle-btn {
-  flex-shrink: 0;
-  height: 32px;
-}
-
-.filter-count-mini {
-  background: var(--el-color-primary);
-  color: #fff;
-  padding: 0 5px;
-  border-radius: 6px;
-  font-size: 10px;
-  margin-left: 4px;
-  line-height: 1.4;
-}
-
-.filter-card {
-  border-radius: 8px;
-  flex-shrink: 0;
-}
-:deep(.filter-card .el-card__body) { padding: 10px 16px; }
-
-.pagination-container {
-  margin-top: 10px;
-  display: flex;
-  justify-content: flex-end;
-  flex-shrink: 0;
-}
 
 
-.table-main {
-  flex: 1;
-  min-height: 0;
-  display: flex;
-  flex-direction: column;
-}
 
-.mobile-card-list {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  overflow-y: auto;
-}
+
+
+
 
 /* Desktop/Tablet: avoid over-compressed filter fields */
 :deep(.session-filter-form) {
@@ -565,8 +529,8 @@ watch([pageSize], () => {
 
 /* ── Mobile ─────────────────────────────────────── */
 @media (max-width: 768px) {
-  .wash-session-container {
-    padding: 4px;
+  .page-container {
+    padding: 6px 8px;
     gap: 4px;
   }
 
@@ -609,9 +573,9 @@ watch([pageSize], () => {
   .mobile-filter-card {
     margin: 4px 0 10px 0;
     border-radius: 12px;
-    background: var(--bg-card, #1a1a1a);
-    border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.08));
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    background: var(--bg-card);
+    border: 1px solid var(--border-subtle);
+    box-shadow: var(--shadow-card);
   }
 
   .mobile-filter-card :deep(.el-card__body) {
@@ -649,117 +613,7 @@ watch([pageSize], () => {
 }
 
 
-/* ── Mobile card list ────────────────────────────── */
-.mobile-card-list {
-  margin-top: 4px;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  overflow-y: auto;
-}
 
-.mobile-card {
-  background: var(--bg-card);
-  border-radius: 8px;
-  padding: 6px 8px;
-  border: 1px solid var(--border-subtle, #eee);
-  box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-}
-
-
-.mc-header {
-  display: flex;
-  align-items: flex-start;
-  gap: 8px;
-  margin-bottom: 4px;
-}
-
-.mc-right-meta {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.mc-delete-icon {
-  color: var(--el-color-danger);
-  cursor: pointer;
-  font-size: 16px;
-  padding: 4px;
-  border-radius: 4px;
-  transition: background 0.2s;
-}
-
-.mc-delete-icon:active {
-  background: rgba(245, 108, 108, 0.2);
-}
-
-
-
-.mc-stt {
-  font-size: 11px;
-  color: var(--text-sub, #9ca3af);
-  min-width: 18px;
-  padding-top: 2px;
-}
-
-.mc-title {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  overflow: hidden;
-}
-
-.mc-name {
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--el-color-primary);
-}
-
-.mc-sub {
-  font-size: 11px;
-  color: var(--text-sub, #9ca3af);
-}
-
-.mc-amount {
-  font-size: 16px;
-  font-weight: 700;
-  color: #f56c6c;
-  margin-bottom: 4px;
-}
-
-
-.mc-stats {
-  display: flex;
-  gap: 16px;
-  flex-wrap: wrap;
-  margin-bottom: 4px;
-}
-
-.mc-stat {
-  display: flex;
-  flex-direction: column;
-}
-
-.mcs-label {
-  font-size: 10px;
-  color: var(--text-sub, #9ca3af);
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
-}
-
-.mcs-val {
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--text-main, #e5e7eb);
-}
-
-.mc-empty {
-  text-align: center;
-  padding: 40px 0;
-  color: var(--text-sub, #9ca3af);
-  font-size: 14px;
-}
 
 .station-display {
   display: flex;
@@ -774,7 +628,7 @@ watch([pageSize], () => {
 
 .topic-display {
   font-size: 11px;
-  color: var(--text-sub, #9ca3af);
+  color: var(--text-sub);
   margin-top: 2px;
 }
 
@@ -792,14 +646,5 @@ watch([pageSize], () => {
   }
 }
 
-/* Expand animation */
-.expand-enter-active, .expand-leave-active {
-  transition: all 0.3s ease-in-out;
-  overflow: hidden;
-  max-height: 500px;
-}
-.expand-enter-from, .expand-leave-to {
-  opacity: 0;
-  max-height: 0;
-}
+
 </style>

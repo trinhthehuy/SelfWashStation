@@ -54,4 +54,18 @@ export class RevenueController {
             next(error);
         }
     }
+
+    async exportReport(req: AuthRequest, res: Response, next: NextFunction) {
+        try {
+            const scope = getRequestScope(req);
+            const level = String(req.query.level || 'province');
+            const buffer = await revenueService.exportRevenueReport(req.query, scope);
+            const filename = `revenue_${level}_${new Date().toISOString().slice(0, 10)}.xlsx`;
+            res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+            res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+            res.send(buffer);
+        } catch (error) {
+            next(error);
+        }
+    }
 }
