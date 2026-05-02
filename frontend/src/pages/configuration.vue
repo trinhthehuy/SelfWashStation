@@ -324,6 +324,12 @@
         <el-form-item label="Tên token">
           <el-input v-model="newTokenForm.name" placeholder="Ví dụ: sepay-production" />
         </el-form-item>
+        <el-form-item label="Kiểu dùng tại SePay">
+          <el-select v-model="newTokenForm.authType" class="w-full">
+            <el-option label="API Key" value="api_key" />
+            <el-option label="OAuth 2.0 / Bearer Token" value="oauth2" />
+          </el-select>
+        </el-form-item>
         <el-form-item label="Liên kết đại lý" v-if="authStore.isAdmin">
           <el-select v-model="newTokenForm.agencyId" placeholder="Chọn đại lý (để trống nếu dùng chung)" clearable filterable class="w-full">
             <el-option v-for="a in agencies" :key="a.id" :label="a.agency_name" :value="a.id">
@@ -346,6 +352,23 @@
           </div>
         </template>
       </el-alert>
+      <div v-if="createdToken" class="token-usage-box">
+        <p class="token-usage-title">Hướng dẫn cấu hình SePay cho token này</p>
+        <div class="token-usage-row">
+          <span class="token-usage-label">Webhook URL:</span>
+          <span>{{ webhookUrl }}</span>
+        </div>
+        <div class="token-usage-row">
+          <span class="token-usage-label">Kiểu chứng thực:</span>
+          <span>{{ newTokenForm.authType === 'oauth2' ? 'OAuth 2.0 / Bearer Token' : 'API Key' }}</span>
+        </div>
+        <div class="token-usage-row" v-if="newTokenForm.agencyId">
+          <span class="token-usage-label">Đại lý:</span>
+          <span>{{ selectedAgencyName }}</span>
+        </div>
+        <div class="mono-box token-usage-mono">{{ sepayAuthPreview }}</div>
+        <p class="card-note">Token này có thể dùng cho từng đại lý, và backend vẫn nhận được cả header API Key lẫn Bearer nếu SePay chọn một trong hai kiểu trên.</p>
+      </div>
       <template #footer>
         <el-button @click="showTokenDialog = false">Đóng</el-button>
         <el-button type="primary" :loading="tokenSubmitting" @click="createToken">Tạo token</el-button>
@@ -393,7 +416,7 @@ const showTokenDialog = ref(false)
 const createdToken = ref('')
 const tokens = ref([])
 const agencies = ref([])
-const newTokenForm = reactive({ name: '', expiresInDays: '30', agencyId: null })
+const newTokenForm = reactive({ name: '', authType: 'api_key', expiresInDays: '30', agencyId: null })
 const endpoints = [
   { method: 'GET', path: '/api/tokens', title: 'Danh sách token', desc: 'Lấy danh sách token API đã tạo.' },
   { method: 'POST', path: '/api/tokens/create', title: 'Tạo token', desc: 'Tạo token mới.' },
@@ -417,6 +440,21 @@ const testForm = reactive({
 
 const webhookUrl = computed(() => `${window.location.origin}/api/webhook/bank-transfer`)
 const outgoingWebhookUrl = computed(() => `${window.location.origin}/api/webhook/outgoing-payment`)
+const selectedAgencyName = computed(() => {
+  const selectedAgency = agencies.value.find((agency) => Number(agency.id) === Number(newTokenForm.agencyId))
+  return selectedAgency?.agency_name || 'Dùng chung toàn hệ thống'
+})
+const sepayAuthPreview = computed(() => {
+  if (!createdToken.value) {
+    return ''
+  }
+
+  if (newTokenForm.authType === 'oauth2') {
+    return `Authorization: Bearer ${createdToken.value}`
+  }
+
+  return `x-api-key: ${createdToken.value}`
+})
 
 // --- Methods ---
 
@@ -704,6 +742,32 @@ onMounted(() => {
 
 .created-token-box { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
 .token-alert { margin-top: 10px; }
+.token-usage-box {
+  margin-top: 12px;
+  padding: 12px;
+  border-radius: 12px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+}
+.token-usage-title {
+  margin: 0 0 10px;
+  font-size: 14px;
+  font-weight: 600;
+}
+.token-usage-row {
+  display: grid;
+  grid-template-columns: 130px 1fr;
+  gap: 10px;
+  margin-bottom: 8px;
+  font-size: 13px;
+}
+.token-usage-label {
+  color: var(--text-muted);
+  font-weight: 600;
+}
+.token-usage-mono {
+  margin-top: 8px;
+}
 
 .agency-option-row {
   display: flex;

@@ -92,6 +92,14 @@ function extractBearerToken(req: Request): { token: string; source: string } {
   };
 }
 
+async function validateLegacyApiToken(token: string) {
+  const tokenRow = await ApiTokenService.validateToken(token);
+  if (tokenRow) {
+    await ApiTokenService.recordTokenUsage(token);
+  }
+  return tokenRow;
+}
+
 function normalizeRecord(record: SepayWebhookSettingsRecord): EffectiveSepayWebhookSettings {
   return {
     authMode: normalizeMode(record.auth_mode),
@@ -201,9 +209,15 @@ export class SepayWebhookSettingsService {
         hasToken: Boolean(token),
       });
 
-      console.log('[WEBHOOK][AUTH_RESULT]', { mode: 'oauth2', isValid });
+      if (isValid) {
+        console.log('[WEBHOOK][AUTH_RESULT]', { mode: 'oauth2', isValid: true, via: 'configured_oauth_token' });
+        return { isOAuth2: true, authMode: 'oauth2' as const };
+      }
 
-      return isValid ? { isOAuth2: true, authMode: 'oauth2' as const } : null;
+      const legacyTokenRow = await validateLegacyApiToken(token);
+      console.log('[WEBHOOK][AUTH_RESULT]', { mode: 'oauth2', isValid: Boolean(legacyTokenRow), via: 'legacy_api_token' });
+
+      return legacyTokenRow;
     }
 
     const { token, source } = extractGenericToken(req);
@@ -216,14 +230,13 @@ export class SepayWebhookSettingsService {
 
     if (settings.apiKey) {
       const isValid = Boolean(token) && safeEqual(token, settings.apiKey);
-      console.log('[WEBHOOK][AUTH_RESULT]', { mode: 'api_key', isValid, via: 'configured_api_key' });
-      return isValid ? { isConfiguredApiKey: true, authMode: 'api_key' as const } : null;
+      if (isValid) {
+        console.log('[WEBHOOK][AUTH_RESULT]', { mode: 'api_key', isValid: true, via: 'configured_api_key' });
+        return { isConfiguredApiKey: true, authMode: 'api_key' as const };
+      }
     }
 
-    const tokenRow = await ApiTokenService.validateToken(token);
-    if (tokenRow) {
-      await ApiTokenService.recordTokenUsage(token);
-    }
+    const tokenRow = await validateLegacyApiToken(token);
 
     console.log('[WEBHOOK][AUTH_RESULT]', { mode: 'api_key', isValid: Boolean(tokenRow), via: 'legacy_api_token' });
 
