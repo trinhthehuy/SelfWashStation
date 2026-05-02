@@ -573,6 +573,7 @@ onUnmounted(() => {
 
 /* Mobile styles */
 
+@media (max-width: 768px) {
 
   .page-container {
     padding: 10px;
