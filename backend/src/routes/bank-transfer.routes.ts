@@ -63,6 +63,10 @@ function resolveWebhookPayload(req: Request) {
   const rawBody = String((req as any).rawBody || '');
   const body = req.body;
 
+  if (Buffer.isBuffer(body)) {
+    return parseRawWebhookBody(rawBody || body.toString('utf8'));
+  }
+
   if (body && typeof body === 'object' && Object.keys(body).length > 0) {
     const keys = Object.keys(body);
     const singleKey = keys[0] || '';
@@ -111,6 +115,36 @@ async function handleWebhookAuth(req: Request, res: Response) {
 
   return tokenData;
 }
+
+router.post('/webhook/oauth/token', webhookRateLimit, async (req, res) => {
+  const grantType = String(req.body?.grant_type || req.body?.grantType || '').trim();
+  const clientId = String(req.body?.client_id || req.body?.clientId || '').trim();
+  const clientSecret = String(req.body?.client_secret || req.body?.clientSecret || '').trim();
+
+  if (!clientId || !clientSecret) {
+    res.status(400).json({ error: 'invalid_request', error_description: 'client_id và client_secret là bắt buộc' });
+    return;
+  }
+
+  if (grantType && grantType !== 'client_credentials') {
+    res.status(400).json({ error: 'unsupported_grant_type', error_description: 'Chỉ hỗ trợ client_credentials' });
+    return;
+  }
+
+  const tokenRow = await ApiTokenService.validateTokenById(clientId, clientSecret);
+  if (!tokenRow) {
+    res.status(401).json({ error: 'invalid_client', error_description: 'Client credentials không hợp lệ hoặc đã hết hạn' });
+    return;
+  }
+
+  const accessToken = ApiTokenService.createWebhookOAuthAccessToken(tokenRow);
+
+  res.json({
+    access_token: accessToken,
+    token_type: 'Bearer',
+    expires_in: ApiTokenService.getWebhookOAuthAccessTokenExpiresInSeconds(),
+  });
+});
 
 router.post('/webhook/bank-transfer', webhookRateLimit, async (req, res) => {
   const requestId = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
@@ -223,6 +257,7 @@ router.post('/tokens/create', authorizeRoles(['sa', 'engineer']), async (req, re
     );
     res.json({
       success: true,
+      tokenId: tokenData.id,
       token: plainToken,
       fullToken: plainToken,
       expiresAt: tokenData.expiresAt,

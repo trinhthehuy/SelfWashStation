@@ -194,19 +194,33 @@ export class SepayWebhookSettingsService {
 
   static async authenticateRequest(req: Request) {
     const settings = await this.getEffectiveSettings();
+    const { token: bearerToken, source: bearerSource } = extractBearerToken(req);
 
     if (settings.authMode === 'none') {
       return { isAnonymous: true, authMode: 'none' as const };
     }
 
+    if (bearerToken) {
+      const oauthTokenRow = await ApiTokenService.validateWebhookOAuthAccessToken(bearerToken);
+      console.log('[WEBHOOK][AUTH]', {
+        mode: 'oauth2',
+        tokenSource: bearerSource,
+        hasToken: true,
+      });
+
+      if (oauthTokenRow) {
+        console.log('[WEBHOOK][AUTH_RESULT]', { mode: 'oauth2', isValid: true, via: 'oauth_access_token' });
+        return oauthTokenRow;
+      }
+    }
+
     if (settings.authMode === 'oauth2') {
-      const { token, source } = extractBearerToken(req);
-      const isValid = Boolean(token) && Boolean(settings.oauthBearerToken) && safeEqual(token, settings.oauthBearerToken);
+      const isValid = Boolean(bearerToken) && Boolean(settings.oauthBearerToken) && safeEqual(bearerToken, settings.oauthBearerToken);
 
       console.log('[WEBHOOK][AUTH]', {
         mode: 'oauth2',
-        tokenSource: source,
-        hasToken: Boolean(token),
+        tokenSource: bearerSource,
+        hasToken: Boolean(bearerToken),
       });
 
       if (isValid) {
@@ -214,7 +228,7 @@ export class SepayWebhookSettingsService {
         return { isOAuth2: true, authMode: 'oauth2' as const };
       }
 
-      const legacyTokenRow = await validateLegacyApiToken(token);
+      const legacyTokenRow = await validateLegacyApiToken(bearerToken);
       console.log('[WEBHOOK][AUTH_RESULT]', { mode: 'oauth2', isValid: Boolean(legacyTokenRow), via: 'legacy_api_token' });
 
       return legacyTokenRow;

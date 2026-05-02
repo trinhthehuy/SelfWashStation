@@ -26,6 +26,7 @@ export function createApp() {
   }));
   app.use(express.json({ limit: '5mb', type: ['application/json', 'application/*+json'], verify: rawBodySaver }));
   app.use(express.urlencoded({ limit: '5mb', extended: true, verify: rawBodySaver }));
+  app.use(express.raw({ limit: '5mb', type: ['multipart/form-data'], verify: rawBodySaver }));
   app.use(express.text({ type: ['text/plain'], verify: rawBodySaver }));
   app.use(morgan('dev'));
 

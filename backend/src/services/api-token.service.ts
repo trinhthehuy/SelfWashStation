@@ -1,7 +1,17 @@
 import crypto from 'crypto';
+import jwt from 'jsonwebtoken';
 import type { Request } from 'express';
 import db from '../db/index.js';
+import config from '../config/index.js';
 import { DevModeService } from './dev-mode.service.js';
+
+const WEBHOOK_OAUTH_ACCESS_TOKEN_EXPIRES_IN_SECONDS = 3600;
+
+type WebhookOAuthAccessTokenPayload = {
+  sub: string;
+  type: 'sepay_webhook_oauth';
+  agencyId: number | null;
+};
 
 function hashToken(token: string) {
   return crypto.createHash('sha256').update(token).digest('hex');
@@ -67,6 +77,67 @@ export class ApiTokenService {
         expiresAt
       }
     };
+  }
+
+  static async validateTokenById(tokenId: string, plainToken: string) {
+    if (!tokenId || !plainToken) {
+      return null;
+    }
+
+    const tokenRow = await db('api_tokens').where('id', String(tokenId).trim()).first();
+
+    if (!tokenRow) {
+      return null;
+    }
+
+    if (tokenRow.expires_at && new Date(tokenRow.expires_at) <= new Date()) {
+      return null;
+    }
+
+    return tokenRow.token_hash === hashToken(plainToken) ? tokenRow : null;
+  }
+
+  static createWebhookOAuthAccessToken(tokenRow: { id: string; agency_id?: number | null }) {
+    return jwt.sign({
+      sub: String(tokenRow.id),
+      type: 'sepay_webhook_oauth',
+      agencyId: tokenRow.agency_id ?? null,
+    } satisfies WebhookOAuthAccessTokenPayload, config.jwtSecret, {
+      expiresIn: WEBHOOK_OAUTH_ACCESS_TOKEN_EXPIRES_IN_SECONDS,
+    });
+  }
+
+  static async validateWebhookOAuthAccessToken(accessToken: string) {
+    if (!accessToken) {
+      return null;
+    }
+
+    try {
+      const decoded = jwt.verify(accessToken, config.jwtSecret) as WebhookOAuthAccessTokenPayload & jwt.JwtPayload;
+      if (decoded?.type !== 'sepay_webhook_oauth' || !decoded?.sub) {
+        return null;
+      }
+
+      const tokenRow = await db('api_tokens').where('id', String(decoded.sub)).first();
+      if (!tokenRow) {
+        return null;
+      }
+
+      if (tokenRow.expires_at && new Date(tokenRow.expires_at) <= new Date()) {
+        return null;
+      }
+
+      return {
+        ...tokenRow,
+        agency_id: decoded.agencyId ?? tokenRow.agency_id ?? null,
+      };
+    } catch {
+      return null;
+    }
+  }
+
+  static getWebhookOAuthAccessTokenExpiresInSeconds() {
+    return WEBHOOK_OAUTH_ACCESS_TOKEN_EXPIRES_IN_SECONDS;
   }
 
   static async deleteToken(tokenId: string) {
