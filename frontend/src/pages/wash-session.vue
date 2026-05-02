@@ -109,13 +109,15 @@
           </template>
         </el-table-column>
   
-        <el-table-column label="Vị trí" min-width="180">
+        <el-table-column label="Tên trạm" min-width="160">
           <template #default="scope">
-            <div class="station-display">
-              <el-tag type="info" size="small">{{ scope.row.station_name }}</el-tag>
-              <span class="bay-display">{{ scope.row.bay_code }}</span>
-            </div>
-            <div v-if="scope.row.mqtt_topic" class="topic-display">{{ scope.row.mqtt_topic }}</div>
+            <el-tag type="info" size="small">{{ scope.row.station_name }}</el-tag>
+          </template>
+        </el-table-column>
+
+        <el-table-column label="Tên trụ" width="120" align="center" header-align="center">
+          <template #default="scope">
+            <span class="bay-display">{{ scope.row.bay_code }}</span>
           </template>
         </el-table-column>
   
@@ -163,7 +165,6 @@
                 <el-tag type="info" size="small">{{ row.station_name }}</el-tag>
                 <span class="mc-name">{{ row.bay_code }}</span>
               </div>
-              <span class="mc-sub" v-if="row.mqtt_topic">{{ row.mqtt_topic }}</span>
             </div>
             <div class="mc-right-meta">
               <el-tag :type="statusType(row.status)" size="small">
