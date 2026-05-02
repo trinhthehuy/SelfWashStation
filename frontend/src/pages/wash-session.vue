@@ -109,13 +109,13 @@
           </template>
         </el-table-column>
   
-        <el-table-column label="Tên trạm" min-width="160">
+        <el-table-column label="TÊN TRẠM" min-width="140" align="center" header-align="center">
           <template #default="scope">
-            <el-tag type="info" size="small">{{ scope.row.station_name }}</el-tag>
+            <span class="bay-display">{{ scope.row.station_name }}</span>
           </template>
         </el-table-column>
 
-        <el-table-column label="Tên trụ" width="120" align="center" header-align="center">
+        <el-table-column label="TÊN TRỤ" width="110" align="center" header-align="center">
           <template #default="scope">
             <span class="bay-display">{{ scope.row.bay_code }}</span>
           </template>
