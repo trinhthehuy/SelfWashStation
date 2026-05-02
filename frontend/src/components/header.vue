@@ -144,7 +144,17 @@ const unreadCount  = ref(0)
 const recentItems  = ref([])
 const recentLoading = ref(false)
 
+const resetNotificationState = () => {
+  unreadCount.value = 0
+  recentItems.value = []
+}
+
 const fetchUnreadCount = async () => {
+  if (!authStore.isAuthenticated) {
+    resetNotificationState()
+    return
+  }
+
   try {
     const res = await notificationApi.getUnreadCount()
     unreadCount.value = res.data.count ?? 0
@@ -152,6 +162,11 @@ const fetchUnreadCount = async () => {
 }
 
 const fetchRecentNotifications = async () => {
+  if (!authStore.isAuthenticated) {
+    resetNotificationState()
+    return
+  }
+
   recentLoading.value = true
   try {
     const res = await notificationApi.getNotifications({ page: 1, limit: 5 })
@@ -196,10 +211,20 @@ const goToNotifications = () => {
 
 let pollInterval = null
 const onNotificationRefresh = async () => {
+  if (!authStore.isAuthenticated) {
+    resetNotificationState()
+    return
+  }
+
   await fetchUnreadCount()
 }
 
 onMounted(async () => {
+  if (!authStore.isAuthenticated) {
+    resetNotificationState()
+    return
+  }
+
   await fetchUnreadCount()
   pollInterval = setInterval(fetchUnreadCount, 60_000)
   window.addEventListener('notifications:refresh', onNotificationRefresh)
@@ -244,6 +269,7 @@ const goToAccounts = () => {
 }
 
 const logout = () => {
+  resetNotificationState()
   metadataStore.clearCache()
   authStore.clearSession()
   router.replace('/login')

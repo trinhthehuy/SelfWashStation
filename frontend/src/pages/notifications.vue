@@ -71,6 +71,7 @@ import { ref, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { notificationApi } from '@/api/notification'
+import { authStore } from '@/stores/auth'
 
 const router = useRouter()
 
@@ -85,6 +86,11 @@ const onResize = () => {
 }
 
 const fetchUnreadCount = async () => {
+  if (!authStore.isAuthenticated) {
+    unreadCount.value = 0
+    return
+  }
+
   try {
     const res = await notificationApi.getUnreadCount()
     unreadCount.value = Number(res.data.count ?? 0)
@@ -94,6 +100,12 @@ const fetchUnreadCount = async () => {
 }
 
 const fetchNotifications = async () => {
+  if (!authStore.isAuthenticated) {
+    notifications.value = []
+    unreadCount.value = 0
+    return
+  }
+
   loading.value = true
   try {
     const res = await notificationApi.getNotifications({ status: statusFilter.value, page: 1, limit: 100 })
