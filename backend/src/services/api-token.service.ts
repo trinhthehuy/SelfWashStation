@@ -57,11 +57,18 @@ export class ApiTokenService {
     const plainToken = this.generateToken(32);
     const id = Date.now().toString();
     const expiresAt = expiresInDays ? new Date(Date.now() + expiresInDays * 86400000) : null;
+    const normalizedAgencyId = agencyId || null;
+    let revokedCount = 0;
+
+    // Security hardening: one active webhook token per agency.
+    if (normalizedAgencyId) {
+      revokedCount = await db('api_tokens').where('agency_id', normalizedAgencyId).del();
+    }
 
     await db('api_tokens').insert({
       id,
       name,
-      agency_id: agencyId || null,
+      agency_id: normalizedAgencyId,
       token_hash: hashToken(plainToken),
       permissions: null,
       usage_count: 0,
@@ -74,7 +81,9 @@ export class ApiTokenService {
       tokenData: {
         id,
         name,
-        expiresAt
+        expiresAt,
+        agencyId: normalizedAgencyId,
+        revokedCount,
       }
     };
   }

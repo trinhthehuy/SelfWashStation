@@ -224,7 +224,7 @@
     </el-tabs>
 
     <!-- Dialog Tạo Token -->
-    <el-dialog v-model="showTokenDialog" title="Tạo token API" width="460px" append-to-body>
+    <el-dialog v-model="showTokenDialog" title="Tạo token API" width="760px" append-to-body>
       <el-form label-position="top">
         <el-form-item label="Tên token">
           <el-input v-model="newTokenForm.name" placeholder="Ví dụ: sepay-production" />
@@ -288,16 +288,11 @@
             <span class="token-usage-label">Client Secret:</span>
             <span>{{ createdToken }}</span>
           </div>
-          <p class="card-note">SePay sẽ gọi Access Token URL bằng `client_credentials` để lấy Bearer token rồi gửi webhook về hệ thống.</p>
-        </template>
-        <template v-else>
-          <div class="mono-box token-usage-mono">Authorization: Apikey {{ createdToken }}</div>
-          <p class="card-note">Nếu chọn API Key trong SePay, bạn nên dán token vào phần API Key. Backend cũng chấp nhận `x-api-key` và `x-api-token`.</p>
         </template>
       </div>
       <template #footer>
         <el-button @click="showTokenDialog = false">Đóng</el-button>
-        <el-button type="primary" :loading="tokenSubmitting" @click="createToken">Tạo token</el-button>
+        <el-button v-if="!createdToken" type="primary" :loading="tokenSubmitting" @click="createToken">Tạo token</el-button>
       </template>
     </el-dialog>
   </div>
@@ -453,6 +448,10 @@ const createToken = async () => {
     })
     createdTokenId.value = String(res.data.tokenId || '')
     createdToken.value = res.data.fullToken
+    const revokedCount = Number(res?.data?.revokedCount || 0)
+    if (revokedCount > 0 && newTokenForm.agencyId) {
+      ElMessage.success(`Đã tạo token mới và thu hồi ${revokedCount} token cũ của đại lý này`)
+    }
     await fetchTokens()
   } finally { tokenSubmitting.value = false }
 }

@@ -137,6 +137,11 @@ router.post('/webhook/oauth/token', webhookRateLimit, async (req, res) => {
     return;
   }
 
+  if (!tokenRow.agency_id) {
+    res.status(403).json({ error: 'invalid_client', error_description: 'Token chưa gắn đại lý, không được phép dùng cho SePay webhook' });
+    return;
+  }
+
   const accessToken = ApiTokenService.createWebhookOAuthAccessToken(tokenRow);
 
   res.json({
@@ -188,6 +193,12 @@ router.post('/webhook/bank-transfer', webhookRateLimit, async (req, res) => {
   const tokenData = await handleWebhookAuth(req, res);
   if (!tokenData) {
     console.warn('[WEBHOOK][REJECTED]', { requestId, reason: 'auth_failed' });
+    return;
+  }
+
+  if (!isDevTestHeader && !(tokenData as any).agency_id) {
+    console.warn('[WEBHOOK][REJECTED]', { requestId, reason: 'token_not_bound_to_agency' });
+    res.status(403).json({ error: 'Token webhook chưa gắn đại lý. Vui lòng tạo token theo từng đại lý.' });
     return;
   }
 
@@ -258,9 +269,11 @@ router.post('/tokens/create', authorizeRoles(['sa', 'engineer']), async (req, re
     res.json({
       success: true,
       tokenId: tokenData.id,
+      agencyId: tokenData.agencyId,
       token: plainToken,
       fullToken: plainToken,
       expiresAt: tokenData.expiresAt,
+      revokedCount: Number(tokenData.revokedCount || 0),
       message: 'TOKEN CHI HIEN THI MOT LAN'
     });
   } catch (error: any) {
