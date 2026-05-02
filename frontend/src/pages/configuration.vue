@@ -110,6 +110,102 @@
             <div class="mono-box">{{ outgoingWebhookUrl }}</div>
             <p class="card-note">Dùng khi cần theo dõi trạng thái chi tiền hoặc webhook outbound từ đối tác.</p>
           </el-card>
+
+          <el-card shadow="never" class="config-card full-width">
+            <template #header>
+              <div class="card-title-row">
+                <span>Chứng thực Webhook SePay / SePay Webhook Authentication</span>
+                <el-tag :type="sepayWebhookForm.source === 'database' ? 'success' : 'info'" effect="light">
+                  {{ sepayWebhookForm.source === 'database' ? 'Nguồn: Database' : 'Nguồn: Environment' }}
+                </el-tag>
+              </div>
+            </template>
+
+            <el-form label-position="top" v-loading="sepayWebhookLoading">
+              <el-row :gutter="16">
+                <el-col :xs="24" :md="8">
+                  <el-form-item label="Kiểu chứng thực / Authentication Type">
+                    <el-select v-model="sepayWebhookForm.authMode" class="w-full">
+                      <el-option label="Không cần chứng thực / No authentication" value="none" />
+                      <el-option label="API Key" value="api_key" />
+                      <el-option label="OAuth 2.0 / Bearer Token" value="oauth2" />
+                    </el-select>
+                  </el-form-item>
+                </el-col>
+                <el-col :xs="24" :md="8">
+                  <el-form-item label="API Key đã cấu hình / Configured API Key">
+                    <el-tag :type="sepayWebhookForm.hasApiKey ? 'success' : 'warning'">
+                      {{ sepayWebhookForm.hasApiKey ? 'Đã có / Present' : 'Chưa có / Missing' }}
+                    </el-tag>
+                  </el-form-item>
+                </el-col>
+                <el-col :xs="24" :md="8">
+                  <el-form-item label="OAuth token đã cấu hình / Configured OAuth Token">
+                    <el-tag :type="sepayWebhookForm.hasOAuthBearerToken ? 'success' : 'warning'">
+                      {{ sepayWebhookForm.hasOAuthBearerToken ? 'Đã có / Present' : 'Chưa có / Missing' }}
+                    </el-tag>
+                  </el-form-item>
+                </el-col>
+              </el-row>
+
+              <el-row v-if="sepayWebhookForm.authMode === 'api_key'" :gutter="16">
+                <el-col :xs="24" :md="12">
+                  <el-form-item label="API Key cho SePay / API Key For SePay">
+                    <el-input
+                      v-model="sepayWebhookForm.apiKey"
+                      type="password"
+                      show-password
+                      placeholder="Nhập API Key hoặc để trống để dùng Token API cũ"
+                    />
+                  </el-form-item>
+                </el-col>
+                <el-col :xs="24" :md="12">
+                  <el-form-item label="Token API cũ / Legacy API Tokens">
+                    <el-tag :type="sepayWebhookForm.hasLegacyTokens ? 'info' : 'warning'">
+                      {{ sepayWebhookForm.hasLegacyTokens ? 'Có thể dùng fallback / Available' : 'Không có fallback / Unavailable' }}
+                    </el-tag>
+                  </el-form-item>
+                </el-col>
+              </el-row>
+
+              <el-row v-if="sepayWebhookForm.authMode === 'oauth2'" :gutter="16">
+                <el-col :xs="24" :md="12">
+                  <el-form-item label="Bearer Token / OAuth 2.0 Access Token">
+                    <el-input
+                      v-model="sepayWebhookForm.oauthBearerToken"
+                      type="password"
+                      show-password
+                      placeholder="Authorization: Bearer <token>"
+                    />
+                  </el-form-item>
+                </el-col>
+              </el-row>
+
+              <el-alert
+                v-if="sepayWebhookForm.authMode === 'none'"
+                title="Webhook sẽ nhận trực tiếp không cần header chứng thực. Chỉ dùng khi endpoint đã được giới hạn an toàn ở tầng mạng / reverse proxy."
+                type="warning"
+                :closable="false"
+              />
+              <el-alert
+                v-else-if="sepayWebhookForm.authMode === 'api_key'"
+                title="SePay có thể gửi API Key qua x-api-key, x-api-token, Authorization: ApiKey hoặc token query. Nếu bỏ trống API Key ở đây, hệ thống sẽ fallback sang Token API cũ."
+                type="info"
+                :closable="false"
+              />
+              <el-alert
+                v-else
+                title="SePay cần gửi Authorization: Bearer &lt;token&gt; tới webhook của hệ thống."
+                type="info"
+                :closable="false"
+              />
+
+              <div class="smtp-actions">
+                <el-button @click="fetchSepayWebhookSettings" :disabled="sepayWebhookSaving">Tải lại</el-button>
+                <el-button type="primary" :loading="sepayWebhookSaving" @click="saveSepayWebhookSettings">Lưu cấu hình SePay</el-button>
+              </div>
+            </el-form>
+          </el-card>
         </div>
       </el-tab-pane>
 
@@ -278,6 +374,17 @@ const smtpForm = ref({
   enabled: false, host: '', port: 587, secure: false,
   user: '', password: '', from: '', hasPassword: false, source: 'environment',
 })
+const sepayWebhookLoading = ref(false)
+const sepayWebhookSaving = ref(false)
+const sepayWebhookForm = ref({
+  authMode: 'api_key',
+  apiKey: '',
+  oauthBearerToken: '',
+  hasApiKey: false,
+  hasOAuthBearerToken: false,
+  hasLegacyTokens: false,
+  source: 'environment',
+})
 
 // --- API Management ---
 const tokensLoading = ref(false)
@@ -372,6 +479,51 @@ const saveSmtpSettings = async () => {
   finally { smtpSaving.value = false }
 }
 
+const fetchSepayWebhookSettings = async () => {
+  sepayWebhookLoading.value = true
+  try {
+    const res = await systemApi.getSepayWebhookSettings()
+    const data = res?.data?.data || {}
+    sepayWebhookForm.value = {
+      authMode: data.authMode || 'api_key',
+      apiKey: '',
+      oauthBearerToken: '',
+      hasApiKey: Boolean(data.hasApiKey),
+      hasOAuthBearerToken: Boolean(data.hasOAuthBearerToken),
+      hasLegacyTokens: Boolean(data.hasLegacyTokens),
+      source: data.source || 'environment',
+    }
+  } finally {
+    sepayWebhookLoading.value = false
+  }
+}
+
+const saveSepayWebhookSettings = async () => {
+  sepayWebhookSaving.value = true
+  try {
+    const res = await systemApi.updateSepayWebhookSettings({
+      authMode: sepayWebhookForm.value.authMode,
+      apiKey: sepayWebhookForm.value.apiKey,
+      oauthBearerToken: sepayWebhookForm.value.oauthBearerToken,
+    })
+    const data = res?.data?.data || {}
+    sepayWebhookForm.value = {
+      authMode: data.authMode || sepayWebhookForm.value.authMode,
+      apiKey: '',
+      oauthBearerToken: '',
+      hasApiKey: Boolean(data.hasApiKey),
+      hasOAuthBearerToken: Boolean(data.hasOAuthBearerToken),
+      hasLegacyTokens: Boolean(data.hasLegacyTokens),
+      source: data.source || 'database',
+    }
+    ElMessage.success('Đã lưu cấu hình chứng thực SePay webhook')
+  } catch (err) {
+    ElMessage.error(err?.response?.data?.message || 'Lỗi lưu cấu hình SePay webhook')
+  } finally {
+    sepayWebhookSaving.value = false
+  }
+}
+
 const fetchTokens = async () => {
   tokensLoading.value = true
   try {
@@ -455,7 +607,7 @@ const fetchAgencies = async () => {
 }
 
 onMounted(() => {
-  Promise.all([fetchStatus(), fetchSmtpSettings(), fetchTokens(), fetchHistory(), fetchAgencies()])
+  Promise.all([fetchStatus(), fetchSmtpSettings(), fetchSepayWebhookSettings(), fetchTokens(), fetchHistory(), fetchAgencies()])
 })
 </script>
 

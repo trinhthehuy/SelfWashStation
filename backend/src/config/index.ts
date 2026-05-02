@@ -67,6 +67,12 @@ export const config = {
     user: process.env.MQTT_USER || '',
     pass: process.env.MQTT_PASS || '',
   },
+
+  sepayWebhook: {
+    authMode: process.env.SEPAY_WEBHOOK_AUTH_MODE || 'api_key',
+    apiKey: process.env.SEPAY_WEBHOOK_API_KEY || '',
+    oauthBearerToken: process.env.SEPAY_WEBHOOK_OAUTH_BEARER_TOKEN || '',
+  },
 };
 
 export default config;

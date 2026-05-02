@@ -31,6 +31,12 @@ export const systemApi = {
   updateSmtpSettings(payload) {
     return apiClient.post('/settings/smtp', payload)
   },
+  getSepayWebhookSettings() {
+    return apiClient.get('/settings/sepay-webhook')
+  },
+  updateSepayWebhookSettings(payload) {
+    return apiClient.post('/settings/sepay-webhook', payload)
+  },
   sendTestWebhook(payload, customUrl) {
     const targetPath = customUrl ? customUrl.replace(/^https?:\/\/[^/]+/, '') : '/webhook/bank-transfer'
     return apiClient.post(targetPath, payload, {

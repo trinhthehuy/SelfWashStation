@@ -5,6 +5,7 @@ import { ApiTokenService } from '../services/api-token.service.js';
 import { BankTransferService } from '../services/bank-transfer.service.js';
 import { DevModeService } from '../services/dev-mode.service.js';
 import { mqttService } from '../services/mqtt.service.js';
+import { SepayWebhookSettingsService } from '../services/sepay-webhook-settings.service.js';
 import { SmtpSettingsService } from '../services/smtp-settings.service.js';
 
 const router = Router();
@@ -96,10 +97,15 @@ function resolveWebhookPayload(req: Request) {
 }
 
 async function handleWebhookAuth(req: Request, res: Response) {
-  const tokenData = await ApiTokenService.authenticateWebhookRequest(req);
+  const hasDevTestHeader = String(req.headers['x-dev-test'] || '').toLowerCase() === 'true';
+  if (DevModeService.isEnabled() && hasDevTestHeader) {
+    return { isDev: true };
+  }
+
+  const tokenData = await SepayWebhookSettingsService.authenticateRequest(req);
 
   if (!tokenData) {
-    res.status(401).json({ error: 'Token API không hợp lệ hoặc chưa được cấu hình' });
+    res.status(401).json({ error: 'Chứng thực webhook không hợp lệ hoặc chưa được cấu hình' });
     return null;
   }
 
@@ -281,6 +287,35 @@ router.get('/settings/smtp', authorizeRoles(['sa']), async (_req, res, next) => 
     const data = await SmtpSettingsService.getAdminViewSettings();
     res.json({ data });
   } catch (error) {
+    next(error);
+  }
+});
+
+router.get('/settings/sepay-webhook', authorizeRoles(['sa', 'engineer']), async (_req, res, next) => {
+  try {
+    const data = await SepayWebhookSettingsService.getAdminViewSettings();
+    res.json({ data });
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.post('/settings/sepay-webhook', authorizeRoles(['sa', 'engineer']), async (req: AuthRequest, res, next) => {
+  try {
+    const data = await SepayWebhookSettingsService.updateSettings({
+      authMode: req.body?.authMode,
+      apiKey: req.body?.apiKey,
+      oauthBearerToken: req.body?.oauthBearerToken,
+    }, req.user?.id || null);
+    res.json({
+      message: 'Đã cập nhật cấu hình chứng thực SePay webhook',
+      data,
+    });
+  } catch (error: any) {
+    if (error.message) {
+      res.status(400).json({ message: error.message });
+      return;
+    }
     next(error);
   }
 });
