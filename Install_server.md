@@ -126,11 +126,11 @@ docker compose --env-file .env.production up -d --build
 
 Frontend:
 
-http://serverninhbinh.gotdns.ch
+http://selfwash.ddns.net
 
 API:
 
-http://serverninhbinh.gotdns.ch/api
+http://selfwash.ddns.net/api
 11. Update project sau này
 cd /opt/selfwashstation
 git pull
@@ -145,7 +145,7 @@ docker compose down
 13. Kiến trúc sau khi hoàn thành
 Internet
    ↓
-Domain serverninhbinh.gotdns.ch
+Domain selfwash.ddns.net
    ↓
 Nginx Reverse Proxy
    ↓
