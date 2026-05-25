@@ -8,7 +8,7 @@ Server IP	192.168.1.250
 SSH Port	22896
 User	selfwash
 Project	selfwashstation
-Domain	serverninhbinh.gotdns.ch
+Domain	selfwash.ddns.net
 Thư mục deploy	/opt/selfwashstation
 Frontend	Docker + Nginx container
 Backend	NodeJS Docker
@@ -92,7 +92,7 @@ Nội dung:
 
 server {
     listen 80;
-    server_name serverninhbinh.gotdns.ch;
+    server_name selfwash.ddns.net;
 
     location / {
         proxy_pass http://localhost:5190;
@@ -166,7 +166,7 @@ sudo apt install certbot python3-certbot-nginx -y
 
 Chạy:
 
-sudo certbot --nginx -d serverninhbinh.gotdns.ch
+sudo certbot --nginx -d selfwash.ddns.net
 
 Nó sẽ hỏi:
 
@@ -186,7 +186,7 @@ Sau khi xong sẽ tự sửa file Nginx.
 
 Mở:
 
-https://serverninhbinh.gotdns.ch
+https://selfwash.ddns.net
 
 Nếu hiện ổ khóa là OK.
 
